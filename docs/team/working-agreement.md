@@ -35,7 +35,7 @@ Service ownership (one lead per service, everyone reviews the others):
 ## 3. Working with Git
 
 - Work is tracked in **GitHub Issues**, with one issue per task and one owner.
-- One **branch per issue**, branched from `main`. Branches are created from the issue itself with GitHub's "Create a branch" option, which keeps GitHub's automatic naming (see [#2](../../../../issues/2)).
+- One **branch per issue**, branched from `main`. Branches are created from the issue itself with GitHub's "Create a branch" option, which keeps GitHub's automatic naming (details in [CONTRIBUTING.md](../../CONTRIBUTING.md)).
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (for example `feat: add library scan endpoint`).
 - No direct pushes to `main`: every change goes through a **pull request** with at least **one review from another learner**.
 - Reviews happen either in a **Discord call with screen sharing**, or by asking a teammate to review through the Discord conversation.
