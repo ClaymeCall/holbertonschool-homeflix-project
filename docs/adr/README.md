@@ -56,7 +56,8 @@ The pull request checklist asks whether the change needs an ADR, and reviewers c
 | [0013](0013-nginx-gateway.md) | Nginx as the single gateway | Accepted |
 | [0014](0014-qbittorrent-p2p-client.md) | Headless qBittorrent as the peer-to-peer client | Accepted |
 | [0015](0015-mp4-h264-aac-video-format.md) | MP4 with H.264 video and AAC audio as the supported format | Accepted |
+| [0016](0016-typescript-frontend.md) | TypeScript for the frontend | Accepted |
 
 ## Decisions still to make
 
-- Frontend language (JavaScript or TypeScript) and styling approach, to be decided by Thomas. They need their own ADRs once chosen.
+- Frontend styling approach, to be decided by Thomas. It needs its own ADR once chosen.
