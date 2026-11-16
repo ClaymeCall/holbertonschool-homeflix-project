@@ -57,6 +57,7 @@ The pull request checklist asks whether the change needs an ADR, and reviewers c
 | [0014](0014-qbittorrent-p2p-client.md) | Headless qBittorrent as the peer-to-peer client | Accepted |
 | [0015](0015-mp4-h264-aac-video-format.md) | MP4 with H.264 video and AAC audio as the supported format | Accepted |
 | [0016](0016-typescript-frontend.md) | TypeScript for the frontend | Accepted |
+| [0017](0017-gateway-api-routing-convention.md) | Gateway routes `/api/<service>/` and strips the prefix | Proposed |
 
 ## Decisions still to make
 
