@@ -88,6 +88,7 @@ A reviewer checks that:
 - the change does what the PR says, and nothing unrelated;
 - tests exist for new business rules, and they pass;
 - documentation is updated where needed;
+- any architecture decision in the change has an ADR (see below);
 - no secret, credential, personal data or media file is committed;
 - authorization and input validation are enforced on the server, not only in the interface.
 
@@ -96,6 +97,15 @@ A reviewer checks that:
 - Never commit real secrets, keys, passwords or tokens. Only `.env.example` with placeholders belongs in the repository, and real `.env` files stay local.
 - Do not commit media files unless they are the authorized demonstration files, with their source and licence documented.
 
+## Architecture decisions
+
+**Every architecture decision requires an ADR** (Architecture Decision Record) in [`docs/adr/`](docs/adr/README.md). This covers choosing or replacing a technology that others depend on, service boundaries and data ownership, service communication, identity and security behavior, API conventions, deployment and infrastructure, cross-cutting conventions, and reversing an earlier ADR. The [ADR README](docs/adr/README.md) lists what counts and what does not.
+
+- Write the ADR **before or in the same pull request** as the code or documents that depend on it. Copy [`docs/adr/template.md`](docs/adr/template.md).
+- An ADR is **accepted when its pull request is approved by another learner and merged**.
+- Do not edit an accepted ADR to change a decision. Write a new ADR that supersedes it.
+- Reviewers **must reject** a pull request that contains an architecture decision without an ADR.
+
 ## Documentation
 
-Update the relevant document in the same PR as the change. Architecture decisions go in `docs/` (see [the tech stack](docs/architecture/tech-stack.md)), and decisions that affect the architecture should be recorded as an ADR in `docs/adr/`.
+Update the relevant document in the same PR as the change. [`docs/architecture/tech-stack.md`](docs/architecture/tech-stack.md) summarizes the technology choices and links to their ADRs.
