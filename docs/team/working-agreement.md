@@ -1,7 +1,5 @@
 # Team Working Agreement
 
-> **Draft.** Items marked **TBD** need to be filled in or confirmed by the team.
-
 ## 1. Team
 
 | Learner | GitHub | Service lead | Other main responsibility |
