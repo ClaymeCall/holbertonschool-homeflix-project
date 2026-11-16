@@ -1,0 +1,3 @@
+-- Baseline migration for the acquisition service.
+-- Intentionally empty: it creates the Flyway history table and fixes the
+-- starting point. The first real tables arrive with their own migrations.
