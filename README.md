@@ -1,0 +1,45 @@
+# HomeFlix
+
+HomeFlix is a self-hosted video streaming platform for the home. It lets a household browse and watch videos stored on a computer, a personal server or a NAS, through a simple, welcoming web interface.
+
+> **Status:** Sprint 0, scope and architecture. The installation guide will be added once the Docker Compose environment is ready.
+
+## The scenario: movie night at home
+
+A household has a collection of videos on a NAS but no convenient way to watch them on the living-room laptop. HomeFlix connects to that library so that:
+
+- an **administrator** creates an account, connects the media folder and starts indexing;
+- **household members** sign in, choose their own profile, then find, play and resume a film;
+- each profile keeps its **own favourites ("My List") and viewing progress**.
+
+## What the MVP covers
+
+- Account and role management, and viewing profiles
+- Indexing of an authorized media folder, with no duplicates and with detection of missing files
+- Catalogue navigation: recently added, categories, favourites, continue watching, search by title, filter by genre
+- Movie pages with title, description, poster, genre, duration and availability
+- Browser playback with seeking (HTTP Range requests) and saved progress per profile
+- Authorized peer-to-peer acquisition of redistributable content, with a rights reminder
+
+## What it does not cover (yet)
+
+Universal transcoding, series, recommendations, parental controls, mobile or TV apps, remote Internet access, and support for every NAS or network protocol. See [docs/product/out-of-scope.md](docs/product/out-of-scope.md) once it is written.
+
+## Architecture in one paragraph
+
+HomeFlix is split into at least three Java/Spring Boot business microservices (identity and profiles, library and playback, acquisition), each running in its own container and owning its own data, behind a React frontend. Everything starts with Docker Compose. Details are in [docs/architecture/tech-stack.md](docs/architecture/tech-stack.md).
+
+## Documentation
+
+| Topic | File |
+|---|---|
+| Team and working agreement | [docs/team/working-agreement.md](docs/team/working-agreement.md) |
+| Technology stack | [docs/architecture/tech-stack.md](docs/architecture/tech-stack.md) |
+
+## Rights and peer-to-peer
+
+Peer-to-peer is only a transfer method. It does not grant permission to download or share a work. HomeFlix is only meant to be used with personal videos, your own creations, or content whose licence allows the intended use.
+
+## Team
+
+Built by [ClaymeCall](https://github.com/ClaymeCall), [Benji3106](https://github.com/Benji3106) and [tomsonne](https://github.com/tomsonne) as a Holberton School project.
