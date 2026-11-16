@@ -18,7 +18,7 @@ Service ownership (one lead per service, everyone reviews the others):
 
 ### Availability
 
-- **Project dates:** 16/11/2026 to 26/11/2026.
+- **Project dates:** work runs from 16/11/2026 to 26/11/2026. The oral presentation is on the afternoon of 27/11/2026. Some weekend work (21 and 22 November) is possible to make up time.
 - **Hours:** everyone works at least 9:00 to 17:00. When necessary, work can continue in the evening, until 22:00 at the latest.
 - **Location:** everyone works remotely, except on Fridays (on site).
 - **Known absences:** Thomas is not available on the first day (16/11/2026).
