@@ -1,0 +1,10 @@
+# Real configuration and secrets: never commit
+.env
+
+# Local runtime data (media library, downloads)
+data/
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/

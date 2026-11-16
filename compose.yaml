@@ -1,0 +1,114 @@
+# HomeFlix: start everything with `docker compose up --build`.
+# Copy .env.example to .env and fill in the passwords first.
+
+name: homeflix
+
+services:
+  # ---- Gateway: the only component published to the host (ADR-0013) ----
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    networks: [backend]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---- Business services (ADR-0003). No ports are published. ----
+  identity-service:
+    build: ./services/identity-service
+    networks: [backend]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  library-service:
+    build: ./services/library-service
+    networks: [backend]
+    restart: unless-stopped
+    volumes:
+      # Source library: read-only, the application never writes to it.
+      - ${MEDIA_LIBRARY_PATH:-./data/library}:/media/library:ro
+      # Completed downloads: read-only, so they can be indexed and played.
+      - ${DOWNLOADS_PATH:-./data/downloads}:/media/downloads:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  acquisition-service:
+    build: ./services/acquisition-service
+    networks: [backend, p2p]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8083/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  # ---- Database (ADR-0006): one server, one database and user per service ----
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-homeflix_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?Set IDENTITY_DB_PASSWORD in .env}
+      LIBRARY_DB_PASSWORD: ${LIBRARY_DB_PASSWORD:?Set LIBRARY_DB_PASSWORD in .env}
+      ACQUISITION_DB_PASSWORD: ${ACQUISITION_DB_PASSWORD:?Set ACQUISITION_DB_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks: [backend]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ---- Peer-to-peer client (ADR-0014): headless, no published port ----
+  # Reachable only by the acquisition service, over the private p2p network.
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Europe/Paris}
+      WEBUI_PORT: 8080
+    volumes:
+      - qbittorrent-config:/config
+      # Completed downloads land here: the only place this container writes media.
+      - ${DOWNLOADS_PATH:-./data/downloads}:/downloads
+    networks: [p2p]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  # Gateway, services and database.
+  backend: {}
+  # Acquisition service and qBittorrent only. Not marked internal because the
+  # client needs outbound access to reach peers.
+  p2p: {}
+
+volumes:
+  postgres-data: {}
+  qbittorrent-config: {}
