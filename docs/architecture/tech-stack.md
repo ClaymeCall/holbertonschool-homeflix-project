@@ -19,11 +19,15 @@
 | API contracts | Hand-written OpenAPI YAML in `docs/api/`, written before the code | Decided |
 | Backend tests | JUnit 5, Spring Boot Test, MockMvc, Testcontainers (PostgreSQL) | Decided |
 | CI | GitHub Actions | Decided |
-| Gateway / reverse proxy | Single entry point in front of frontend and services | Open |
-| Peer-to-peer client | Existing BitTorrent client driven through its API | Open |
-| Frontend build tool, routing, data fetching, styling, language | | Open |
-| Frontend tests | | Open |
-| Supported video format | Suggested: MP4, H.264 video, AAC audio | Open |
+| Gateway / reverse proxy | Nginx: single entry point, serves the React build and routes to the services | Decided |
+| Peer-to-peer client | qBittorrent, headless, controlled through its Web API | Decided |
+| Frontend build tool | Vite | Decided |
+| Frontend routing | React Router | Decided |
+| Frontend data fetching | Plain `fetch` | Decided |
+| Frontend tests | Vitest with React Testing Library | Decided |
+| Frontend language | JavaScript or TypeScript | Open (Thomas) |
+| Frontend styling | Plain CSS, Tailwind or other | Open (Thomas) |
+| Supported video format | MP4 container, H.264 video, AAC audio, with `faststart` | Decided |
 
 ## Decided
 
@@ -48,6 +52,15 @@ The frontend technology is open in the brief and must be justified.
 - Component model suits the repeated catalogue elements (cards, rows, player controls).
 - Good support for accessible, responsive interfaces.
 
+Supporting choices:
+
+- **Vite** as build tool and development server: the current standard for new React projects, fast to start and simple to configure. It replaces the deprecated Create React App.
+- **React Router** for routing between pages such as the home page, a movie page and the player.
+- **Plain `fetch`** for calling the APIs, because the application is small and needs no extra data library.
+- **Vitest with React Testing Library** for component tests, since both integrate directly with Vite.
+
+The frontend language (JavaScript or TypeScript) and the styling approach are left to Thomas, who leads the frontend design. HomeFlix must have its own visual identity, without copying existing streaming brands.
+
 ### Docker Compose
 The frontend, services and dependencies run together. The repository will include a Dockerfile per developed component, `compose.yaml`, `.env.example`, persistent volumes, health checks, and separate mounts for the source library (read-only) and downloads.
 
@@ -68,6 +81,20 @@ Services call each other through their documented REST APIs, using Spring's `Res
 
 This relies on the frontend and the APIs being served from the same origin, which must be confirmed with the gateway decision. Token lifetime, the handling of disabled accounts, and how the active profile is selected are defined in the identity and permissions document (see [#14](../../../../issues/14)).
 
+### Gateway: Nginx
+Nginx is the single public entry point. It serves the built React app and routes API paths (for example `/api/identity`, `/api/library`, `/api/acquisition`) to the matching service over the internal Docker network. Only the gateway publishes a port to the host. The services, the databases and the BitTorrent client are not reachable from outside. Because the frontend and the APIs share one origin, the `SameSite=Strict` cookie works without cross-origin configuration. Buffering is turned off on the video route so HTTP Range streaming works properly. Nginx only routes: each service still verifies identity and permissions itself.
+
+### Peer-to-peer client: qBittorrent
+HomeFlix integrates an existing BitTorrent client, as the brief allows, instead of building one. qBittorrent runs headless (a background daemon, for example the `linuxserver/qbittorrent` image), and the acquisition service controls it through its Web API: add a download, read its progress, cancel it.
+
+- The acquisition service owns the business rules: administrator-only access, a verified catalogue, and the state of each download in its own database. qBittorrent only transfers the data.
+- qBittorrent's Web API and its web interface share one port, so the container has **no published port** and sits on the internal Docker network. Only the acquisition service can reach it, which keeps the admin interface away from ordinary users.
+- Its default login must be replaced with credentials from environment variables, never committed.
+- Completed files go to a dedicated downloads directory, separate from the read-only source library.
+- Seeding after completion is limited, and the demo uses only a small file whose licence allows redistribution, with the evidence kept in the repository.
+
+Alternatives considered: Transmission (lighter, but its RPC needs a session-ID handshake on each call) and aria2 (no web interface at all, but fewer examples and less informative statuses).
+
 ### API contracts: hand-written OpenAPI
 OpenAPI YAML files live in `docs/api/` and are written before the implementation. They are the reference that the code and the AI agent's consistency review are checked against. They are not generated from the code.
 
@@ -77,9 +104,20 @@ JUnit 5 and Spring Boot Test for business rules and inter-service communication,
 ### Continuous integration: GitHub Actions
 On every pull request: build and test each service, build the frontend, and validate `compose.yaml`.
 
+### Supported video format: MP4, H.264, AAC
+The MVP documents one supported format: an **MP4** container with **H.264** video and **AAC** audio. All major browsers play it natively in a `<video>` element, and it works with HTTP Range requests so users can seek without downloading the whole file.
+
+- The MP4 file must have its index at the start (`faststart`), otherwise seeking is slow because the player must read to the end of the file first.
+- Other formats (for example MKV, AVI or H.265) are not supported. HomeFlix shows a clear "format not supported" message instead of failing silently.
+- Universal transcoding is out of scope.
+
+A compatible test file can be prepared with:
+
+```
+ffmpeg -i input.mov -c:v libx264 -c:a aac -movflags +faststart out.mp4
+```
+
 ## Open questions
 
-- **Gateway or reverse proxy.** Candidates: Nginx (serves the React build and routes to the services) or Spring Cloud Gateway.
-- **BitTorrent client**, and which API it offers for start, status and cancel. Candidates: qBittorrent, Transmission.
-- **Frontend details:** build tool, routing, data fetching, styling, TypeScript or JavaScript, and test tools.
-- **Supported video format.** The brief suggests MP4 with H.264 video and AAC audio.
+- **Frontend language:** JavaScript or TypeScript (Thomas).
+- **Frontend styling approach** (Thomas).
