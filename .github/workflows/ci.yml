@@ -1,0 +1,95 @@
+# Continuous integration (ADR-0012).
+# Runs on every pull request and on every push to main.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# The workflow only needs to read the repository.
+permissions:
+  contents: read
+
+# A new push to the same branch cancels the run that is still in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  services:
+    name: Service ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [identity-service, library-service, acquisition-service]
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: services/${{ matrix.service }}/pom.xml
+
+      # Compiles the service and runs its tests. Docker is available on the
+      # runner, so Testcontainers tests can start a real PostgreSQL later.
+      - name: Build and test
+        run: ./mvnw -B verify
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build (type check and bundle)
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+  docker:
+    name: Docker Compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # compose.yaml requires passwords. These are throwaway placeholders that
+      # only exist for this run, not real secrets.
+      - name: Create a placeholder environment file
+        run: |
+          {
+            echo "POSTGRES_PASSWORD=ci-placeholder"
+            echo "IDENTITY_DB_PASSWORD=ci-placeholder"
+            echo "LIBRARY_DB_PASSWORD=ci-placeholder"
+            echo "ACQUISITION_DB_PASSWORD=ci-placeholder"
+          } > "$RUNNER_TEMP/ci.env"
+
+      - name: Validate compose.yaml
+        run: docker compose --env-file "$RUNNER_TEMP/ci.env" config --quiet
+
+      # Builds the gateway (with the React app) and the three service images,
+      # which catches a broken Dockerfile before it reaches main.
+      - name: Build the images
+        run: docker compose --env-file "$RUNNER_TEMP/ci.env" build
