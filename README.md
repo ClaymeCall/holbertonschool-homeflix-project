@@ -40,6 +40,8 @@ HomeFlix is split into at least three Java/Spring Boot business microservices (i
 | Architecture decision records | [docs/adr/](docs/adr/README.md) |
 | Risk register | [docs/risks.md](docs/risks.md) |
 | API contracts (OpenAPI) | [docs/api/](docs/api/README.md) |
+| Data model (entities per service) | [docs/architecture/data-model.md](docs/architecture/data-model.md) |
+| Error model and outage behavior | [docs/architecture/error-model.md](docs/architecture/error-model.md) |
 | Demo: one service calls another | [docs/architecture/service-to-service-demo.md](docs/architecture/service-to-service-demo.md) |
 | Copyright and peer-to-peer awareness | [docs/copyright-and-p2p.md](docs/copyright-and-p2p.md) |
 | Contributing (branches, commits, pull requests) | [CONTRIBUTING.md](CONTRIBUTING.md) |
