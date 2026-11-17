@@ -5,7 +5,7 @@
 #   docker build -f gateway/Dockerfile -t homeflix-gateway .
 
 # ---- Build stage: compile the React app ----
-FROM node:22 AS build
+FROM node:22.23.5 AS build
 WORKDIR /app
 
 # Install dependencies first so this layer is cached until the lockfile changes.
@@ -16,7 +16,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # ---- Runtime stage: unprivileged Nginx ----
-FROM nginxinc/nginx-unprivileged:stable-alpine
+FROM nginxinc/nginx-unprivileged:1.30.6-alpine3.24
 COPY gateway/nginx.conf /etc/nginx/conf.d/default.conf
 COPY gateway/proxy-common.inc /etc/nginx/conf.d/proxy-common.inc
 COPY --from=build /app/dist /usr/share/nginx/html
