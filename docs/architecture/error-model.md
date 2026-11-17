@@ -81,7 +81,7 @@ A timeout, a refused connection, or a 5xx from the called service all become the
 
 | Situation | What the user sees | Rest of HomeFlix |
 |---|---|---|
-| Identity service down | Sign-in and account pages show the service-unavailable message | Already signed-in users keep browsing only while their token is valid and checked locally |
+| Identity service down | Sign-in and account pages show the service-unavailable message | What the other services do without identity depends on the identity design (issue #14) |
 | Library service down | Catalogue and player show the service-unavailable message, with a retry button | Sign-in still works |
 | Acquisition service down | Download screens show the service-unavailable message | Catalogue and playback are not affected |
 | Database down | The owning service answers 503 | The other services keep working |
