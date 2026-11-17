@@ -19,6 +19,7 @@ This page is a **summary**. The reasons, alternatives and consequences of each c
 | Backend tests | JUnit 5, Spring Boot Test, MockMvc, Testcontainers (PostgreSQL) | [0011](../adr/0011-backend-testing-strategy.md) |
 | CI | GitHub Actions | [0012](../adr/0012-github-actions-ci.md) |
 | Gateway | Nginx, the only publicly exposed component | [0013](../adr/0013-nginx-gateway.md) |
+| API routing | `/api/<service>/...`, prefix stripped by the gateway (proposed) | [0017](../adr/0017-gateway-api-routing-convention.md) |
 | Peer-to-peer client | qBittorrent, headless, internal network only, controlled through its Web API | [0014](../adr/0014-qbittorrent-p2p-client.md) |
 | Supported video format | MP4, H.264 video, AAC audio, with `faststart` | [0015](../adr/0015-mp4-h264-aac-video-format.md) |
 

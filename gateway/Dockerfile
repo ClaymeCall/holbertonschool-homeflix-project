@@ -18,6 +18,7 @@ RUN npm run build
 # ---- Runtime stage: unprivileged Nginx ----
 FROM nginxinc/nginx-unprivileged:stable-alpine
 COPY gateway/nginx.conf /etc/nginx/conf.d/default.conf
+COPY gateway/proxy-common.inc /etc/nginx/conf.d/proxy-common.inc
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Unprivileged Nginx listens on 8080.
