@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-11-16
-- **Deciders:** Clement Callejon. Thomas Rousseau (frontend lead) was absent when this was decided and has not yet reviewed it.
+- **Deciders:** Clement Callejon. Thomas Rousseau (frontend lead) was absent when this was decided; he reviewed and confirmed it on 2026-11-17 (issue #35, ADR-0019).
 - **Related:** issue #17, issue #21, ADR-0005
 
 ## Context

@@ -59,7 +59,8 @@ The pull request checklist asks whether the change needs an ADR, and reviewers c
 | [0016](0016-typescript-frontend.md) | TypeScript for the frontend | Accepted |
 | [0017](0017-gateway-api-routing-convention.md) | Gateway routes `/api/<service>/` and strips the prefix | Proposed |
 | [0018](0018-posters-as-allowlisted-external-urls.md) | Posters are external image URLs from an allowed host list | Proposed |
+| [0019](0019-frontend-styling-approach.md) | CSS Modules with design tokens in CSS custom properties | Proposed |
 
 ## Decisions still to make
 
-- Frontend styling approach, to be decided by Thomas. It needs its own ADR once chosen.
+None at the moment.
