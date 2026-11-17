@@ -28,3 +28,36 @@ export interface MediaDetails extends MediaSummary {
 export function getMedia(id: string, signal?: AbortSignal): Promise<MediaDetails> {
   return apiRequest<MediaDetails>(`${BASE}/media/${encodeURIComponent(id)}`, { signal })
 }
+
+/** A home screen category: the titles of one genre. */
+export interface Category {
+  genre: string
+  items: MediaSummary[]
+}
+
+export interface SearchFilters {
+  /** Part of a title; empty for no title filter. */
+  query: string
+  /** One genre from getGenres(); empty for all genres. */
+  genre: string
+}
+
+export function getRecentMedia(limit: number, signal?: AbortSignal): Promise<MediaSummary[]> {
+  return apiRequest<MediaSummary[]>(`${BASE}/media?sort=recent&limit=${limit}`, { signal })
+}
+
+export function getCategories(signal?: AbortSignal): Promise<Category[]> {
+  return apiRequest<Category[]>(`${BASE}/categories`, { signal })
+}
+
+export function searchMedia({ query, genre }: SearchFilters, signal?: AbortSignal): Promise<MediaSummary[]> {
+  const params = new URLSearchParams()
+  if (query) params.set('query', query)
+  if (genre) params.set('genre', genre)
+  const search = params.toString()
+  return apiRequest<MediaSummary[]>(`${BASE}/media${search ? `?${search}` : ''}`, { signal })
+}
+
+export function getGenres(signal?: AbortSignal): Promise<string[]> {
+  return apiRequest<string[]>(`${BASE}/genres`, { signal })
+}

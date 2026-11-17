@@ -1,0 +1,29 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.title {
+  padding-inline: var(--gutter);
+  font-size: 1.25rem;
+}
+
+.row {
+  display: grid;
+  grid-auto-columns: clamp(8.5rem, 28vw, 11.5rem);
+  grid-auto-flow: column;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.25rem var(--gutter) 0.75rem;
+  overflow-x: auto;
+  list-style: none;
+  scroll-padding-inline: var(--gutter);
+  scroll-snap-type: x proximity;
+  scrollbar-color: var(--surface-2) transparent;
+}
+
+.item {
+  scroll-snap-align: start;
+  min-width: 0;
+}
