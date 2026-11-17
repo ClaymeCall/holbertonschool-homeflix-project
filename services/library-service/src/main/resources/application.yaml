@@ -17,3 +17,10 @@ management:
       probes:
         enabled: true
       show-details: never
+
+# Where the identity service is reached on the Compose network (ADR-0008).
+homeflix:
+  identity:
+    base-url: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
+    connect-timeout: 2s
+    read-timeout: 5s

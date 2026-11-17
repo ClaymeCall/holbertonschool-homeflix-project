@@ -36,9 +36,11 @@ HomeFlix is split into at least three Java/Spring Boot business microservices (i
 | Team and working agreement | [docs/team/working-agreement.md](docs/team/working-agreement.md) |
 | Mandatory requirements checklist | [docs/product/requirements.md](docs/product/requirements.md) |
 | Technology stack | [docs/architecture/tech-stack.md](docs/architecture/tech-stack.md) |
+| Supported video format and conversion | [docs/user/supported-video-format.md](docs/user/supported-video-format.md) |
 | Architecture decision records | [docs/adr/](docs/adr/README.md) |
 | Risk register | [docs/risks.md](docs/risks.md) |
 | Data model (entities per service) | [docs/architecture/data-model.md](docs/architecture/data-model.md) |
+| Demo: one service calls another | [docs/architecture/service-to-service-demo.md](docs/architecture/service-to-service-demo.md) |
 | Copyright and peer-to-peer awareness | [docs/copyright-and-p2p.md](docs/copyright-and-p2p.md) |
 | Contributing (branches, commits, pull requests) | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
