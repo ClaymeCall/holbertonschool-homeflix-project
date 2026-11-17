@@ -56,7 +56,7 @@ describe('HomePage', () => {
   })
 
   it('tells a household member who to ask when the catalogue is empty', async () => {
-    home(() => jsonResponse([]), undefined, { ...testAccount, role: 'USER' })
+    home(() => jsonResponse([]), undefined, { ...testAccount, admin: false })
     renderApp('/')
     expect(await screen.findByText(/Demandez à l'administrateur/)).toBeInTheDocument()
   })

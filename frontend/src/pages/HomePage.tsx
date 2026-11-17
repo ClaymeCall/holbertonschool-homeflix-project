@@ -19,7 +19,7 @@ export function HomePage() {
   const { session } = useAuth()
   const load = useCallback((signal: AbortSignal) => loadHome(signal), [])
   const { state, reload } = useAsync(load)
-  const isAdmin = session.status === 'signedIn' && session.account.role === 'ADMIN'
+  const isAdmin = session.status === 'signedIn' && session.account.admin
 
   return (
     <div className={styles.page}>
