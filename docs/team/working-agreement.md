@@ -18,14 +18,14 @@ Service ownership (one lead per service, everyone reviews the others):
 
 ### Availability
 
-- **Project dates:** 16/11/2026 to 26/11/2026.
+- **Project dates:** work runs from 16/11/2026 to 26/11/2026. The oral presentation is on the afternoon of 27/11/2026. Some weekend work (21 and 22 November) is possible to make up time.
 - **Hours:** everyone works at least 9:00 to 17:00. When necessary, work can continue in the evening, until 22:00 at the latest.
 - **Location:** everyone works remotely, except on Fridays (on site).
 - **Known absences:** Thomas is not available on the first day (16/11/2026).
 
 ## 2. Communication and rituals
 
-- **Daily check-in** (short): what was done, what blocks, what is next. No fixed time: the team meets on a Discord call when needed. Where: Discord.
+- **Daily check-in** (short): what was done, what blocks, what is next. A written message in the Discord channel each day is enough, with no fixed time. The team meets on a Discord call only when needed. Where: Discord.
 - **Channel** for day-to-day questions: Discord.
 - **Every architecture decision requires an ADR** in [`docs/adr/`](../adr/README.md), accepted through a reviewed pull request (see [CONTRIBUTING.md](../../CONTRIBUTING.md#architecture-decisions)). Other decisions are noted in the relevant issue.
 - **Integrated review** on day 5 and **acceptance run** on day 9, as per the project schedule.
