@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Build stage: compile and package the service with Maven ----
-FROM maven:3-eclipse-temurin-21 AS build
+FROM maven:3.9.16-eclipse-temurin-21 AS build
 WORKDIR /build
 
 # Download dependencies first so this layer is cached until pom.xml changes.
@@ -14,7 +14,7 @@ RUN mvn -B -q -DskipTests package \
  && cp target/library-service-*.jar /build/app.jar
 
 # ---- Runtime stage: small JRE image, non-root user ----
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21.0.13_9-jre-alpine-3.24
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 COPY --from=build /build/app.jar app.jar
