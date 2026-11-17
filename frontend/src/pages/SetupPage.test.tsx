@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { callsTo, jsonResponse, mockApi, signedInRoutes } from '../test/http'
 import { renderApp } from '../test/render'
 
-const created = { id: 'a1', email: 'camille@maison.fr', admin: true }
+const created = { id: 'a1', email: 'camille@home.example', admin: true }
 
 function firstRun(setupRoute: () => Response = () => jsonResponse(created, 201)) {
   let setupRequired = true
@@ -20,48 +20,48 @@ function firstRun(setupRoute: () => Response = () => jsonResponse(created, 201))
 }
 
 async function fillSetup(email: string, password: string, confirmation = password) {
-  await userEvent.type(await screen.findByLabelText('Adresse e-mail'), email)
-  await userEvent.type(screen.getByLabelText('Mot de passe'), password)
-  await userEvent.type(screen.getByLabelText('Confirmer le mot de passe'), confirmation)
+  await userEvent.type(await screen.findByLabelText('Email address'), email)
+  await userEvent.type(screen.getByLabelText('Password'), password)
+  await userEvent.type(screen.getByLabelText('Confirm password'), confirmation)
 }
 
 describe('SetupPage', () => {
   it('is shown on first start, whatever page was requested', async () => {
     firstRun()
     renderApp('/movies/m1')
-    expect(await screen.findByRole('heading', { name: 'Bienvenue sur HomeFlix' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Welcome to HomeFlix' })).toBeInTheDocument()
   })
 
   it('is not reachable once an administrator exists', async () => {
     mockApi({ ...signedInRoutes(), 'GET /api/identity/auth/me': () => jsonResponse({}, 401) })
     renderApp('/setup')
-    expect(await screen.findByRole('heading', { name: 'Connexion' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
   })
 
   it('creates the first administrator, then asks to sign in', async () => {
     const fetch = firstRun()
     renderApp('/setup')
-    await fillSetup('  camille@maison.fr ', 'une phrase de passe')
-    await userEvent.click(screen.getByRole('button', { name: 'Créer le compte administrateur' }))
+    await fillSetup('  camille@home.example ', 'a long passphrase')
+    await userEvent.click(screen.getByRole('button', { name: 'Create the administrator account' }))
 
-    expect(await screen.findByRole('heading', { name: 'Connexion' })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('Le compte administrateur est créé')
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('The administrator account has been created')
     const [[, init]] = callsTo(fetch, 'POST /api/identity/setup/admin')
-    expect(JSON.parse(String(init?.body))).toEqual({ email: 'camille@maison.fr', password: 'une phrase de passe' })
+    expect(JSON.parse(String(init?.body))).toEqual({ email: 'camille@home.example', password: 'a long passphrase' })
   })
 
   it('explains invalid input and focuses the first invalid field', async () => {
     const fetch = firstRun()
     renderApp('/setup')
     await fillSetup('camille', 'court', 'autre')
-    await userEvent.click(screen.getByRole('button', { name: 'Créer le compte administrateur' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Create the administrator account' }))
 
-    const email = screen.getByLabelText('Adresse e-mail')
+    const email = screen.getByLabelText('Email address')
     expect(email).toHaveFocus()
     expect(email).toHaveAttribute('aria-invalid', 'true')
-    expect(email).toHaveAccessibleDescription(/adresse e-mail valide/)
-    expect(screen.getByLabelText('Mot de passe')).toHaveAccessibleDescription(/au moins 12 caractères/)
-    expect(screen.getByLabelText('Confirmer le mot de passe')).toHaveAccessibleDescription(/ne correspondent pas/)
+    expect(email).toHaveAccessibleDescription(/valid email address/)
+    expect(screen.getByLabelText('Password')).toHaveAccessibleDescription(/at least 12 characters/)
+    expect(screen.getByLabelText('Confirm password')).toHaveAccessibleDescription(/do not match/)
     expect(callsTo(fetch, 'POST /api/identity/setup/admin')).toHaveLength(0)
   })
 
@@ -69,29 +69,29 @@ describe('SetupPage', () => {
     const fetch = firstRun()
     renderApp('/setup')
     const long = 'é'.repeat(37) // 37 characters, 74 bytes in UTF-8
-    await fillSetup('camille@maison.fr', long)
-    await userEvent.click(screen.getByRole('button', { name: 'Créer le compte administrateur' }))
+    await fillSetup('camille@home.example', long)
+    await userEvent.click(screen.getByRole('button', { name: 'Create the administrator account' }))
 
-    expect(screen.getByLabelText('Mot de passe')).toHaveFocus()
-    expect(screen.getByLabelText('Mot de passe')).toHaveAccessibleDescription(/72 octets au maximum/)
+    expect(screen.getByLabelText('Password')).toHaveFocus()
+    expect(screen.getByLabelText('Password')).toHaveAccessibleDescription(/72 bytes at most/)
     expect(callsTo(fetch, 'POST /api/identity/setup/admin')).toHaveLength(0)
   })
 
-  it('shows the fields rejected by the server in French, never its own message', async () => {
+  it('explains the fields rejected by the server in its own words, never the server message', async () => {
     firstRun(() =>
       jsonResponse(
-        { error: 'validation_failed', message: 'Some fields are invalid.', fields: { email: 'Enter a valid email address.' } },
+        { error: 'validation_failed', message: 'Some fields are invalid.', fields: { email: 'must be a well-formed email address' } },
         400,
       ),
     )
     renderApp('/setup')
-    await fillSetup('camille@maison', 'une phrase de passe')
-    await userEvent.click(screen.getByRole('button', { name: 'Créer le compte administrateur' }))
+    await fillSetup('camille@home', 'a long passphrase')
+    await userEvent.click(screen.getByRole('button', { name: 'Create the administrator account' }))
 
-    const email = await screen.findByLabelText('Adresse e-mail')
+    const email = await screen.findByLabelText('Email address')
     await waitFor(() => expect(email).toHaveFocus())
-    expect(email).toHaveAccessibleDescription(/adresse e-mail valide/)
-    expect(screen.queryByText(/Enter a valid email/)).not.toBeInTheDocument()
+    expect(email).toHaveAccessibleDescription(/valid email address/)
+    expect(screen.queryByText(/well-formed/)).not.toBeInTheDocument()
   })
 
   it('tells the user when an administrator was created in the meantime', async () => {
@@ -99,26 +99,26 @@ describe('SetupPage', () => {
       jsonResponse({ error: 'setup_already_completed', message: 'HomeFlix is already set up. Sign in instead.' }, 409),
     )
     renderApp('/setup')
-    await fillSetup('camille@maison.fr', 'une phrase de passe')
-    await userEvent.click(screen.getByRole('button', { name: 'Créer le compte administrateur' }))
+    await fillSetup('camille@home.example', 'a long passphrase')
+    await userEvent.click(screen.getByRole('button', { name: 'Create the administrator account' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Un administrateur existe déjà')
-    await userEvent.click(screen.getByRole('button', { name: 'Aller à la connexion' }))
-    expect(await screen.findByRole('heading', { name: 'Connexion' })).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('An administrator already exists')
+    await userEvent.click(screen.getByRole('button', { name: 'Go to sign-in' }))
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
   })
 
   it('can be completed with the keyboard only', async () => {
     firstRun()
     renderApp('/setup')
-    await screen.findByLabelText('Adresse e-mail')
+    await screen.findByLabelText('Email address')
 
     await userEvent.tab()
-    await userEvent.keyboard('camille@maison.fr')
+    await userEvent.keyboard('camille@home.example')
     await userEvent.tab()
-    await userEvent.keyboard('une phrase de passe')
+    await userEvent.keyboard('a long passphrase')
     await userEvent.tab()
-    await userEvent.keyboard('une phrase de passe{Enter}')
+    await userEvent.keyboard('a long passphrase{Enter}')
 
-    expect(await screen.findByRole('heading', { name: 'Connexion' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
   })
 })

@@ -12,7 +12,7 @@ export function Poster({ src, title, className }: { src: string | null; title: s
 
   if (!src || failedSrc === src) {
     return (
-      <div className={`${classes} ${styles.placeholder}`} role="img" aria-label={`Affiche indisponible pour ${title}`}>
+      <div className={`${classes} ${styles.placeholder}`} role="img" aria-label={`Poster unavailable for ${title}`}>
         <LogoMark className={styles.mark} />
         <span className={styles.placeholderTitle} aria-hidden="true">
           {title}
@@ -25,7 +25,7 @@ export function Poster({ src, title, className }: { src: string | null; title: s
     <img
       className={classes}
       src={src}
-      alt={`Affiche de ${title}`}
+      alt={`Poster for ${title}`}
       loading="lazy"
       referrerPolicy="no-referrer"
       onError={() => setFailedSrc(src)}

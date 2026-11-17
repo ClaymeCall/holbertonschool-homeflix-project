@@ -50,7 +50,7 @@ describe('apiRequest', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
     const error = await apiRequest('/api/x').catch((e: unknown) => e)
     expect(error).toMatchObject({ status: 0 })
-    expect(describeError(error)).toMatch(/Impossible de joindre HomeFlix/)
+    expect(describeError(error)).toMatch(/HomeFlix cannot be reached/)
   })
 
   it('renews an expired session once and retries the request', async () => {

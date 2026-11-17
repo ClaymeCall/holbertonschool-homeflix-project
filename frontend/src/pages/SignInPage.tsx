@@ -9,16 +9,16 @@ import formStyles from '../components/Form.module.css'
 import { TextField } from '../components/TextField'
 
 const reasonMessage: Record<SignedOutReason, string> = {
-  expired: 'Votre session a expiré. Reconnectez-vous pour continuer.',
-  signedOut: 'Vous êtes déconnecté. À bientôt !',
-  setupDone: 'Le compte administrateur est créé. Connectez-vous pour commencer.',
+  expired: 'Your session has expired. Sign in again to continue.',
+  signedOut: 'You are signed out. See you soon!',
+  setupDone: 'The administrator account has been created. Sign in to get started.',
 }
 
 function signInErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.status === 401) return 'Adresse e-mail ou mot de passe incorrect.'
-    if (error.status === 403) return "Ce compte est désactivé. Contactez l'administrateur de la maison."
-    if (error.status === 429) return 'Trop de tentatives. Patientez un instant puis réessayez.'
+    if (error.status === 401) return 'Incorrect email address or password.'
+    if (error.status === 403) return 'This account is disabled. Contact the household administrator.'
+    if (error.status === 429) return 'Too many attempts. Wait a moment, then try again.'
   }
   return describeError(error)
 }
@@ -56,7 +56,7 @@ export function SignInPage() {
   }
 
   return (
-    <AuthLayout title="Connexion">
+    <AuthLayout title="Sign in">
       {reason && !formError && (
         <p className={formStyles.notice} role="status">
           {reasonMessage[reason]}
@@ -70,7 +70,7 @@ export function SignInPage() {
       <form className={formStyles.form} onSubmit={handleSubmit} noValidate aria-busy={submitting}>
         <TextField
           ref={emailRef}
-          label="Adresse e-mail"
+          label="Email address"
           name="email"
           type="email"
           autoComplete="username"
@@ -83,7 +83,7 @@ export function SignInPage() {
         />
         <TextField
           ref={passwordRef}
-          label="Mot de passe"
+          label="Password"
           name="password"
           type="password"
           autoComplete="current-password"
@@ -93,7 +93,7 @@ export function SignInPage() {
           required
         />
         <Button type="submit" className={formStyles.submit} disabled={submitting}>
-          {submitting ? 'Connexion…' : 'Se connecter'}
+          {submitting ? 'Signing in…' : 'Sign in'}
         </Button>
       </form>
     </AuthLayout>

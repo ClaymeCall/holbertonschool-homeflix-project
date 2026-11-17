@@ -10,7 +10,7 @@ function SessionPending() {
   if (session.status === 'unreachable') {
     return <ErrorState message={describeError(session.error)} onRetry={retry} />
   }
-  return <LoadingState label="Connexion à HomeFlix…" />
+  return <LoadingState label="Connecting to HomeFlix…" />
 }
 
 /** Protected screens: only for a signed-in account. The server enforces it too (SEC-02). */

@@ -6,7 +6,7 @@ import { renderApp } from '../test/render'
 
 const movie = {
   id: 'm1',
-  title: 'La Nuit des Étoiles',
+  title: 'Night of the Stars',
   description: null,
   posterUrl: null,
   genre: null,
@@ -25,71 +25,71 @@ function signedOut(login: Route = () => jsonResponse(testAccount)) {
 }
 
 async function signInWith(email: string, password: string) {
-  await userEvent.type(await screen.findByLabelText('Adresse e-mail'), email)
-  await userEvent.type(screen.getByLabelText('Mot de passe'), password)
-  await userEvent.click(screen.getByRole('button', { name: 'Se connecter' }))
+  await userEvent.type(await screen.findByLabelText('Email address'), email)
+  await userEvent.type(screen.getByLabelText('Password'), password)
+  await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 }
 
 describe('SignInPage', () => {
   it('signs in and goes back to the page that was requested', async () => {
     const fetch = signedOut()
     renderApp('/movies/m1')
-    await signInWith('camille@maison.fr', 'une phrase de passe')
+    await signInWith('camille@home.example', 'a long passphrase')
 
     expect(await screen.findByRole('heading', { name: movie.title })).toBeInTheDocument()
-    expect(screen.getByText('camille@maison.fr')).toBeInTheDocument()
+    expect(screen.getByText('camille@home.example')).toBeInTheDocument()
     const [[, init]] = callsTo(fetch, 'POST /api/identity/auth/login')
-    expect(JSON.parse(String(init?.body))).toEqual({ email: 'camille@maison.fr', password: 'une phrase de passe' })
+    expect(JSON.parse(String(init?.body))).toEqual({ email: 'camille@home.example', password: 'a long passphrase' })
   })
 
   it('shows a clear message for wrong credentials and clears the password', async () => {
     signedOut(() => jsonResponse({ error: 'bad_credentials' }, 401))
     renderApp('/sign-in')
-    await signInWith('camille@maison.fr', 'mauvais')
+    await signInWith('camille@home.example', 'wrong')
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Adresse e-mail ou mot de passe incorrect.')
-    expect(screen.getByLabelText('Mot de passe')).toHaveValue('')
-    expect(screen.getByLabelText('Mot de passe')).toHaveFocus()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Incorrect email address or password.')
+    expect(screen.getByLabelText('Password')).toHaveValue('')
+    expect(screen.getByLabelText('Password')).toHaveFocus()
   })
 
   it('explains that a disabled account cannot sign in', async () => {
     signedOut(() => jsonResponse({ error: 'account_disabled' }, 403))
     renderApp('/sign-in')
-    await signInWith('camille@maison.fr', 'une phrase de passe')
-    expect(await screen.findByRole('alert')).toHaveTextContent('Ce compte est désactivé')
+    await signInWith('camille@home.example', 'a long passphrase')
+    expect(await screen.findByRole('alert')).toHaveTextContent('This account is disabled')
   })
 
   it('asks for both fields before sending anything', async () => {
     const fetch = signedOut()
     renderApp('/sign-in')
-    await userEvent.click(await screen.findByRole('button', { name: 'Se connecter' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Sign in' }))
 
-    expect(screen.getByLabelText('Adresse e-mail')).toHaveFocus()
-    expect(screen.getByLabelText('Adresse e-mail')).toHaveAccessibleDescription('Saisissez votre adresse e-mail.')
-    expect(screen.getByLabelText('Mot de passe')).toHaveAccessibleDescription('Saisissez votre mot de passe.')
+    expect(screen.getByLabelText('Email address')).toHaveFocus()
+    expect(screen.getByLabelText('Email address')).toHaveAccessibleDescription('Enter your email address.')
+    expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Enter your password.')
     expect(callsTo(fetch, 'POST /api/identity/auth/login')).toHaveLength(0)
   })
 
   it('can be used with the keyboard only', async () => {
     signedOut()
     renderApp('/sign-in')
-    await screen.findByLabelText('Adresse e-mail')
+    await screen.findByLabelText('Email address')
 
     await userEvent.tab()
-    await userEvent.keyboard('camille@maison.fr')
+    await userEvent.keyboard('camille@home.example')
     await userEvent.tab()
-    await userEvent.keyboard('une phrase de passe{Enter}')
+    await userEvent.keyboard('a long passphrase{Enter}')
 
-    expect(await screen.findByRole('button', { name: 'Se déconnecter' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Sign out' })).toBeInTheDocument()
   })
 
   it('signs out and says so', async () => {
     const fetch = mockApi(signedInRoutes())
     renderApp('/')
-    await userEvent.click(await screen.findByRole('button', { name: 'Se déconnecter' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
 
-    expect(await screen.findByRole('heading', { name: 'Connexion' })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('Vous êtes déconnecté')
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('You are signed out')
     expect(callsTo(fetch, 'POST /api/identity/auth/logout')).toHaveLength(1)
   })
 
@@ -101,8 +101,8 @@ describe('SignInPage', () => {
     })
     renderApp('/movies/m1')
 
-    expect(await screen.findByRole('heading', { name: 'Connexion' })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('Votre session a expiré')
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Your session has expired')
   })
 
   it('renews the session silently when it can', async () => {

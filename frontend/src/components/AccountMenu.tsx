@@ -18,12 +18,12 @@ export function AccountMenu() {
   return (
     <div className={styles.menu}>
       <span className={styles.account}>
-        <span className="visually-hidden">Connecté en tant que </span>
+        <span className="visually-hidden">Signed in as </span>
         <span className={styles.email}>{account.email}</span>
         {account.admin && <span className={styles.role}>Admin</span>}
       </span>
       <Button variant="secondary" onClick={handleSignOut} disabled={signingOut}>
-        {signingOut ? 'Déconnexion…' : 'Se déconnecter'}
+        {signingOut ? 'Signing out…' : 'Sign out'}
       </Button>
     </div>
   )

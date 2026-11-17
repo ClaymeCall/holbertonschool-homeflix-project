@@ -8,19 +8,19 @@ describe('App', () => {
   it('shows the HomeFlix logo linking to the home page', async () => {
     mockApi(signedInRoutes())
     renderApp('/')
-    expect(await screen.findByRole('link', { name: 'HomeFlix, accueil' })).toHaveAttribute('href', '/')
+    expect(await screen.findByRole('link', { name: 'HomeFlix, home' })).toHaveAttribute('href', '/')
   })
 
   it('offers a skip link to the main content', async () => {
     mockApi(signedInRoutes())
     renderApp('/')
-    expect(await screen.findByRole('link', { name: 'Aller au contenu' })).toHaveAttribute('href', '#contenu')
+    expect(await screen.findByRole('link', { name: 'Skip to content' })).toHaveAttribute('href', '#content')
   })
 
   it('shows a not found page for unknown paths', async () => {
     mockApi(signedInRoutes())
     renderApp('/nowhere')
-    expect(await screen.findByRole('heading', { name: 'Page introuvable' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
   })
 
   it('explains when HomeFlix cannot be reached and lets the user retry', async () => {
@@ -36,10 +36,10 @@ describe('App', () => {
     )
     renderApp('/')
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Impossible de joindre HomeFlix')
+    expect(await screen.findByRole('alert')).toHaveTextContent('HomeFlix cannot be reached')
     reachable = true
-    await userEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
-    expect(await screen.findByRole('button', { name: 'Se déconnecter' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('button', { name: 'Sign out' })).toBeInTheDocument()
   })
 
   it('never shows technical details from the server', async () => {

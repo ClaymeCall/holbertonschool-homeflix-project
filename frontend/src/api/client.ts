@@ -109,7 +109,7 @@ async function parse<T>(response: Response): Promise<T> {
  * Reads the error body `{"error", "message", "fields"}` of the gateway and the
  * services (#125, to align with the common format, issue #16). Only the code and
  * the field names are kept. The server's messages are never shown to the user:
- * the interface writes its own plain-language French text (SEC-04).
+ * the interface writes its own plain-language text (SEC-04).
  */
 async function readErrorBody(response: Response): Promise<{ code?: string; fields: string[] }> {
   try {

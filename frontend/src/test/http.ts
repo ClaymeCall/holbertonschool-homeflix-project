@@ -14,7 +14,7 @@ export function emptyResponse(status = 204): Response {
 
 export type Route = (request: { url: URL; init: RequestInit | undefined }) => Response | Promise<Response>
 
-export const testAccount: Account = { id: 'a1', email: 'camille@maison.fr', admin: true }
+export const testAccount: Account = { id: 'a1', email: 'camille@home.example', admin: true }
 
 /** Routes for a signed-in household where setup is already done. */
 export function signedInRoutes(account: Account = testAccount): Record<string, Route> {

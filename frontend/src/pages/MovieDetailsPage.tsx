@@ -11,8 +11,8 @@ import { useAsync } from '../hooks/useAsync'
 import styles from './MovieDetailsPage.module.css'
 
 const unavailableReason: Record<Exclude<MediaDetails['availability'], 'AVAILABLE'>, string> = {
-  UNAVAILABLE: "Ce film ne peut pas être lu pour le moment : son fichier est introuvable dans la bibliothèque.",
-  DOWNLOADING: 'Ce film est en cours de téléchargement. Il pourra être lu une fois le téléchargement terminé.',
+  UNAVAILABLE: 'This film cannot be played at the moment: its file cannot be found in the library.',
+  DOWNLOADING: 'This film is downloading. It can be played once the download has finished.',
 }
 
 export function MovieDetailsPage() {
@@ -21,15 +21,15 @@ export function MovieDetailsPage() {
   const { state, reload } = useAsync(load)
 
   if (state.status === 'loading') {
-    return <LoadingState label="Chargement du film…" />
+    return <LoadingState label="Loading the film…" />
   }
 
   if (state.status === 'error') {
     if (isNotFound(state.error)) {
       return (
-        <ErrorState title="Film introuvable" message="Ce film n'existe pas ou a été retiré du catalogue.">
+        <ErrorState title="Film not found" message="This film does not exist or has been removed from the catalogue.">
           <ButtonLink to="/" variant="secondary">
-            Retour à l'accueil
+            Back to home
           </ButtonLink>
         </ErrorState>
       )
@@ -55,14 +55,14 @@ function MovieDetails({ media }: { media: MediaDetails }) {
           <dl className={styles.meta}>
             <div>
               <dt className="visually-hidden">Genre</dt>
-              <dd className={media.genre ? undefined : styles.missing}>{media.genre ?? 'Genre non renseigné'}</dd>
+              <dd className={media.genre ? undefined : styles.missing}>{media.genre ?? 'Genre not specified'}</dd>
             </div>
             <div>
-              <dt className="visually-hidden">Durée</dt>
-              <dd className={duration ? undefined : styles.missing}>{duration ?? 'Durée inconnue'}</dd>
+              <dt className="visually-hidden">Duration</dt>
+              <dd className={duration ? undefined : styles.missing}>{duration ?? 'Unknown duration'}</dd>
             </div>
             <div>
-              <dt className="visually-hidden">Disponibilité</dt>
+              <dt className="visually-hidden">Availability</dt>
               <dd>
                 <AvailabilityBadge availability={media.availability} />
               </dd>
@@ -70,20 +70,20 @@ function MovieDetails({ media }: { media: MediaDetails }) {
           </dl>
 
           <p className={media.description ? styles.description : `${styles.description} ${styles.missing}`}>
-            {media.description ?? 'Aucune description disponible pour ce film.'}
+            {media.description ?? 'No description available for this film.'}
           </p>
 
           <div className={styles.actions}>
             {media.availability === 'AVAILABLE' ? (
               <ButtonLink to={`/watch/${encodeURIComponent(media.id)}`}>
                 <PlayIcon />
-                Lire
+                Play
               </ButtonLink>
             ) : (
               <>
                 <Button disabled aria-describedby="play-unavailable">
                   <PlayIcon />
-                  Lire
+                  Play
                 </Button>
                 <p id="play-unavailable" className={styles.unavailable}>
                   {unavailableReason[media.availability]}

@@ -3,24 +3,24 @@ import { ApiError } from './client'
 /** Plain-language message for an API failure, with no technical details (SEC-04, UX-05). */
 export function describeError(error: unknown): string {
   if (!(error instanceof ApiError)) {
-    return 'Une erreur inattendue est survenue. Réessayez dans un instant.'
+    return 'Something unexpected went wrong. Please try again in a moment.'
   }
   switch (error.status) {
     case 0:
-      return 'Impossible de joindre HomeFlix. Vérifiez votre connexion puis réessayez.'
+      return 'HomeFlix cannot be reached. Check your connection, then try again.'
     case 400:
     case 422:
-      return 'Certaines informations sont invalides. Vérifiez-les puis réessayez.'
+      return 'Some of the information is not valid. Check it, then try again.'
     case 401:
-      return 'Votre session a expiré. Reconnectez-vous pour continuer.'
+      return 'Your session has expired. Sign in again to continue.'
     case 403:
-      return "Vous n'avez pas accès à cette page."
+      return 'You do not have access to this page.'
     case 404:
-      return "Cet élément est introuvable. Il a peut-être été retiré."
+      return 'This item cannot be found. It may have been removed.'
     case 503:
-      return 'Ce service est momentanément indisponible. Réessayez dans un instant.'
+      return 'This service is temporarily unavailable. Please try again in a moment.'
     default:
-      return 'Une erreur est survenue de notre côté. Réessayez dans un instant.'
+      return 'Something went wrong on our side. Please try again in a moment.'
   }
 }
 

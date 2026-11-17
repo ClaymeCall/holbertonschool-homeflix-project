@@ -10,15 +10,15 @@ const EMAIL_MAX_LENGTH = 254
 /** Deliberately loose: the server makes the real check. */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/
 
-export const EMAIL_INVALID = 'Saisissez une adresse e-mail valide, par exemple nom@exemple.fr.'
-export const PASSWORD_TOO_LONG = `Le mot de passe est trop long : ${PASSWORD_MAX_BYTES} octets au maximum (une lettre accentuée compte pour deux).`
+export const EMAIL_INVALID = 'Enter a valid email address, for example name@example.com.'
+export const PASSWORD_TOO_LONG = `The password is too long: ${PASSWORD_MAX_BYTES} bytes at most (an accented letter counts as two).`
 
 export type FieldErrors<K extends string> = Partial<Record<K, string>>
 
 export function validateSignIn(values: { email: string; password: string }): FieldErrors<'email' | 'password'> {
   const errors: FieldErrors<'email' | 'password'> = {}
-  if (!values.email.trim()) errors.email = 'Saisissez votre adresse e-mail.'
-  if (!values.password) errors.password = 'Saisissez votre mot de passe.'
+  if (!values.email.trim()) errors.email = 'Enter your email address.'
+  if (!values.password) errors.password = 'Enter your password.'
   return errors
 }
 
@@ -30,23 +30,23 @@ export function validateSetup(values: {
   const errors: FieldErrors<'email' | 'password' | 'confirmation'> = {}
   const email = values.email.trim()
   if (!email) {
-    errors.email = 'Saisissez une adresse e-mail.'
+    errors.email = 'Enter an email address.'
   } else if (email.length > EMAIL_MAX_LENGTH) {
-    errors.email = `L'adresse e-mail est trop longue : ${EMAIL_MAX_LENGTH} caractères au maximum.`
+    errors.email = `The email address is too long: ${EMAIL_MAX_LENGTH} characters at most.`
   } else if (!EMAIL_PATTERN.test(email)) {
     errors.email = EMAIL_INVALID
   }
   if (!values.password) {
-    errors.password = 'Choisissez un mot de passe.'
+    errors.password = 'Choose a password.'
   } else if (values.password.length < PASSWORD_MIN_LENGTH) {
-    errors.password = `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères.`
+    errors.password = `The password must be at least ${PASSWORD_MIN_LENGTH} characters long.`
   } else if (new TextEncoder().encode(values.password).length > PASSWORD_MAX_BYTES) {
     errors.password = PASSWORD_TOO_LONG
   }
   if (!values.confirmation) {
-    errors.confirmation = 'Confirmez le mot de passe.'
+    errors.confirmation = 'Confirm the password.'
   } else if (values.confirmation !== values.password) {
-    errors.confirmation = 'Les deux mots de passe ne correspondent pas.'
+    errors.confirmation = 'The two passwords do not match.'
   }
   return errors
 }

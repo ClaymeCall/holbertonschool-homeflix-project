@@ -16,10 +16,10 @@ import { TextField } from '../components/TextField'
 
 type Field = 'email' | 'password' | 'confirmation'
 
-/** French text for a field the server rejected (400 `validation_failed`). Its own message is never shown. */
+/** Text shown for a field the server rejected (400 `validation_failed`). Its own message is never shown. */
 const serverFieldError: Record<'email' | 'password', string> = {
   email: EMAIL_INVALID,
-  password: `Ce mot de passe n'est pas accepté. Utilisez au moins ${PASSWORD_MIN_LENGTH} caractères et au plus ${PASSWORD_MAX_BYTES} octets.`,
+  password: `This password is not accepted. Use at least ${PASSWORD_MIN_LENGTH} characters and no more than ${PASSWORD_MAX_BYTES} bytes.`,
 }
 
 /** First-run setup: creates the first administrator. Only shown while none exists (ACC-01, ACC-02). */
@@ -53,7 +53,7 @@ export function SetupPage() {
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setAlreadyDone(true)
-        setFormError('Un administrateur existe déjà. Connectez-vous avec son compte.')
+        setFormError('An administrator already exists. Sign in with that account.')
       } else if (error instanceof ApiError && error.code === 'validation_failed' && error.fields.length > 0) {
         const rejected: FieldErrors<Field> = {}
         if (error.fields.includes('email')) rejected.email = serverFieldError.email
@@ -71,11 +71,11 @@ export function SetupPage() {
 
   return (
     <AuthLayout
-      title="Bienvenue sur HomeFlix"
+      title="Welcome to HomeFlix"
       intro={
         <p>
-          Créez le compte administrateur de la maison. Il servira à connecter la bibliothèque de films et à créer les
-          comptes des autres membres du foyer.
+          Create the administrator account for your household. You will use it to connect the film library and to
+          create accounts for the other members of the household.
         </p>
       }
     >
@@ -85,13 +85,13 @@ export function SetupPage() {
         </div>
       )}
       {alreadyDone ? (
-        <Button onClick={retry}>Aller à la connexion</Button>
+        <Button onClick={retry}>Go to sign-in</Button>
       ) : (
         <form className={formStyles.form} onSubmit={handleSubmit} noValidate aria-busy={submitting}>
           <TextField
             ref={emailRef}
-            label="Adresse e-mail"
-            hint="Elle servira d'identifiant pour vous connecter."
+            label="Email address"
+            hint="You will use it to sign in."
             name="email"
             type="email"
             autoComplete="username"
@@ -104,8 +104,8 @@ export function SetupPage() {
           />
           <TextField
             ref={passwordRef}
-            label="Mot de passe"
-            hint={`Au moins ${PASSWORD_MIN_LENGTH} caractères. Une phrase facile à retenir fonctionne bien.`}
+            label="Password"
+            hint={`At least ${PASSWORD_MIN_LENGTH} characters. A phrase that is easy to remember works well.`}
             name="password"
             type="password"
             autoComplete="new-password"
@@ -116,7 +116,7 @@ export function SetupPage() {
           />
           <TextField
             ref={confirmationRef}
-            label="Confirmer le mot de passe"
+            label="Confirm password"
             name="confirmation"
             type="password"
             autoComplete="new-password"
@@ -126,7 +126,7 @@ export function SetupPage() {
             required
           />
           <Button type="submit" className={formStyles.submit} disabled={submitting}>
-            {submitting ? 'Création du compte…' : 'Créer le compte administrateur'}
+            {submitting ? 'Creating the account…' : 'Create the administrator account'}
           </Button>
         </form>
       )}
