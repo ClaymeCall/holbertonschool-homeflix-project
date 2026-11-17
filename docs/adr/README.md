@@ -61,6 +61,7 @@ The pull request checklist asks whether the change needs an ADR, and reviewers c
 | [0018](0018-posters-as-allowlisted-external-urls.md) | Posters are external image URLs from an allowed host list | Proposed |
 | [0019](0019-frontend-styling-approach.md) | CSS Modules with design tokens in CSS custom properties | Proposed |
 | [0020](0020-common-error-format-and-outage-behavior.md) | Common error format, timeouts and retries for service calls | Proposed |
+| [0021](0021-english-only-interface.md) | English-only interface, server messages shown as written (supersedes part of ADR-0020) | Proposed |
 
 ## Decisions still to make
 
