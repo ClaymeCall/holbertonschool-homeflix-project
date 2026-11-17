@@ -23,32 +23,32 @@ export function HomePage() {
 
   return (
     <div className={styles.page}>
-      <title>Accueil · HomeFlix</title>
+      <title>Home · HomeFlix</title>
       <section className={styles.welcome}>
-        <h1 className={styles.title}>Ce soir, on regarde quoi ?</h1>
-        <p className={styles.text}>Tous les films de la maison, au même endroit.</p>
+        <h1 className={styles.title}>What shall we watch tonight?</h1>
+        <p className={styles.text}>All your household's films, in one place.</p>
         <ButtonLink to="/search" variant="secondary" className={styles.searchLink}>
           <SearchIcon />
-          Rechercher un film
+          Search for a film
         </ButtonLink>
       </section>
 
-      {state.status === 'loading' && <LoadingState label="Chargement du catalogue…" />}
+      {state.status === 'loading' && <LoadingState label="Loading the catalogue…" />}
 
       {state.status === 'error' && <ErrorState message={describeError(state.error)} onRetry={reload} />}
 
       {state.status === 'success' &&
         (state.data.recent.length === 0 && state.data.categories.length === 0 ? (
-          <EmptyState title="Le catalogue est vide">
+          <EmptyState title="The catalogue is empty">
             <p>
               {isAdmin
-                ? "Connectez un dossier de films puis lancez l'indexation pour remplir le catalogue."
-                : "Aucun film n'a encore été ajouté. Demandez à l'administrateur de la maison de connecter la bibliothèque."}
+                ? "Connect a film folder, then run indexing to fill the catalogue."
+                : "No films have been added yet. Ask your household administrator to connect the library."}
             </p>
           </EmptyState>
         ) : (
           <div className={styles.sections}>
-            {state.data.recent.length > 0 && <MediaRow title="Ajouts récents" items={state.data.recent} />}
+            {state.data.recent.length > 0 && <MediaRow title="Recently added" items={state.data.recent} />}
             {state.data.categories.map((category) => (
               <MediaRow key={category.genre} title={category.genre} items={category.items} />
             ))}

@@ -12,8 +12,8 @@ const QUERY_MAX_LENGTH = 100
 
 function resultsLabel(count: number, query: string, genre: string): string {
   const films = count === 1 ? '1 film' : `${count} films`
-  const filters = [query && `pour « ${query} »`, genre && `dans le genre ${genre}`].filter(Boolean).join(' ')
-  return filters ? `${films} ${filters}` : `${films} dans le catalogue`
+  const filters = [query && `for ‘${query}’`, genre && `in ${genre}`].filter(Boolean).join(' ')
+  return filters ? `${films} ${filters}` : `${films} in the catalogue`
 }
 
 export function SearchPage() {
@@ -58,13 +58,13 @@ export function SearchPage() {
 
   return (
     <div className={styles.page}>
-      <title>{query ? `Recherche « ${query} » · HomeFlix` : 'Rechercher · HomeFlix'}</title>
-      <h1 className={styles.title}>Rechercher</h1>
+      <title>{query ? `Search ‘${query}’ · HomeFlix` : 'Search · HomeFlix'}</title>
+      <h1 className={styles.title}>Search</h1>
 
       <form className={styles.filters} role="search" onSubmit={handleSubmit}>
         <div className={styles.field}>
           <label htmlFor={queryId} className={styles.label}>
-            Titre
+            Title
           </label>
           <div className={styles.queryRow}>
             <input
@@ -74,11 +74,11 @@ export function SearchPage() {
               name="q"
               value={draft}
               maxLength={QUERY_MAX_LENGTH}
-              placeholder="Ex. : La Nuit des Étoiles"
+              placeholder="e.g. Night of the Stars"
               autoComplete="off"
               onChange={(event) => setDraft(event.target.value)}
             />
-            <Button type="submit">Rechercher</Button>
+            <Button type="submit">Search</Button>
           </div>
         </div>
 
@@ -95,7 +95,7 @@ export function SearchPage() {
             aria-describedby={genres.status === 'error' ? `${genreId}-error` : undefined}
             onChange={(event) => applyFilters({ query: draft, genre: event.target.value })}
           >
-            <option value="">Tous les genres</option>
+            <option value="">All genres</option>
             {genres.status === 'success' &&
               genres.data.map((name) => (
                 <option key={name} value={name}>
@@ -109,14 +109,14 @@ export function SearchPage() {
           </select>
           {genres.status === 'error' && (
             <p id={`${genreId}-error`} className={styles.hint}>
-              La liste des genres n'a pas pu être chargée.
+              The list of genres could not be loaded.
             </p>
           )}
         </div>
       </form>
 
       <div className={styles.results}>
-        {results.status === 'loading' && <LoadingState label="Recherche en cours…" />}
+        {results.status === 'loading' && <LoadingState label="Searching…" />}
 
         {results.status === 'error' && <ErrorState message={describeError(results.error)} onRetry={reload} />}
 
@@ -126,20 +126,20 @@ export function SearchPage() {
               {resultsLabel(results.data.length, query, genre)}
             </p>
             {results.data.length === 0 ? (
-              <EmptyState title={hasFilters ? 'Aucun film trouvé' : 'Le catalogue est vide'}>
+              <EmptyState title={hasFilters ? 'No films found' : 'The catalogue is empty'}>
                 {hasFilters ? (
                   <>
-                    <p>Vérifiez l'orthographe ou essayez un autre genre.</p>
+                    <p>Check the spelling or try another genre.</p>
                     <Button variant="secondary" className={styles.clear} onClick={() => applyFilters({ query: '', genre: '' })}>
-                      Effacer la recherche
+                      Clear search
                     </Button>
                   </>
                 ) : (
-                  <p>Aucun film n'a encore été ajouté à la bibliothèque.</p>
+                  <p>No films have been added to the library yet.</p>
                 )}
               </EmptyState>
             ) : (
-              <MediaGrid items={results.data} label="Résultats de la recherche" />
+              <MediaGrid items={results.data} label="Search results" />
             )}
           </>
         )}

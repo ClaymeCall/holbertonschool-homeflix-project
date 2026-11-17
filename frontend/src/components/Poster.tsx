@@ -25,7 +25,7 @@ export function Poster({
     return (
       <div
         className={`${classes} ${styles.placeholder}`}
-        {...(decorative ? { 'aria-hidden': true } : { role: 'img', 'aria-label': `Affiche indisponible pour ${title}` })}
+        {...(decorative ? { 'aria-hidden': true } : { role: 'img', 'aria-label': `Poster unavailable for ${title}` })}
       >
         <LogoMark className={styles.mark} />
         <span className={styles.placeholderTitle} aria-hidden="true">
@@ -39,7 +39,7 @@ export function Poster({
     <img
       className={classes}
       src={src}
-      alt={decorative ? '' : `Affiche de ${title}`}
+      alt={decorative ? '' : `Poster for ${title}`}
       loading="lazy"
       referrerPolicy="no-referrer"
       onError={() => setFailedSrc(src)}

@@ -17,12 +17,12 @@ export function AppLayout() {
         <Link to="/" className={styles.home} aria-label="HomeFlix, home">
           <Logo />
         </Link>
-        <nav className={styles.nav} aria-label="Navigation principale">
+        <nav className={styles.nav} aria-label="Main navigation">
           <NavLink to="/" end className={navClass}>
-            Accueil
+            Home
           </NavLink>
           <NavLink to="/search" className={navClass}>
-            Rechercher
+            Search
           </NavLink>
         </nav>
         <AccountMenu />
