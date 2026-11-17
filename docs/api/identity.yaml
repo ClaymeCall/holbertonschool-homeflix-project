@@ -1,0 +1,410 @@
+# Identity service contract (ADR-0010). Written before the implementation.
+# Setup follows the implementation in the first-administrator setup pull request (#125).
+openapi: 3.1.0
+info:
+  title: HomeFlix identity service
+  version: 0.1.0
+  description: |
+    Accounts, first-run setup, sessions and viewing profiles.
+
+    Paths are those of the service. Through the gateway they are served under `/api/identity`
+    (ADR-0017), which is the server URL below.
+
+    **Permissions** are written on each operation as `x-permission`:
+    `anonymous`, `account` (signed in), `profile` (signed in with an active profile) or `admin`.
+    The server enforces them; the interface only reflects them (SEC-02).
+
+    **Errors** use the common body of `common.yaml` (ADR-0020).
+servers:
+  - url: /api/identity
+    description: Through the gateway
+tags:
+  - name: Setup
+  - name: Session
+  - name: Profiles
+security: []
+paths:
+  /setup/status:
+    get:
+      tags: [Setup]
+      operationId: getSetupStatus
+      summary: Tell whether the first-run setup is still open
+      description: Public by design, because no account exists before setup and the interface must be able to ask.
+      x-permission: anonymous
+      responses:
+        '200':
+          description: Whether the first administrator still has to be created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetupStatus'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /setup/admin:
+    post:
+      tags: [Setup]
+      operationId: createFirstAdministrator
+      summary: Create the first administrator
+      description: |
+        Only works while no administrator exists, and is checked on the server (R-07). Two simultaneous
+        requests create at most one administrator. The password is stored as a BCrypt hash and is never returned.
+        The new administrator then signs in with `POST /auth/sign-in`.
+      x-permission: anonymous
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetupRequest'
+      responses:
+        '201':
+          description: Administrator created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '409':
+          description: An administrator already exists (`setup_already_completed`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                default:
+                  value:
+                    error: setup_already_completed
+                    message: HomeFlix is already set up. Sign in instead.
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /auth/sign-in:
+    post:
+      tags: [Session]
+      operationId: signIn
+      summary: Sign in
+      description: |
+        Sets the session cookie (token valid for about 15 minutes, renewed with `/auth/refresh`).
+        An unknown email, a wrong password and a disabled account all answer the same `invalid_credentials`,
+        so the response does not reveal which accounts exist (ACC-10).
+        The new session has no active profile yet: choose one with `POST /profiles/{profileId}/select`.
+      x-permission: anonymous
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+      responses:
+        '200':
+          description: Signed in.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SessionCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          description: The email or password is incorrect, or the account is disabled (`invalid_credentials`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                default:
+                  value:
+                    error: invalid_credentials
+                    message: The email or password is incorrect.
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /auth/sign-out:
+    post:
+      tags: [Session]
+      operationId: signOut
+      summary: Sign out
+      description: Clears the session cookie. Signing out an already expired session still succeeds.
+      x-permission: anonymous
+      responses:
+        '204':
+          description: Signed out. The cookie is cleared.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearedSessionCookie'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /auth/refresh:
+    post:
+      tags: [Session]
+      operationId: refreshSession
+      summary: Renew the session token
+      description: |
+        Issues a fresh token for the same account and the same active profile. Fails for an expired,
+        disabled or deleted account (R-10): there is no revocation list, so this is where a disabled
+        account stops working.
+      x-permission: account
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Session renewed.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SessionCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /auth/me:
+    get:
+      tags: [Session]
+      operationId: getCurrentAccount
+      summary: The signed-in account
+      description: Used by the interface at start-up to find out whether a session exists and which profile is active.
+      x-permission: account
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: The signed-in account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /profiles:
+    get:
+      tags: [Profiles]
+      operationId: listProfiles
+      summary: List the profiles of the signed-in account
+      description: Only the profiles of the account in the token. There is no way to list another account's profiles (PRF-04).
+      x-permission: account
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: The account's profiles, oldest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 5
+                items:
+                  $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Profiles]
+      operationId: createProfile
+      summary: Create a profile
+      description: An account has at most 5 profiles. The name is 1 to 30 characters and unique within the account.
+      x-permission: account
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileRequest'
+      responses:
+        '201':
+          description: Profile created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '409':
+          description: The account already has 5 profiles (`profile_limit_reached`), or the name is already used in this account (`profile_name_taken`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                limit:
+                  value:
+                    error: profile_limit_reached
+                    message: This account already has the maximum number of profiles.
+                name:
+                  value:
+                    error: profile_name_taken
+                    message: A profile with this name already exists.
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /profiles/{profileId}:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+    delete:
+      tags: [Profiles]
+      operationId: deleteProfile
+      summary: Delete a profile
+      description: |
+        Deletes the profile and, through the library service, its favourites and viewing progress
+        (consistency rules: issue #13). Source media is never deleted. A profile of another account
+        answers 404, the same as a profile that does not exist (PRF-04).
+      x-permission: account
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Profile deleted.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /profiles/{profileId}/select:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+    post:
+      tags: [Profiles]
+      operationId: selectProfile
+      summary: Choose the active profile
+      description: |
+        Checks that the profile belongs to the signed-in account, then re-issues the session cookie with a
+        `profileId` claim. The library service trusts that signed claim for favourites and progress, so it
+        never has to ask the identity service and a user cannot act as another profile by changing an id (PRF-02, PRF-04).
+      x-permission: account
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Profile selected. The cookie now carries the profile.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SessionCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+components:
+  parameters:
+    ProfileId:
+      name: profileId
+      in: path
+      required: true
+      schema:
+        $ref: './common.yaml#/components/schemas/Uuid'
+
+  headers:
+    SessionCookie:
+      description: >
+        `homeflix_token=<jwt>; HttpOnly; SameSite=Strict; Path=/`. Add `Secure` when served over HTTPS
+        (future Internet exposure, issue L8).
+      schema:
+        type: string
+    ClearedSessionCookie:
+      description: The session cookie with an empty value and `Max-Age=0`.
+      schema:
+        type: string
+
+  schemas:
+    SetupStatus:
+      type: object
+      required: [setupRequired]
+      properties:
+        setupRequired:
+          type: boolean
+          description: True while no administrator exists.
+
+    SetupRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Trimmed and lower-cased by the server.
+        password:
+          type: string
+          minLength: 12
+          maxLength: 72
+          description: At least 12 characters and at most 72 bytes in UTF-8 (the BCrypt limit). Kept exactly as typed.
+          writeOnly: true
+
+    Credentials:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          maxLength: 72
+          writeOnly: true
+
+    Account:
+      type: object
+      description: The account in the token. Never contains the password or its hash.
+      required: [id, email, admin]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        email:
+          type: string
+          format: email
+        admin:
+          type: boolean
+          description: true for an administrator, false for a user. Stored as `is_admin`.
+        profileId:
+          description: The active profile, or null when none was chosen in this session.
+          oneOf:
+            - $ref: './common.yaml#/components/schemas/Uuid'
+            - type: 'null'
+
+    ProfileRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 30
+
+    Profile:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 30
+        createdAt:
+          type: string
+          format: date-time
