@@ -358,7 +358,7 @@ paths:
                 default:
                   value:
                     error: access_denied
-                    message: This file cannot be accessed.
+                    message: You do not have access to this video.
         '404':
           description: The title does not exist (`not_found`), or its file is missing from disk (`file_not_found`).
           content:
@@ -369,7 +369,7 @@ paths:
                 missingFile:
                   value:
                     error: file_not_found
-                    message: This file cannot be accessed.
+                    message: The file for this title could not be found. It may have been moved or deleted from the library.
         '409':
           description: The title has no file to play yet, because it is still downloading (`media_not_available`).
           content:
@@ -380,7 +380,7 @@ paths:
                 default:
                   value:
                     error: media_not_available
-                    message: This title cannot be played right now.
+                    message: This title is still downloading and cannot be played yet.
         '416':
           description: The range cannot be satisfied (`range_not_satisfiable`).
           headers:

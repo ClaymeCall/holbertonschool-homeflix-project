@@ -14,6 +14,7 @@ The acquisition service (catalogue, downloads, handoff to the library) and the a
 
 - **OpenAPI 3.1.** Paths are those of the service. The gateway serves them under `/api/<service>` and strips the prefix (ADR-0017), which is each file's `servers` URL.
 - **JSON** with `camelCase` property names. Enumerations in bodies are `UPPER_SNAKE` (`AVAILABLE`, `STARTED`); query parameter values are lower-case (`sort=recent`). Ids are UUIDs and timestamps are RFC 3339.
+- **The interface is English only** ([ADR-0021](../adr/0021-english-only-interface.md)): a `message` is the text the user reads, in plain language and without technical details.
 - **Errors** use `{ "error", "message", "fields"? }` ([ADR-0020](../adr/0020-common-error-format-and-outage-behavior.md), [error model](../architecture/error-model.md)). Every operation lists the errors it can return, and `503 service_unavailable` is possible everywhere.
 - **Identity comes from the token, never from a parameter or path.** The account is the `sub` claim, the administrator flag is `admin`, and the active profile is `profileId` (R-06, PRF-04). A resource of another account answers `404`, the same as one that does not exist.
 - **No file path is ever sent by a client**, except the administrator naming a folder to authorize (`POST /roots`). Media is addressed by id (LIB-08).
@@ -68,7 +69,7 @@ Every service verifies the token itself with the identity service's public key. 
 
 ## New error codes
 
-These codes are introduced by the contracts and must be added to the [error model](../architecture/error-model.md) and to the frontend's translation map.
+These codes are introduced by the contracts and must be added to the [error model](../architecture/error-model.md). Their messages are the ones in the examples: the interface shows the server's `message` as written (ADR-0021).
 
 | Code | Status | Where |
 |---|---|---|

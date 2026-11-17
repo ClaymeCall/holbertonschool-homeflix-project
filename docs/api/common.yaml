@@ -32,11 +32,11 @@ components:
       properties:
         error:
           type: string
-          description: Stable snake_case code. The frontend translates it into French.
+          description: Stable snake_case code, used by the interface to decide how to present the error.
           examples: [validation_failed]
         message:
           type: string
-          description: One short plain-language English sentence, used as a fallback.
+          description: Plain-language English text shown to the user as written (ADR-0021).
           examples: [Some fields are invalid.]
         fields:
           type: object
