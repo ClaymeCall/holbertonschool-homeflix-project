@@ -1,6 +1,6 @@
 # ADR-0020: Common error format, timeouts and retries for service calls
 
-- **Status:** Proposed
+- **Status:** Proposed. The decision about who translates the message into French is superseded by [ADR-0021](0021-english-only-interface.md): the interface is English only and shows the server's `message`.
 - **Date:** 2026-11-17
 - **Deciders:** Clement Callejon. Awaiting review by another learner, as required by the ADR process.
 - **Related:** issue #16, issue #36, ADR-0008, ADR-0017, requirements ARC-08, SEC-04, PLY-05, risks R-23 and R-24

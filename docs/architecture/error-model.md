@@ -24,13 +24,13 @@ A body **never** contains a stack trace, a class or exception name, a file path,
 
 ## Who writes the text the user reads
 
-The frontend translates the `error` code into French (the interface language). The English `message` is the fallback for a code the frontend does not know. A new code needs a new entry in the frontend's map.
+The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)), so the server's `message` **is** the text the user reads. The interface shows it as it is, with no translation map. The `error` code stays stable for logic, for tests and for choosing how to present the error (for example a retry button for `service_unavailable`). See [Writing messages](#writing-messages).
 
 ## Error codes
 
 ### Common to every service and the gateway
 
-| Code | Status | Message (English default) | When |
+| Code | Status | Message | When |
 |---|---|---|---|
 | `validation_failed` | 400 | Some fields are invalid. | Input broke a rule; `fields` says which. |
 | `invalid_request` | 400 | The request body is missing or is not valid JSON. | Unreadable body. |
@@ -51,14 +51,14 @@ The frontend translates the `error` code into French (the interface language). T
 
 | Code | Status | Message | When |
 |---|---|---|---|
-| `file_not_found` | 404 | This file cannot be accessed. | The media file is missing from disk. |
-| `access_denied` | 403 | This file cannot be accessed. | The real path is outside the authorized folders (see [file access rules](../library/file-access.md)). |
+| `file_not_found` | 404 | The file for this title could not be found. It may have been moved or deleted from the library. | The media file is missing from disk. |
+| `access_denied` | 403 | You do not have access to this video. | The real path is outside the authorized folders (see [file access rules](../library/file-access.md)). |
 | `directory_not_found` | 400 | This folder does not exist. | Administrator adds a root that does not exist. |
 | `directory_not_readable` | 400 | HomeFlix cannot read this folder. | The root exists but is not readable. |
 | `not_a_directory` | 400 | This path is a file, not a folder. | The root is not a directory. |
 | `directory_outside_library` | 400 | This folder is not inside the folders shared with HomeFlix. | The root is outside the mounted paths (R-02). |
 
-`file_not_found` and `access_denied` have the same message on purpose: it never says where the file is. `format_not_supported` is **not** an HTTP error. It is the outcome reported for a video found during indexing in an unsupported format (see [media identification rules](../library/media-identification.md)), so such a file never gets a play endpoint.
+`file_not_found` and `access_denied` have different messages, so the user can tell a missing file from a permission problem (PLY-05), but neither ever says where the file is. `format_not_supported` is **not** an HTTP error. It is the outcome reported for a video found during indexing in an unsupported format (see [media identification rules](../library/media-identification.md)), so such a file never gets a play endpoint.
 
 ## Timeouts and retries
 
@@ -88,20 +88,14 @@ A timeout, a refused connection, or a 5xx from the called service all become the
 
 The gateway answers its own 503 in the same format when a service does not answer (ADR-0017). It already matches this format: `{"error":"service_unavailable","message":"This part of HomeFlix is temporarily unavailable. Please try again in a moment."}`.
 
-## French texts shown to the user
+## Writing messages
 
-Reference wording for the main cases (PLY-05). The frontend holds the source; change it here first, then in the interface.
+A message is written for the person using HomeFlix, in English (PLY-05, SEC-04):
 
-| Code | Texte affiché |
-|---|---|
-| `service_unavailable` | Cette partie de HomeFlix est momentanément indisponible. Réessayez dans un instant. |
-| `file_not_found` | Le fichier de ce film est introuvable. Il a peut-être été déplacé ou supprimé de la bibliothèque. |
-| `access_denied` | Vous n'avez pas accès à cette vidéo. |
-| `directory_not_found` | Ce dossier n'existe pas. |
-| `directory_not_readable` | HomeFlix ne peut pas lire ce dossier. |
-| `not_a_directory` | Ce chemin est un fichier, pas un dossier. |
-| `directory_outside_library` | Ce dossier ne fait pas partie des dossiers partagés avec HomeFlix. |
-| `internal_error` | Une erreur est survenue. Réessayez dans un instant. |
+- One or two short sentences in plain language. Say what happened and, when there is one, what to try.
+- Never include a path, a host name, a class name, an SQL fragment or a stack trace. Details go to the log.
+- Do not reveal whether something exists when that would help an attacker, for example a failed sign-in gives one answer whether the email is unknown, the password is wrong or the account is disabled.
+- Same code, same message everywhere, so tests and the interface can rely on it. Change the table above first, then the code.
 
 ## Tests
 
