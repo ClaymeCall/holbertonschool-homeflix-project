@@ -23,7 +23,7 @@ A household has a collection of videos on a NAS but no convenient way to watch t
 
 ## What it does not cover (yet)
 
-Universal transcoding, series, recommendations, parental controls, mobile or TV apps, remote Internet access, and support for every NAS or network protocol. See [docs/product/out-of-scope.md](docs/product/out-of-scope.md) once it is written.
+Universal transcoding, series, recommendations, parental controls, mobile or TV apps, remote Internet access, and support for every NAS or network protocol. See [docs/product/out-of-scope.md](docs/product/out-of-scope.md).
 
 ## Architecture in one paragraph
 
@@ -35,6 +35,9 @@ HomeFlix is split into at least three Java/Spring Boot business microservices (i
 |---|---|
 | Team and working agreement | [docs/team/working-agreement.md](docs/team/working-agreement.md) |
 | Mandatory requirements checklist | [docs/product/requirements.md](docs/product/requirements.md) |
+| Acceptance criteria for the 10 MVP scenarios | [docs/product/acceptance-criteria.md](docs/product/acceptance-criteria.md) |
+| Out of scope and future extensions | [docs/product/out-of-scope.md](docs/product/out-of-scope.md) |
+| Architecture overview (diagram, boundaries) | [docs/architecture/overview.md](docs/architecture/overview.md) |
 | Technology stack | [docs/architecture/tech-stack.md](docs/architecture/tech-stack.md) |
 | Supported video format and conversion | [docs/user/supported-video-format.md](docs/user/supported-video-format.md) |
 | Architecture decision records | [docs/adr/](docs/adr/README.md) |

@@ -274,7 +274,7 @@ These apply to every service and screen.
 
 ## MVP acceptance scenarios
 
-The brief lists ten scenarios the finished product must pass. Detailed criteria are written in the acceptance criteria document (issue #7). The requirements each scenario exercises are listed here.
+The brief lists ten scenarios the finished product must pass. Detailed criteria are written in the [acceptance criteria document](acceptance-criteria.md). The requirements each scenario exercises are listed here.
 
 | ID | Scenario | Passes when | Main requirements |
 |---|---|---|---|
@@ -291,7 +291,7 @@ The brief lists ten scenarios the finished product must pass. Detailed criteria 
 
 ## Out of scope
 
-These are not required. Each may only be proposed once the MVP is complete and stable. An extension must answer a documented user need, preserve the existing journeys, and include its own tests and documentation. The detailed list with reasons is kept in the out-of-scope document (issue #8).
+These are not required. Each may only be proposed once the MVP is complete and stable. An extension must answer a documented user need, preserve the existing journeys, and include its own tests and documentation. The detailed list with reasons is kept in the [out-of-scope document](out-of-scope.md).
 
 - Universal transcoding, and support for more video formats.
 - Mobile or TV applications.
