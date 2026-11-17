@@ -11,6 +11,7 @@ This page is a **summary**. The reasons, alternatives and consequences of each c
 | Run and delivery | Docker and Docker Compose (`docker compose up --build`) | [0004](../adr/0004-docker-compose-deployment.md) |
 | Frontend | React, Vite, React Router, plain `fetch`, Vitest with React Testing Library | [0005](../adr/0005-react-frontend-and-tooling.md) |
 | Frontend language | TypeScript | [0016](../adr/0016-typescript-frontend.md) |
+| Frontend styling | CSS Modules, design tokens in CSS custom properties, no component library (proposed) | [0019](../adr/0019-frontend-styling-approach.md) |
 | Database | PostgreSQL, one database and one user per service | [0006](../adr/0006-postgresql-database-per-service.md) |
 | Migrations | Flyway | [0007](../adr/0007-flyway-migrations.md) |
 | Service-to-service calls | Synchronous REST over HTTP (`RestClient`) | [0008](../adr/0008-rest-inter-service-communication.md) |
@@ -35,4 +36,4 @@ A gateway, the frontend and the third-party BitTorrent client do not count towar
 
 ## Still to decide (each needs an ADR)
 
-- **Frontend styling approach** (Thomas).
+None at the moment.
