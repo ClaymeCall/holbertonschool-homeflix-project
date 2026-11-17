@@ -1,4 +1,5 @@
 import { Link, Outlet } from 'react-router-dom'
+import { AccountMenu } from './AccountMenu'
 import { Logo } from './Logo'
 import styles from './AppLayout.module.css'
 
@@ -12,6 +13,7 @@ export function AppLayout() {
         <Link to="/" className={styles.home} aria-label="HomeFlix, accueil">
           <Logo />
         </Link>
+        <AccountMenu />
       </header>
       <main id="contenu" className={styles.main} tabIndex={-1}>
         <Outlet />

@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import type { Account } from '../api/identity'
 
 export function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -7,13 +8,42 @@ export function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
-type Handler = (url: string, init: RequestInit | undefined) => Response | Promise<Response>
+export function emptyResponse(status = 204): Response {
+  return new Response(null, { status })
+}
 
-/** Replaces the global fetch with a handler and returns the mock to inspect calls. */
-export function mockFetch(handler: Handler) {
-  const fn = vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
-    Promise.resolve(handler(typeof input === 'string' ? input : input.toString(), init)),
-  )
+export type Route = (request: { url: URL; init: RequestInit | undefined }) => Response | Promise<Response>
+
+export const testAccount: Account = { id: 'a1', username: 'camille', role: 'ADMIN' }
+
+/** Routes for a signed-in household where setup is already done. */
+export function signedInRoutes(account: Account = testAccount): Record<string, Route> {
+  return {
+    'GET /api/identity/setup': () => jsonResponse({ required: false }),
+    'GET /api/identity/auth/me': () => jsonResponse(account),
+    'POST /api/identity/auth/refresh': () => emptyResponse(),
+    'POST /api/identity/auth/logout': () => emptyResponse(),
+  }
+}
+
+/**
+ * Replaces the global fetch with routes keyed by "METHOD /path" (query string
+ * ignored in the key). Unknown routes answer 404. Returns the mock to inspect calls.
+ */
+export function mockApi(routes: Record<string, Route>) {
+  const fn = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(typeof input === 'string' ? input : input.toString(), 'http://homeflix.test')
+    const route = routes[`${init?.method ?? 'GET'} ${url.pathname}`]
+    return Promise.resolve(route ? route({ url, init }) : jsonResponse({ code: 'NOT_FOUND' }, 404))
+  })
   vi.stubGlobal('fetch', fn)
   return fn
+}
+
+/** Requests made to the given "METHOD /path" route. */
+export function callsTo(fn: ReturnType<typeof mockApi>, key: string) {
+  return fn.mock.calls.filter(([input, init]) => {
+    const url = new URL(String(input), 'http://homeflix.test')
+    return `${init?.method ?? 'GET'} ${url.pathname}` === key
+  })
 }

@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { MediaDetails } from '../api/library'
-import { jsonResponse, mockFetch } from '../test/http'
+import { callsTo, jsonResponse, mockApi, signedInRoutes, type Route } from '../test/http'
 import { renderApp } from '../test/render'
 
 const movie: MediaDetails = {
@@ -15,13 +15,17 @@ const movie: MediaDetails = {
   availability: 'AVAILABLE',
 }
 
+function mockMovie(route: Route) {
+  return mockApi({ ...signedInRoutes(), 'GET /api/library/media/m1': route })
+}
+
 describe('MovieDetailsPage', () => {
   it('shows every field of an available movie and a play link', async () => {
-    const fetch = mockFetch(() => jsonResponse(movie))
+    const fetch = mockMovie(() => jsonResponse(movie))
     renderApp('/movies/m1')
 
     expect(await screen.findByRole('heading', { name: movie.title })).toBeInTheDocument()
-    expect(fetch.mock.calls[0][0]).toBe('/api/library/media/m1')
+    expect(callsTo(fetch, 'GET /api/library/media/m1')).toHaveLength(1)
     expect(screen.getByText('Une famille observe le ciel.')).toBeInTheDocument()
     expect(screen.getByText('Documentaire')).toBeInTheDocument()
     expect(screen.getByText('1 h 32 min')).toBeInTheDocument()
@@ -31,7 +35,7 @@ describe('MovieDetailsPage', () => {
   })
 
   it('shows placeholders when metadata is missing', async () => {
-    mockFetch(() => jsonResponse({ ...movie, description: null, posterUrl: null, genre: null, durationSeconds: null }))
+    mockMovie(() => jsonResponse({ ...movie, description: null, posterUrl: null, genre: null, durationSeconds: null }))
     renderApp('/movies/m1')
 
     expect(await screen.findByText('Aucune description disponible pour ce film.')).toBeInTheDocument()
@@ -41,7 +45,7 @@ describe('MovieDetailsPage', () => {
   })
 
   it('disables playback with a clear message when the movie is unavailable', async () => {
-    mockFetch(() => jsonResponse({ ...movie, availability: 'UNAVAILABLE' }))
+    mockMovie(() => jsonResponse({ ...movie, availability: 'UNAVAILABLE' }))
     renderApp('/movies/m1')
 
     const play = await screen.findByRole('button', { name: 'Lire' })
@@ -51,7 +55,7 @@ describe('MovieDetailsPage', () => {
   })
 
   it('explains that a downloading movie cannot be played yet', async () => {
-    mockFetch(() => jsonResponse({ ...movie, availability: 'DOWNLOADING' }))
+    mockMovie(() => jsonResponse({ ...movie, availability: 'DOWNLOADING' }))
     renderApp('/movies/m1')
 
     expect(await screen.findByRole('button', { name: 'Lire' })).toHaveAccessibleDescription(
@@ -61,7 +65,7 @@ describe('MovieDetailsPage', () => {
   })
 
   it('shows a not found message for an unknown movie', async () => {
-    mockFetch(() => jsonResponse({ code: 'NOT_FOUND' }, 404))
+    mockApi(signedInRoutes())
     renderApp('/movies/unknown')
 
     expect(await screen.findByRole('heading', { name: 'Film introuvable' })).toBeInTheDocument()
@@ -69,7 +73,7 @@ describe('MovieDetailsPage', () => {
 
   it('shows an error with a retry button that reloads the movie', async () => {
     let calls = 0
-    mockFetch(() => (++calls === 1 ? jsonResponse({}, 503) : jsonResponse(movie)))
+    mockMovie(() => (++calls === 1 ? jsonResponse({}, 503) : jsonResponse(movie)))
     renderApp('/movies/m1')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('momentanément indisponible')

@@ -23,18 +23,58 @@ export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   signal?: AbortSignal
+  /** Try to renew an expired session once on 401. Off for the identity session calls themselves. */
+  renewSession?: boolean
+}
+
+interface SessionHandlers {
+  renew: () => Promise<void>
+  onExpired: () => void
+}
+
+let sessionHandlers: SessionHandlers | null = null
+let renewing: Promise<boolean> | null = null
+
+/** Registers how to renew the session and what to do when it has expired. Returns an unregister function. */
+export function setSessionHandlers(handlers: SessionHandlers): () => void {
+  sessionHandlers = handlers
+  return () => {
+    if (sessionHandlers === handlers) sessionHandlers = null
+  }
+}
+
+/** Renews the session, sharing one renewal between concurrent callers. */
+function renewOnce(handlers: SessionHandlers): Promise<boolean> {
+  renewing ??= handlers.renew().then(
+    () => true,
+    () => false,
+  ).finally(() => {
+    renewing = null
+  })
+  return renewing
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const response = await send(path, options)
+  const handlers = sessionHandlers
+  if (response.status === 401 && options.renewSession !== false && handlers) {
+    if (await renewOnce(handlers)) {
+      return parse<T>(await send(path, options))
+    }
+    handlers.onExpired()
+  }
+  return parse<T>(response)
+}
+
+async function send(path: string, options: RequestOptions): Promise<Response> {
   const { method = 'GET', body, signal } = options
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
 
-  let response: Response
   try {
-    response = await fetch(path, {
+    return await fetch(path, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -47,14 +87,15 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
     throw new ApiError(0)
   }
+}
 
+async function parse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     throw new ApiError(response.status, await readErrorCode(response))
   }
-  if (response.status === 204) {
-    return undefined as T
-  }
-  return (await response.json()) as T
+  // 201 or 204 responses may have no body.
+  const text = await response.text()
+  return (text ? JSON.parse(text) : undefined) as T
 }
 
 /**
