@@ -1,0 +1,130 @@
+# Shared definitions for the HomeFlix API contracts (ADR-0010, ADR-0020).
+# Referenced from identity.yaml and library.yaml with $ref.
+openapi: 3.1.0
+info:
+  title: HomeFlix common definitions
+  version: 0.1.0
+  description: Error body, session security scheme and responses shared by every service. Not a service API.
+paths: {}
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: homeflix_token
+      description: >
+        Signed token (RS256 JWT, ADR-0009) in an HttpOnly, SameSite=Strict cookie set at sign-in.
+        The browser sends it automatically on same-origin requests, including video streaming.
+        Every service verifies it itself; the gateway does not (ADR-0017).
+
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      examples: ["3f2b8c1e-5d4a-4c7e-9a10-2b6d8f0e1a42"]
+
+    Error:
+      type: object
+      description: >
+        Common error body (ADR-0020, docs/architecture/error-model.md). Never contains a stack trace,
+        a path, a class name or any other technical detail.
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Stable snake_case code, used by the interface to decide how to present the error.
+          examples: [validation_failed]
+        message:
+          type: string
+          description: Plain-language English text shown to the user as written (ADR-0021).
+          examples: [Some fields are invalid.]
+        fields:
+          type: object
+          description: Only for validation errors. Maps a field name to its message.
+          additionalProperties:
+            type: string
+          examples:
+            - email: Enter a valid email address.
+
+  responses:
+    ValidationFailed:
+      description: Input is invalid (`validation_failed`) or the body is missing or not valid JSON (`invalid_request`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            validation:
+              value:
+                error: validation_failed
+                message: Some fields are invalid.
+                fields:
+                  email: Enter a valid email address.
+    Unauthenticated:
+      description: No valid session (`unauthenticated`). The frontend tries one renewal, then asks the user to sign in.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            default:
+              value:
+                error: unauthenticated
+                message: Please sign in.
+    Forbidden:
+      description: Signed in, but not allowed to do this (`forbidden`), for example a non-administrator on an administrator operation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            default:
+              value:
+                error: forbidden
+                message: You do not have permission to do this.
+    ProfileNotSelected:
+      description: The operation needs an active profile and the session has none (`profile_not_selected`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            default:
+              value:
+                error: profile_not_selected
+                message: Choose a profile first.
+    NotFound:
+      description: The resource does not exist, or is not visible to this account (`not_found`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            default:
+              value:
+                error: not_found
+                message: This address does not exist.
+    ServiceUnavailable:
+      description: >
+        The service, or a service it depends on, is down or too slow (`service_unavailable`).
+        Also answered by the gateway in the same format.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            default:
+              value:
+                error: service_unavailable
+                message: This part of HomeFlix is temporarily unavailable. Please try again in a moment.
+    InternalError:
+      description: Unexpected failure (`internal_error`). Details are in the server log only.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            default:
+              value:
+                error: internal_error
+                message: Something went wrong. Please try again.
