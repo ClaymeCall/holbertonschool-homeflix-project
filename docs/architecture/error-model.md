@@ -34,7 +34,7 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 |---|---|---|---|
 | `validation_failed` | 400 | Some fields are invalid. | Input broke a rule; `fields` says which. |
 | `invalid_request` | 400 | The request body is missing or is not valid JSON. | Unreadable body. |
-| `unauthenticated` | 401 | Please sign in. | No valid session. *(behavior to confirm in #14)* |
+| `unauthenticated` | 401 | Please sign in. | No valid session: no token, an invalid or expired token, or an account disabled or deleted since sign-in. The session cookie is cleared in the same answer. |
 | `forbidden` | 403 | You do not have permission to do this. | Signed in, but the role does not allow it. *(to confirm in #14)* |
 | `not_found` | 404 | This address does not exist. | Unknown address or resource. |
 | `request_rejected` | 4xx | This request cannot be processed. | Framework rejection (wrong method, unsupported media type). Keeps its status. |
@@ -46,6 +46,7 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 | Code | Status | Message | When |
 |---|---|---|---|
 | `setup_already_completed` | 409 | HomeFlix is already set up. Sign in instead. | First-run setup after an administrator exists. |
+| `invalid_credentials` | 401 | The email or password is incorrect. | Sign-in with an unknown email, a wrong password or a disabled account. One answer for the three, so accounts are not revealed. |
 
 ### Library service
 

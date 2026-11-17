@@ -17,3 +17,13 @@ management:
       probes:
         enabled: true
       show-details: never
+
+# Session token (ADR-0009, docs/api/README.md "Session and token").
+homeflix:
+  session:
+    # RSA private key (PKCS#8, base64 or PEM), from the environment only (OPS-03).
+    # The service refuses to start without it.
+    private-key: ${JWT_PRIVATE_KEY:}
+    token-lifetime: 15m
+    # Set to true once HomeFlix is served over HTTPS (issue L8).
+    cookie-secure: false

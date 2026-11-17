@@ -27,6 +27,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/homeflix_identity
       SPRING_DATASOURCE_USERNAME: homeflix_identity
       SPRING_DATASOURCE_PASSWORD: ${IDENTITY_DB_PASSWORD:?Set IDENTITY_DB_PASSWORD in .env}
+      # Signs the session token (ADR-0009). Only the identity service gets the private key.
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:?Set JWT_PRIVATE_KEY in .env}
     depends_on:
       postgres:
         condition: service_healthy

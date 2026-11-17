@@ -84,6 +84,7 @@ jobs:
             echo "IDENTITY_DB_PASSWORD=ci-placeholder"
             echo "LIBRARY_DB_PASSWORD=ci-placeholder"
             echo "ACQUISITION_DB_PASSWORD=ci-placeholder"
+            echo "JWT_PRIVATE_KEY=ci-placeholder"
           } > "$RUNNER_TEMP/ci.env"
 
       - name: Validate compose.yaml
