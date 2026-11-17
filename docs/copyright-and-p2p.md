@@ -47,14 +47,14 @@ While a file downloads, the peer-to-peer client also **sends pieces of it to oth
 
 ## In-app reminder (reference text)
 
-The interface shows this text, in French, before the first download (issue J9, #82). Change it here first, then in the interface.
+The interface shows this text, in English, before the first download (issue J9, #82). Change it here first, then in the interface.
 
-> **Avant de télécharger**
+> **Before you download**
 >
-> HomeFlix utilise le pair-à-pair pour transférer les fichiers. Pendant le téléchargement, et pendant un temps limité ensuite, des morceaux du fichier sont partagés automatiquement avec d'autres personnes.
+> HomeFlix uses peer-to-peer to transfer files. While a file downloads, and for a limited time afterwards, pieces of it are automatically shared with other people.
 >
-> Le pair-à-pair ne donne aucun droit sur une œuvre. Téléchargez uniquement des contenus dont la licence autorise la copie **et** le partage.
+> Peer-to-peer gives you no rights over a work. Only download content whose licence allows both copying **and** sharing.
 >
-> Ce rappel ne remplace pas la vérification des droits.
+> This reminder does not replace checking the rights.
 >
-> **[J'ai compris]**
+> **[I understand]**
