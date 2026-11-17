@@ -5,6 +5,7 @@ import { AppLayout } from './components/AppLayout'
 import { HomePage } from './pages/HomePage'
 import { MovieDetailsPage } from './pages/MovieDetailsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { PlayerPage } from './pages/PlayerPage'
 import { SearchPage } from './pages/SearchPage'
 import { SetupPage } from './pages/SetupPage'
 import { SignInPage } from './pages/SignInPage'
@@ -27,6 +28,14 @@ function App() {
             <RequireSignedOut>
               <SignInPage />
             </RequireSignedOut>
+          }
+        />
+        <Route
+          path="watch/:id"
+          element={
+            <RequireAuth>
+              <PlayerPage />
+            </RequireAuth>
           }
         />
         <Route
