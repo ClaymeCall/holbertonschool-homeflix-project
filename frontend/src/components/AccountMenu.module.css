@@ -9,15 +9,20 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  max-width: 12rem;
-  overflow: hidden;
+  max-width: 16rem;
   color: var(--text);
   font-weight: 500;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.email {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .role {
+  flex-shrink: 0;
   padding: 0 0.5rem;
   border: 1px solid var(--accent);
   border-radius: 999px;

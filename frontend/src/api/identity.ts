@@ -1,10 +1,12 @@
 /**
  * Identity service API (first-run setup and session).
  *
- * PROVISIONAL: the OpenAPI contract (docs/api/, ADR-0010), the identity design
- * (issue #14) and the endpoints (issues G2 and G3) do not exist yet. Paths and
- * shapes below are assumptions kept in this single file so they can be aligned
- * with the contract later.
+ * First-run setup matches the identity service of #125 (G2): `GET /setup/status`
+ * and `POST /setup/admin`, behind the gateway prefix `/api/identity` (ADR-0017).
+ *
+ * PROVISIONAL: the session endpoints (`/auth/...`, G3) and the OpenAPI contract
+ * (docs/api/, ADR-0010) do not exist yet. Their paths are assumptions kept in
+ * this single file. The account shape follows #125 (`email`, `admin`).
  *
  * The session token lives in an HttpOnly cookie set by the server (ADR-0009):
  * these calls never see or store it.
@@ -13,27 +15,32 @@ import { apiRequest } from './client'
 
 const BASE = '/api/identity'
 
-export type Role = 'ADMIN' | 'USER'
-
 export interface Account {
   id: string
-  username: string
-  role: Role
+  email: string
+  admin: boolean
 }
 
 export interface Credentials {
-  username: string
+  email: string
   password: string
 }
 
 /** True while no administrator exists, so the first-run setup is offered. */
 export async function isSetupRequired(signal?: AbortSignal): Promise<boolean> {
-  const status = await apiRequest<{ required: boolean }>(`${BASE}/setup`, { signal, renewSession: false })
-  return status.required
+  const status = await apiRequest<{ setupRequired: boolean }>(`${BASE}/setup/status`, {
+    signal,
+    renewSession: false,
+  })
+  return status.setupRequired
 }
 
-export function createFirstAdministrator(credentials: Credentials): Promise<void> {
-  return apiRequest<void>(`${BASE}/setup`, { method: 'POST', body: credentials, renewSession: false })
+/**
+ * Creates the first administrator (201). Fails with 409 `setup_already_completed`
+ * once one exists, or 400 `validation_failed` with the rejected `fields`.
+ */
+export function createFirstAdministrator(credentials: Credentials): Promise<Account> {
+  return apiRequest<Account>(`${BASE}/setup/admin`, { method: 'POST', body: credentials, renewSession: false })
 }
 
 export function signIn(credentials: Credentials): Promise<Account> {

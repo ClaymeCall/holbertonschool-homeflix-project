@@ -16,7 +16,7 @@ const reasonMessage: Record<SignedOutReason, string> = {
 
 function signInErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.status === 401) return "Nom d'utilisateur ou mot de passe incorrect."
+    if (error.status === 401) return 'Adresse e-mail ou mot de passe incorrect.'
     if (error.status === 403) return "Ce compte est désactivé. Contactez l'administrateur de la maison."
     if (error.status === 429) return 'Trop de tentatives. Patientez un instant puis réessayez.'
   }
@@ -25,27 +25,27 @@ function signInErrorMessage(error: unknown): string {
 
 export function SignInPage() {
   const { session, signIn } = useAuth()
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [errors, setErrors] = useState<FieldErrors<'username' | 'password'>>({})
+  const [errors, setErrors] = useState<FieldErrors<'email' | 'password'>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const usernameRef = useRef<HTMLInputElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
 
   const reason = session.status === 'signedOut' ? session.reason : undefined
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const found = validateSignIn({ username, password })
+    const found = validateSignIn({ email, password })
     setErrors(found)
     setFormError(null)
-    if (found.username) return usernameRef.current?.focus()
+    if (found.email) return emailRef.current?.focus()
     if (found.password) return passwordRef.current?.focus()
 
     setSubmitting(true)
     try {
-      await signIn({ username: username.trim(), password })
+      await signIn({ email: email.trim(), password })
       // The guard redirects to the requested page once the session is signed in.
     } catch (error) {
       setFormError(signInErrorMessage(error))
@@ -69,15 +69,16 @@ export function SignInPage() {
       )}
       <form className={formStyles.form} onSubmit={handleSubmit} noValidate aria-busy={submitting}>
         <TextField
-          ref={usernameRef}
-          label="Nom d'utilisateur"
-          name="username"
+          ref={emailRef}
+          label="Adresse e-mail"
+          name="email"
+          type="email"
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          error={errors.username}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          error={errors.email}
           required
         />
         <TextField

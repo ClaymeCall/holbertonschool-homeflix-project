@@ -14,12 +14,12 @@ export function emptyResponse(status = 204): Response {
 
 export type Route = (request: { url: URL; init: RequestInit | undefined }) => Response | Promise<Response>
 
-export const testAccount: Account = { id: 'a1', username: 'camille', role: 'ADMIN' }
+export const testAccount: Account = { id: 'a1', email: 'camille@maison.fr', admin: true }
 
 /** Routes for a signed-in household where setup is already done. */
 export function signedInRoutes(account: Account = testAccount): Record<string, Route> {
   return {
-    'GET /api/identity/setup': () => jsonResponse({ required: false }),
+    'GET /api/identity/setup/status': () => jsonResponse({ setupRequired: false }),
     'GET /api/identity/auth/me': () => jsonResponse(account),
     'POST /api/identity/auth/refresh': () => emptyResponse(),
     'POST /api/identity/auth/logout': () => emptyResponse(),
@@ -34,7 +34,7 @@ export function mockApi(routes: Record<string, Route>) {
   const fn = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(typeof input === 'string' ? input : input.toString(), 'http://homeflix.test')
     const route = routes[`${init?.method ?? 'GET'} ${url.pathname}`]
-    return Promise.resolve(route ? route({ url, init }) : jsonResponse({ code: 'NOT_FOUND' }, 404))
+    return Promise.resolve(route ? route({ url, init }) : jsonResponse({ error: 'not_found', message: 'This address does not exist.' }, 404))
   })
   vi.stubGlobal('fetch', fn)
   return fn

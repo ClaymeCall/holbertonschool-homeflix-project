@@ -28,11 +28,22 @@ describe('apiRequest', () => {
   })
 
   it('throws an ApiError with the status and code, never the server message', async () => {
-    stubFetch(jsonResponse({ code: 'MEDIA_NOT_FOUND', message: 'java.io.FileNotFoundException' }, 404))
+    stubFetch(jsonResponse({ error: 'not_found', message: 'java.io.FileNotFoundException' }, 404))
     const error = await apiRequest('/api/x').catch((e: unknown) => e)
     expect(error).toBeInstanceOf(ApiError)
-    expect(error).toMatchObject({ status: 404, code: 'MEDIA_NOT_FOUND' })
+    expect(error).toMatchObject({ status: 404, code: 'not_found', fields: [] })
     expect(describeError(error)).not.toContain('java')
+  })
+
+  it('keeps the names of the fields rejected by the server, not their messages', async () => {
+    stubFetch(
+      jsonResponse(
+        { error: 'validation_failed', message: 'Some fields are invalid.', fields: { email: 'Enter a valid email address.' } },
+        400,
+      ),
+    )
+    const error = await apiRequest('/api/x', { method: 'POST' }).catch((e: unknown) => e)
+    expect(error).toMatchObject({ status: 400, code: 'validation_failed', fields: ['email'] })
   })
 
   it('reports network failures with status 0', async () => {

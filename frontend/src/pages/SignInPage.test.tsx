@@ -24,8 +24,8 @@ function signedOut(login: Route = () => jsonResponse(testAccount)) {
   })
 }
 
-async function signInWith(username: string, password: string) {
-  await userEvent.type(await screen.findByLabelText("Nom d'utilisateur"), username)
+async function signInWith(email: string, password: string) {
+  await userEvent.type(await screen.findByLabelText('Adresse e-mail'), email)
   await userEvent.type(screen.getByLabelText('Mot de passe'), password)
   await userEvent.click(screen.getByRole('button', { name: 'Se connecter' }))
 }
@@ -34,28 +34,28 @@ describe('SignInPage', () => {
   it('signs in and goes back to the page that was requested', async () => {
     const fetch = signedOut()
     renderApp('/movies/m1')
-    await signInWith('camille', 'une phrase de passe')
+    await signInWith('camille@maison.fr', 'une phrase de passe')
 
     expect(await screen.findByRole('heading', { name: movie.title })).toBeInTheDocument()
-    expect(screen.getByText('camille')).toBeInTheDocument()
+    expect(screen.getByText('camille@maison.fr')).toBeInTheDocument()
     const [[, init]] = callsTo(fetch, 'POST /api/identity/auth/login')
-    expect(JSON.parse(String(init?.body))).toEqual({ username: 'camille', password: 'une phrase de passe' })
+    expect(JSON.parse(String(init?.body))).toEqual({ email: 'camille@maison.fr', password: 'une phrase de passe' })
   })
 
   it('shows a clear message for wrong credentials and clears the password', async () => {
-    signedOut(() => jsonResponse({ code: 'BAD_CREDENTIALS' }, 401))
+    signedOut(() => jsonResponse({ error: 'bad_credentials' }, 401))
     renderApp('/sign-in')
-    await signInWith('camille', 'mauvais')
+    await signInWith('camille@maison.fr', 'mauvais')
 
-    expect(await screen.findByRole('alert')).toHaveTextContent("Nom d'utilisateur ou mot de passe incorrect.")
+    expect(await screen.findByRole('alert')).toHaveTextContent('Adresse e-mail ou mot de passe incorrect.')
     expect(screen.getByLabelText('Mot de passe')).toHaveValue('')
     expect(screen.getByLabelText('Mot de passe')).toHaveFocus()
   })
 
   it('explains that a disabled account cannot sign in', async () => {
-    signedOut(() => jsonResponse({ code: 'ACCOUNT_DISABLED' }, 403))
+    signedOut(() => jsonResponse({ error: 'account_disabled' }, 403))
     renderApp('/sign-in')
-    await signInWith('camille', 'une phrase de passe')
+    await signInWith('camille@maison.fr', 'une phrase de passe')
     expect(await screen.findByRole('alert')).toHaveTextContent('Ce compte est désactivé')
   })
 
@@ -64,8 +64,8 @@ describe('SignInPage', () => {
     renderApp('/sign-in')
     await userEvent.click(await screen.findByRole('button', { name: 'Se connecter' }))
 
-    expect(screen.getByLabelText("Nom d'utilisateur")).toHaveFocus()
-    expect(screen.getByLabelText("Nom d'utilisateur")).toHaveAccessibleDescription("Saisissez votre nom d'utilisateur.")
+    expect(screen.getByLabelText('Adresse e-mail')).toHaveFocus()
+    expect(screen.getByLabelText('Adresse e-mail')).toHaveAccessibleDescription('Saisissez votre adresse e-mail.')
     expect(screen.getByLabelText('Mot de passe')).toHaveAccessibleDescription('Saisissez votre mot de passe.')
     expect(callsTo(fetch, 'POST /api/identity/auth/login')).toHaveLength(0)
   })
@@ -73,10 +73,10 @@ describe('SignInPage', () => {
   it('can be used with the keyboard only', async () => {
     signedOut()
     renderApp('/sign-in')
-    await screen.findByLabelText("Nom d'utilisateur")
+    await screen.findByLabelText('Adresse e-mail')
 
     await userEvent.tab()
-    await userEvent.keyboard('camille')
+    await userEvent.keyboard('camille@maison.fr')
     await userEvent.tab()
     await userEvent.keyboard('une phrase de passe{Enter}')
 

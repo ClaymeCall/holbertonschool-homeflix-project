@@ -43,7 +43,7 @@ describe('App', () => {
   })
 
   it('never shows technical details from the server', async () => {
-    mockApi({ 'GET /api/identity/setup': () => jsonResponse({ message: 'NullPointerException at line 42' }, 500) })
+    mockApi({ 'GET /api/identity/setup/status': () => jsonResponse({ message: 'NullPointerException at line 42' }, 500) })
     renderApp('/')
     const alert = await screen.findByRole('alert')
     expect(alert).not.toHaveTextContent('NullPointerException')

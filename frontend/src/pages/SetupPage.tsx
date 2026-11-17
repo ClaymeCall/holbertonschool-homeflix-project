@@ -2,23 +2,35 @@ import { useRef, useState, type FormEvent } from 'react'
 import { ApiError } from '../api/client'
 import { describeError } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
-import { PASSWORD_MIN_LENGTH, validateSetup, type FieldErrors } from '../auth/validation'
+import {
+  EMAIL_INVALID,
+  PASSWORD_MAX_BYTES,
+  PASSWORD_MIN_LENGTH,
+  validateSetup,
+  type FieldErrors,
+} from '../auth/validation'
 import { AuthLayout } from '../components/AuthLayout'
 import { Button } from '../components/Button'
 import formStyles from '../components/Form.module.css'
 import { TextField } from '../components/TextField'
 
-type Field = 'username' | 'password' | 'confirmation'
+type Field = 'email' | 'password' | 'confirmation'
+
+/** French text for a field the server rejected (400 `validation_failed`). Its own message is never shown. */
+const serverFieldError: Record<'email' | 'password', string> = {
+  email: EMAIL_INVALID,
+  password: `Ce mot de passe n'est pas accepté. Utilisez au moins ${PASSWORD_MIN_LENGTH} caractères et au plus ${PASSWORD_MAX_BYTES} octets.`,
+}
 
 /** First-run setup: creates the first administrator. Only shown while none exists (ACC-01, ACC-02). */
 export function SetupPage() {
   const { completeSetup, retry } = useAuth()
-  const [values, setValues] = useState({ username: '', password: '', confirmation: '' })
+  const [values, setValues] = useState({ email: '', password: '', confirmation: '' })
   const [errors, setErrors] = useState<FieldErrors<Field>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [alreadyDone, setAlreadyDone] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const usernameRef = useRef<HTMLInputElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
   const confirmationRef = useRef<HTMLInputElement>(null)
 
@@ -31,17 +43,25 @@ export function SetupPage() {
     const found = validateSetup(values)
     setErrors(found)
     setFormError(null)
-    if (found.username) return usernameRef.current?.focus()
+    if (found.email) return emailRef.current?.focus()
     if (found.password) return passwordRef.current?.focus()
     if (found.confirmation) return confirmationRef.current?.focus()
 
     setSubmitting(true)
     try {
-      await completeSetup({ username: values.username.trim(), password: values.password })
+      await completeSetup({ email: values.email.trim(), password: values.password })
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setAlreadyDone(true)
         setFormError('Un administrateur existe déjà. Connectez-vous avec son compte.')
+      } else if (error instanceof ApiError && error.code === 'validation_failed' && error.fields.length > 0) {
+        const rejected: FieldErrors<Field> = {}
+        if (error.fields.includes('email')) rejected.email = serverFieldError.email
+        if (error.fields.includes('password')) rejected.password = serverFieldError.password
+        setErrors(rejected)
+        if (rejected.email) emailRef.current?.focus()
+        else if (rejected.password) passwordRef.current?.focus()
+        else setFormError(describeError(error))
       } else {
         setFormError(describeError(error))
       }
@@ -69,16 +89,17 @@ export function SetupPage() {
       ) : (
         <form className={formStyles.form} onSubmit={handleSubmit} noValidate aria-busy={submitting}>
           <TextField
-            ref={usernameRef}
-            label="Nom d'utilisateur"
-            hint="3 à 32 caractères : lettres sans accent, chiffres, point, tiret ou tiret bas."
-            name="username"
+            ref={emailRef}
+            label="Adresse e-mail"
+            hint="Elle servira d'identifiant pour vous connecter."
+            name="email"
+            type="email"
             autoComplete="username"
             autoCapitalize="none"
             spellCheck={false}
-            value={values.username}
-            onChange={(event) => update('username', event.target.value)}
-            error={errors.username}
+            value={values.email}
+            onChange={(event) => update('email', event.target.value)}
+            error={errors.email}
             required
           />
           <TextField
