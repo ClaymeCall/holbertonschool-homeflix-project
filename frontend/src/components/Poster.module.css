@@ -1,0 +1,37 @@
+.poster {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  object-fit: cover;
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  background: linear-gradient(160deg, var(--surface-2), var(--bg-hero));
+  text-align: center;
+}
+
+.mark {
+  width: 32%;
+  max-width: 4rem;
+  color: var(--text-subtle);
+}
+
+.placeholderTitle {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+}
