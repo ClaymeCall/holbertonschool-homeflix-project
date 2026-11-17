@@ -1,0 +1,18 @@
+.welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 3rem var(--gutter);
+  background: linear-gradient(180deg, var(--bg-hero), var(--bg));
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 7vw, 4rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.text {
+  color: var(--text-muted);
+}
