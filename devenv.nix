@@ -1,10 +1,10 @@
 { pkgs, ... }:
 
 {
-  # Frontend (React, Vite, Vitest): Node 24 matches @types/node in frontend/package.json.
+  # Frontend (React, Vite, Vitest): Node 22 matches CI (ci.yml) and the gateway Dockerfile.
   languages.javascript = {
     enable = true;
-    package = pkgs.nodejs_24;
+    package = pkgs.nodejs_22;
     npm.enable = true;
   };
 
