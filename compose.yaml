@@ -23,6 +23,13 @@ services:
   # ---- Business services (ADR-0003). No ports are published. ----
   identity-service:
     build: ./services/identity-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/homeflix_identity
+      SPRING_DATASOURCE_USERNAME: homeflix_identity
+      SPRING_DATASOURCE_PASSWORD: ${IDENTITY_DB_PASSWORD:?Set IDENTITY_DB_PASSWORD in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks: [backend]
     restart: unless-stopped
     healthcheck:
@@ -34,6 +41,13 @@ services:
 
   library-service:
     build: ./services/library-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/homeflix_library
+      SPRING_DATASOURCE_USERNAME: homeflix_library
+      SPRING_DATASOURCE_PASSWORD: ${LIBRARY_DB_PASSWORD:?Set LIBRARY_DB_PASSWORD in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks: [backend]
     restart: unless-stopped
     volumes:
@@ -50,6 +64,13 @@ services:
 
   acquisition-service:
     build: ./services/acquisition-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/homeflix_acquisition
+      SPRING_DATASOURCE_USERNAME: homeflix_acquisition
+      SPRING_DATASOURCE_PASSWORD: ${ACQUISITION_DB_PASSWORD:?Set ACQUISITION_DB_PASSWORD in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks: [backend, p2p]
     restart: unless-stopped
     healthcheck:
