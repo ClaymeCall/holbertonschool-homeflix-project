@@ -7,7 +7,7 @@ import { renderApp } from '../test/render'
 
 const movie: MediaDetails = {
   id: 'm1',
-  title: 'La Nuit des Étoiles',
+  title: 'Night of the Stars',
   description: null,
   posterUrl: null,
   genre: null,
@@ -115,32 +115,32 @@ describe('PlayerPage', () => {
     expect(video).toHaveAttribute('src', '/api/library/media/m1/stream')
     expect(video).toHaveAttribute('playsinline')
     expect(screen.getByRole('heading', { name: movie.title })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Retour' })).toHaveAttribute('href', '/movies/m1')
+    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/movies/m1')
   })
 
   it('plays and pauses with the button, whose label follows the state', async () => {
     player()
     await openPlayer()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Lecture' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Play' }))
     expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Pause' }))
-    expect(screen.getByRole('button', { name: 'Lecture' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
   })
 
   it('seeks with the position slider and the 10 second buttons', async () => {
     player()
     const video = await openPlayer()
-    const position = screen.getByRole('slider', { name: 'Position de lecture' })
+    const position = screen.getByRole('slider', { name: 'Playback position' })
     expect(position).toHaveAttribute('max', '5520')
 
     fireEvent.change(position, { target: { value: '600' } })
     expect(video.currentTime).toBe(600)
-    expect(position).toHaveAttribute('aria-valuetext', '10 min 00 s sur 1 h 32 min 00 s')
+    expect(position).toHaveAttribute('aria-valuetext', '10 minutes 0 seconds of 1 hour 32 minutes 0 seconds')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Avancer de 10 secondes' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Forward 10 seconds' }))
     expect(video.currentTime).toBe(610)
-    await userEvent.click(screen.getByRole('button', { name: 'Reculer de 10 secondes' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Back 10 seconds' }))
     expect(video.currentTime).toBe(600)
   })
 
@@ -150,30 +150,30 @@ describe('PlayerPage', () => {
 
     fireEvent.change(screen.getByRole('slider', { name: 'Volume' }), { target: { value: '0.4' } })
     expect(video.volume).toBe(0.4)
-    expect(screen.getByRole('slider', { name: 'Volume' })).toHaveAttribute('aria-valuetext', '40 %')
+    expect(screen.getByRole('slider', { name: 'Volume' })).toHaveAttribute('aria-valuetext', '40%')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Couper le son' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Mute' }))
     expect(video.muted).toBe(true)
-    expect(screen.getByRole('button', { name: 'Réactiver le son' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unmute' })).toBeInTheDocument()
   })
 
   it('goes fullscreen', async () => {
     player()
     await openPlayer()
-    await userEvent.click(screen.getByRole('button', { name: 'Plein écran' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Full screen' }))
     expect(requestFullscreen).toHaveBeenCalledTimes(1)
   })
 
   it('can be used with the keyboard only', async () => {
     player()
     const video = await openPlayer()
-    const play = screen.getByRole('button', { name: 'Lecture' })
+    const play = screen.getByRole('button', { name: 'Play' })
     expect(play).toHaveFocus()
 
     await userEvent.keyboard(' ')
     expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument()
     await userEvent.keyboard('k')
-    expect(screen.getByRole('button', { name: 'Lecture' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
 
     await userEvent.keyboard('{ArrowRight}{ArrowRight}')
     expect(video.currentTime).toBe(20)
@@ -192,14 +192,14 @@ describe('PlayerPage', () => {
     player()
     renderApp('/watch/m1')
     await screen.findByLabelText(movie.title)
-    expect(screen.getByRole('status')).toHaveTextContent('Chargement de la vidéo')
+    expect(screen.getByRole('status')).toHaveTextContent('Loading the video')
   })
 
   it.each([
-    [404, 'Fichier introuvable', /déplacé ou supprimé/],
-    [403, 'Accès refusé', /pas accès à cette vidéo/],
-    [206, 'Format non pris en charge', /MP4/],
-    [503, 'Service indisponible', /momentanément indisponible/],
+    [404, 'File not found', /moved or deleted/],
+    [403, 'Access denied', /do not have access to this video/],
+    [206, 'Format not supported', /MP4/],
+    [503, 'Service unavailable', /temporarily unavailable/],
   ])('explains a stream answering %i', async (status, title, text) => {
     player(() => new Response(null, { status }))
     const video = await openPlayer()
@@ -208,7 +208,7 @@ describe('PlayerPage', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(title)
     expect(alert).toHaveTextContent(text)
-    expect(screen.getByRole('link', { name: 'Retour au film' })).toHaveAttribute('href', '/movies/m1')
+    expect(screen.getByRole('link', { name: 'Back to the film' })).toHaveAttribute('href', '/movies/m1')
   })
 
   it('offers to retry after a temporary failure', async () => {
@@ -216,7 +216,7 @@ describe('PlayerPage', () => {
     const video = await openPlayer()
     fireEvent.error(video)
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Réessayer' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -225,23 +225,23 @@ describe('PlayerPage', () => {
     const video = await openPlayer()
     fireEvent.error(video)
 
-    expect(await screen.findByRole('heading', { name: 'Connexion' })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('Votre session a expiré')
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Your session has expired')
   })
 
   it('does not start a movie that cannot be played', async () => {
     player(undefined, { availability: 'DOWNLOADING' })
     renderApp('/watch/m1')
 
-    expect(await screen.findByRole('heading', { name: 'Lecture impossible' })).toBeInTheDocument()
-    expect(screen.getByText(/en cours de téléchargement/)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Cannot play' })).toBeInTheDocument()
+    expect(screen.getByText(/is downloading/)).toBeInTheDocument()
     expect(screen.queryByLabelText(movie.title)).not.toBeInTheDocument()
   })
 
   it('opens from the play button of the movie page', async () => {
     player()
     renderApp('/movies/m1')
-    await userEvent.click(await screen.findByRole('link', { name: 'Lire' }))
+    await userEvent.click(await screen.findByRole('link', { name: 'Play' }))
     expect(await screen.findByLabelText(movie.title)).toHaveAttribute('src', '/api/library/media/m1/stream')
   })
 })

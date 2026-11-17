@@ -30,8 +30,9 @@ describe('formatClock', () => {
 
 describe('formatSpokenTime', () => {
   it('formats positions for screen readers', () => {
-    expect(formatSpokenTime(5)).toBe('5 s')
-    expect(formatSpokenTime(605)).toBe('10 min 05 s')
-    expect(formatSpokenTime(3725)).toBe('1 h 02 min 05 s')
+    expect(formatSpokenTime(1)).toBe('1 second')
+    expect(formatSpokenTime(5)).toBe('5 seconds')
+    expect(formatSpokenTime(605)).toBe('10 minutes 5 seconds')
+    expect(formatSpokenTime(3725)).toBe('1 hour 2 minutes 5 seconds')
   })
 })

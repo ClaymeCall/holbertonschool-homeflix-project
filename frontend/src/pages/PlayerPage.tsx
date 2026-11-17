@@ -9,8 +9,8 @@ import { useAsync } from '../hooks/useAsync'
 import styles from './PlayerPage.module.css'
 
 const notPlayable = {
-  UNAVAILABLE: "Ce film ne peut pas être lu pour le moment : son fichier est introuvable dans la bibliothèque.",
-  DOWNLOADING: 'Ce film est en cours de téléchargement. Il pourra être lu une fois le téléchargement terminé.',
+  UNAVAILABLE: 'This film cannot be played at the moment: its file cannot be found in the library.',
+  DOWNLOADING: 'This film is downloading. It can be played once the download has finished.',
 }
 
 export function PlayerPage() {
@@ -22,7 +22,7 @@ export function PlayerPage() {
   if (state.status === 'loading') {
     return (
       <div className={styles.page}>
-        <LoadingState label="Préparation de la lecture…" />
+        <LoadingState label="Preparing playback…" />
       </div>
     )
   }
@@ -31,9 +31,9 @@ export function PlayerPage() {
     return (
       <div className={styles.page}>
         {isNotFound(state.error) ? (
-          <ErrorState title="Film introuvable" message="Ce film n'existe pas ou a été retiré du catalogue.">
+          <ErrorState title="Film not found" message="This film does not exist or has been removed from the catalogue.">
             <ButtonLink to="/" variant="secondary">
-              Retour à l'accueil
+              Back to home
             </ButtonLink>
           </ErrorState>
         ) : (
@@ -48,9 +48,9 @@ export function PlayerPage() {
     return (
       <div className={styles.page}>
         <title>{`${media.title} · HomeFlix`}</title>
-        <ErrorState title="Lecture impossible" message={notPlayable[media.availability]}>
+        <ErrorState title="Cannot play" message={notPlayable[media.availability]}>
           <ButtonLink to={backTo} variant="secondary">
-            Retour au film
+            Back to the film
           </ButtonLink>
         </ErrorState>
       </div>
@@ -59,7 +59,7 @@ export function PlayerPage() {
 
   return (
     <main className={styles.page}>
-      <title>{`Lecture : ${media.title} · HomeFlix`}</title>
+      <title>{`Playing: ${media.title} · HomeFlix`}</title>
       <VideoPlayer mediaId={media.id} title={media.title} backTo={backTo} />
     </main>
   )

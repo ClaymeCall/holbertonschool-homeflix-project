@@ -23,33 +23,33 @@ type Problem = 'missing' | 'denied' | 'unsupported' | 'network' | 'unavailable' 
 
 const problems: Record<Problem, { title: string; text: string; canRetry: boolean }> = {
   missing: {
-    title: 'Fichier introuvable',
-    text: 'Le fichier de ce film est introuvable. Il a peut-être été déplacé ou supprimé de la bibliothèque.',
+    title: 'File not found',
+    text: 'The file for this film cannot be found. It may have been moved or deleted from the library.',
     canRetry: false,
   },
   denied: {
-    title: 'Accès refusé',
-    text: "Vous n'avez pas accès à cette vidéo.",
+    title: 'Access denied',
+    text: 'You do not have access to this video.',
     canRetry: false,
   },
   unsupported: {
-    title: 'Format non pris en charge',
-    text: 'Ce navigateur ne peut pas lire ce fichier. HomeFlix lit les vidéos MP4 (vidéo H.264 et son AAC).',
+    title: 'Format not supported',
+    text: 'This browser cannot play this file. HomeFlix plays MP4 videos (H.264 video and AAC audio).',
     canRetry: false,
   },
   network: {
-    title: 'Lecture interrompue',
-    text: 'La connexion a été interrompue. Vérifiez le réseau puis réessayez.',
+    title: 'Playback interrupted',
+    text: 'The connection was interrupted. Check the network, then try again.',
     canRetry: true,
   },
   unavailable: {
-    title: 'Service indisponible',
-    text: 'La bibliothèque est momentanément indisponible. Réessayez dans un instant.',
+    title: 'Service unavailable',
+    text: 'The library is temporarily unavailable. Please try again in a moment.',
     canRetry: true,
   },
   unknown: {
-    title: 'Lecture impossible',
-    text: 'Une erreur est survenue pendant la lecture. Réessayez dans un instant.',
+    title: 'Cannot play',
+    text: 'Something went wrong during playback. Please try again in a moment.',
     canRetry: true,
   },
 }
@@ -269,7 +269,7 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
 
       <div className={`${styles.topBar} ${styles.chrome}`}>
         <ButtonLink to={backTo} variant="secondary" className={styles.back}>
-          Retour
+          Back
         </ButtonLink>
         <h1 className={styles.title}>{title}</h1>
       </div>
@@ -277,7 +277,7 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
       {loading && !details && (
         <div className={styles.center} role="status">
           <span className={styles.spinner} aria-hidden="true" />
-          <span className="visually-hidden">Chargement de la vidéo…</span>
+          <span className="visually-hidden">Loading the video…</span>
         </div>
       )}
 
@@ -287,9 +287,9 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
             <h2 className={styles.problemTitle}>{details.title}</h2>
             <p>{details.text}</p>
             <div className={styles.problemActions}>
-              {details.canRetry && <Button onClick={retry}>Réessayer</Button>}
+              {details.canRetry && <Button onClick={retry}>Try again</Button>}
               <ButtonLink to={backTo} variant="secondary">
-                Retour au film
+                Back to the film
               </ButtonLink>
             </div>
           </div>
@@ -306,8 +306,8 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
         <input
           className={styles.seek}
           type="range"
-          aria-label="Position de lecture"
-          aria-valuetext={`${formatSpokenTime(time)} sur ${formatSpokenTime(duration)}`}
+          aria-label="Playback position"
+          aria-valuetext={`${formatSpokenTime(time)} of ${formatSpokenTime(duration)}`}
           min={0}
           max={duration || 0}
           step={1}
@@ -321,7 +321,7 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
             ref={playButtonRef}
             type="button"
             className={`${styles.control} ${styles.primary}`}
-            aria-label={playing ? 'Pause' : 'Lecture'}
+            aria-label={playing ? 'Pause' : 'Play'}
             disabled={Boolean(problem)}
             onClick={togglePlay}
           >
@@ -330,7 +330,7 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
           <button
             type="button"
             className={styles.control}
-            aria-label={`Reculer de ${SEEK_STEP} secondes`}
+            aria-label={`Back ${SEEK_STEP} seconds`}
             disabled={!duration || Boolean(problem)}
             onClick={() => seekTo(time - SEEK_STEP)}
           >
@@ -339,7 +339,7 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
           <button
             type="button"
             className={styles.control}
-            aria-label={`Avancer de ${SEEK_STEP} secondes`}
+            aria-label={`Forward ${SEEK_STEP} seconds`}
             disabled={!duration || Boolean(problem)}
             onClick={() => seekTo(time + SEEK_STEP)}
           >
@@ -354,7 +354,7 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
             <button
               type="button"
               className={styles.control}
-              aria-label={muted ? 'Réactiver le son' : 'Couper le son'}
+              aria-label={muted ? 'Unmute' : 'Mute'}
               onClick={toggleMute}
             >
               <VolumeIcon muted={shownVolume === 0} />
@@ -363,7 +363,7 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
               className={styles.volumeSlider}
               type="range"
               aria-label="Volume"
-              aria-valuetext={`${Math.round(shownVolume * 100)} %`}
+              aria-valuetext={`${Math.round(shownVolume * 100)}%`}
               min={0}
               max={1}
               step={0.05}
@@ -376,7 +376,7 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
             <button
               type="button"
               className={`${styles.control} ${styles.fullscreen}`}
-              aria-label={fullscreen ? 'Quitter le plein écran' : 'Plein écran'}
+              aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
               onClick={toggleFullscreen}
             >
               <FullscreenIcon active={fullscreen} />
