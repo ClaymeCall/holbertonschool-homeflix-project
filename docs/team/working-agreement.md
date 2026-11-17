@@ -25,7 +25,7 @@ Service ownership (one lead per service, everyone reviews the others):
 
 ## 2. Communication and rituals
 
-- **Daily check-in** (short): what was done, what blocks, what is next. No fixed time: the team meets on a Discord call when needed. Where: Discord.
+- **Daily check-in** (short): what was done, what blocks, what is next. A written message in the Discord channel each day is enough, with no fixed time. The team meets on a Discord call only when needed. Where: Discord.
 - **Channel** for day-to-day questions: Discord.
 - **Every architecture decision requires an ADR** in [`docs/adr/`](../adr/README.md), accepted through a reviewed pull request (see [CONTRIBUTING.md](../../CONTRIBUTING.md#architecture-decisions)). Other decisions are noted in the relevant issue.
 - **Integrated review** on day 5 and **acceptance run** on day 9, as per the project schedule.
