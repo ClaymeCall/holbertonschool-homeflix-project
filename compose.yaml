@@ -82,7 +82,7 @@ services:
 
   # ---- Database (ADR-0006): one server, one database and user per service ----
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17.12-alpine3.24
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-homeflix_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
@@ -104,7 +104,7 @@ services:
   # ---- Peer-to-peer client (ADR-0014): headless, no published port ----
   # Reachable only by the acquisition service, over the private p2p network.
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
+    image: lscr.io/linuxserver/qbittorrent:5.3.0_v2.1.2-ls487
     environment:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}

@@ -1,0 +1,779 @@
+# Library service contract (ADR-0010). Written before the implementation.
+# Shapes follow the data model (docs/architecture/data-model.md) and the screens in the frontend pull requests.
+openapi: 3.1.0
+info:
+  title: HomeFlix library service
+  version: 0.1.0
+  description: |
+    Authorized media folders, indexing, the catalogue, video streaming, favourites and viewing progress.
+
+    Paths are those of the service. Through the gateway they are served under `/api/library`
+    (ADR-0017), which is the server URL below.
+
+    **Permissions** are written on each operation as `x-permission`:
+    `account` (signed in), `profile` (signed in with an active profile) or `admin`.
+    The identity comes from the signed token only, never from a parameter: the account is the `sub`
+    claim, the administrator flag is `admin`, and the active profile is `profileId` (ADR-0009).
+    A request never carries a file path: clients send media ids (LIB-08, PLY-04).
+
+    **Errors** use the common body of `common.yaml` (ADR-0020).
+servers:
+  - url: /api/library
+    description: Through the gateway
+tags:
+  - name: Roots
+  - name: Scans
+  - name: Catalogue
+  - name: Playback
+  - name: Favourites
+  - name: Progress
+security:
+  - cookieAuth: []
+paths:
+  /roots:
+    get:
+      tags: [Roots]
+      operationId: listRoots
+      summary: List the authorized media folders
+      x-permission: admin
+      responses:
+        '200':
+          description: The configured roots.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Root'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Roots]
+      operationId: addRoot
+      summary: Authorize a media folder
+      description: |
+        The folder must be inside one of the folders Docker mounts into the service (`/media/library`,
+        `/media/downloads`), exist, be readable and be a directory (R-02). Each failure has its own code so the
+        interface can explain it. Technical details go to the log, not to the response (SEC-04).
+      x-permission: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RootRequest'
+      responses:
+        '201':
+          description: Root added.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Root'
+        '400':
+          description: >
+            The folder is not acceptable: `directory_not_found`, `directory_not_readable`, `not_a_directory`,
+            `directory_outside_library`, or `validation_failed` for a missing or malformed path.
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                notFound:
+                  value:
+                    error: directory_not_found
+                    message: This folder does not exist.
+                outside:
+                  value:
+                    error: directory_outside_library
+                    message: This folder is not inside the folders shared with HomeFlix.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '409':
+          description: This folder is already authorized (`root_already_added`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                default:
+                  value:
+                    error: root_already_added
+                    message: This folder is already added.
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /roots/{rootId}:
+    parameters:
+      - $ref: '#/components/parameters/RootId'
+    delete:
+      tags: [Roots]
+      operationId: removeRoot
+      summary: Remove an authorized folder
+      description: |
+        Never deletes a file on disk. The titles whose file is under this root become `UNAVAILABLE` and keep
+        their catalogue information, favourites and progress (LIB-07).
+      x-permission: admin
+      responses:
+        '204':
+          description: Root removed.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /scans:
+    post:
+      tags: [Scans]
+      operationId: runScan
+      summary: Index the authorized folders
+      description: |
+        Runs the indexing inside the request and answers with a report (the report is not stored). Repeating a
+        scan never creates duplicates (LIB-05): a file is identified by its root and relative path. New files add
+        titles, files no longer found mark their title `UNAVAILABLE`, and videos in an unsupported format are
+        listed in the report and not added (see docs/library/media-identification.md). Access to each root is
+        checked again during the scan (LIB-03).
+
+        Only one scan runs at a time. The request can take a while on a large library or a slow network share,
+        so the gateway read timeout for this path must allow it.
+      x-permission: admin
+      responses:
+        '200':
+          description: The scan finished.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanReport'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '409':
+          description: Another scan is already running (`scan_in_progress`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                default:
+                  value:
+                    error: scan_in_progress
+                    message: A scan is already running. Try again when it has finished.
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /media:
+    get:
+      tags: [Catalogue]
+      operationId: listMedia
+      summary: Search and list titles
+      description: |
+        All titles of the catalogue, whatever their availability, so unavailable and downloading titles can be
+        shown as such (CAT-01). A title with missing metadata is still listed (CAT-10).
+      x-permission: account
+      parameters:
+        - name: query
+          in: query
+          description: Part of a title, matched without regard to case.
+          schema:
+            type: string
+            maxLength: 100
+        - name: genre
+          in: query
+          description: A genre name from `GET /genres`.
+          schema:
+            type: string
+            maxLength: 50
+        - name: sort
+          in: query
+          description: '`recent` is newest first (recently added); `title` is alphabetical.'
+          schema:
+            type: string
+            enum: [recent, title]
+            default: title
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of titles. An empty array when nothing matches.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items:
+                  $ref: '#/components/schemas/MediaSummary'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /media/{mediaId}:
+    parameters:
+      - $ref: '#/components/parameters/MediaId'
+    get:
+      tags: [Catalogue]
+      operationId: getMedia
+      summary: A title's details
+      x-permission: account
+      responses:
+        '200':
+          description: The title with its description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaDetails'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /categories:
+    get:
+      tags: [Catalogue]
+      operationId: listCategories
+      summary: Home screen categories
+      description: One category per genre that has at least one title, alphabetical, each with its 20 most recently added titles.
+      x-permission: account
+      responses:
+        '200':
+          description: The categories.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /genres:
+    get:
+      tags: [Catalogue]
+      operationId: listGenres
+      summary: Genres for the filter
+      x-permission: account
+      responses:
+        '200':
+          description: Genre names that have at least one title, alphabetical.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /media/{mediaId}/stream:
+    parameters:
+      - $ref: '#/components/parameters/MediaId'
+    get:
+      tags: [Playback]
+      operationId: streamMedia
+      summary: Stream the video, with HTTP Range
+      description: |
+        Streams the MP4 file (H.264 video, AAC audio, ADR-0015). Permission is checked on **every** request,
+        and the file path is resolved from the media id, then checked to be inside an authorized root after
+        following symbolic links (PLY-04, docs/library/file-access.md).
+
+        **Range requests (PLY-03).** The service accepts one byte range, in the forms `bytes=START-END`,
+        `bytes=START-` and `bytes=-SUFFIX_LENGTH`. A request without `Range` answers `200` with the whole
+        file. A satisfiable range answers `206 Partial Content` with the matching `Content-Range`. A range
+        starting at or after the end of the file, or a request with several ranges, answers
+        `416 Range Not Satisfiable` with `Content-Range: bytes */<size>`. Every successful answer carries
+        `Accept-Ranges: bytes`.
+
+        The browser's `<video>` element sends the session cookie itself, so no header is needed for access.
+        The gateway does not buffer this route, so ranges are streamed through (ADR-0017).
+      x-permission: account
+      parameters:
+        - name: Range
+          in: header
+          required: false
+          description: A single byte range, for example `bytes=0-1048575`.
+          schema:
+            type: string
+            pattern: '^bytes=(\d+-\d*|-\d+)$'
+          examples:
+            firstMegabyte:
+              value: bytes=0-1048575
+            fromOffset:
+              value: bytes=5242880-
+      responses:
+        '200':
+          description: The whole file (no `Range` header).
+          headers:
+            Accept-Ranges:
+              $ref: '#/components/headers/AcceptRanges'
+            Content-Length:
+              $ref: '#/components/headers/ContentLength'
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: The requested part of the file.
+          headers:
+            Accept-Ranges:
+              $ref: '#/components/headers/AcceptRanges'
+            Content-Range:
+              description: '`bytes START-END/SIZE`, for example `bytes 0-1048575/73400320`.'
+              schema:
+                type: string
+            Content-Length:
+              $ref: '#/components/headers/ContentLength'
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          description: The file's real path is outside the authorized folders (`access_denied`). The message never contains a path.
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                default:
+                  value:
+                    error: access_denied
+                    message: You do not have access to this video.
+        '404':
+          description: The title does not exist (`not_found`), or its file is missing from disk (`file_not_found`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                missingFile:
+                  value:
+                    error: file_not_found
+                    message: The file for this title could not be found. It may have been moved or deleted from the library.
+        '409':
+          description: The title has no file to play yet, because it is still downloading (`media_not_available`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                default:
+                  value:
+                    error: media_not_available
+                    message: This title is still downloading and cannot be played yet.
+        '416':
+          description: The range cannot be satisfied (`range_not_satisfiable`).
+          headers:
+            Content-Range:
+              description: '`bytes */SIZE`, giving the size of the file.'
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                default:
+                  value:
+                    error: range_not_satisfiable
+                    message: This part of the video is not available.
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /favourites:
+    get:
+      tags: [Favourites]
+      operationId: listFavourites
+      summary: The active profile's list ("My List")
+      description: Most recently added first.
+      x-permission: profile
+      responses:
+        '200':
+          description: The favourite titles.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MediaSummary'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/ProfileNotSelected'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /favourites/{mediaId}:
+    parameters:
+      - $ref: '#/components/parameters/MediaId'
+    put:
+      tags: [Favourites]
+      operationId: addFavourite
+      summary: Add a title to the list
+      description: Idempotent. Adding a title that is already listed succeeds.
+      x-permission: profile
+      responses:
+        '204':
+          description: The title is in the list.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/ProfileNotSelected'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+    delete:
+      tags: [Favourites]
+      operationId: removeFavourite
+      summary: Remove a title from the list
+      description: Idempotent. Removing a title that is not listed succeeds.
+      x-permission: profile
+      responses:
+        '204':
+          description: The title is not in the list.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/ProfileNotSelected'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /progress:
+    get:
+      tags: [Progress]
+      operationId: listProgress
+      summary: The active profile's viewing progress
+      description: |
+        Most recently watched first. "Continue watching" is `state=STARTED`; completed titles are
+        `state=COMPLETED` (PLY-09).
+      x-permission: profile
+      parameters:
+        - name: state
+          in: query
+          description: Only entries in this state. All entries when omitted.
+          schema:
+            $ref: '#/components/schemas/ProgressState'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: The progress entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items:
+                  $ref: '#/components/schemas/ProgressEntry'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/ProfileNotSelected'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /progress/{mediaId}:
+    parameters:
+      - $ref: '#/components/parameters/MediaId'
+    get:
+      tags: [Progress]
+      operationId: getProgress
+      summary: Where the active profile stopped in a title
+      description: Used to resume. Answers 404 when nothing was saved, which is the normal case for an unseen title.
+      x-permission: profile
+      responses:
+        '200':
+          description: The saved progress.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgressEntry'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/ProfileNotSelected'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+    put:
+      tags: [Progress]
+      operationId: saveProgress
+      summary: Save the position
+      description: |
+        Called periodically while playing (PLY-07). Creates or replaces the single entry for this profile and
+        title. The position must be between 0 and the duration.
+      x-permission: profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgressRequest'
+      responses:
+        '200':
+          description: The saved progress, with its computed state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgressEntry'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/ProfileNotSelected'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+    delete:
+      tags: [Progress]
+      operationId: resetProgress
+      summary: Reset the progress of a title
+      description: Idempotent. The title is no longer started or completed for this profile.
+      x-permission: profile
+      responses:
+        '204':
+          description: No progress is saved for this title.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/ProfileNotSelected'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+components:
+  parameters:
+    MediaId:
+      name: mediaId
+      in: path
+      required: true
+      schema:
+        $ref: './common.yaml#/components/schemas/Uuid'
+    RootId:
+      name: rootId
+      in: path
+      required: true
+      schema:
+        $ref: './common.yaml#/components/schemas/Uuid'
+    Limit:
+      name: limit
+      in: query
+      description: Maximum number of entries to return.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    Offset:
+      name: offset
+      in: query
+      description: Number of entries to skip.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+  headers:
+    AcceptRanges:
+      description: Always `bytes`.
+      schema:
+        type: string
+        const: bytes
+    ContentLength:
+      description: Number of bytes in the body.
+      schema:
+        type: integer
+
+  schemas:
+    Availability:
+      type: string
+      description: >
+        `AVAILABLE`: the file is present. `UNAVAILABLE`: it was deleted or became inaccessible, and the entry keeps
+        its information. `DOWNLOADING`: a download is in progress and there is no file yet (CAT-01).
+      enum: [AVAILABLE, UNAVAILABLE, DOWNLOADING]
+
+    MediaSummary:
+      type: object
+      description: A title as shown in lists. Only `id`, `title` and `availability` are always filled (CAT-10).
+      required: [id, title, genres, availability]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        title:
+          type: string
+        genres:
+          type: array
+          description: Zero or more genre names.
+          items:
+            type: string
+        posterUrl:
+          description: >
+            `https` image URL on an allowed host, or null (ADR-0018). The server never fetches it; the browser does,
+            and shows the placeholder poster when it is null or fails to load.
+          type: ['string', 'null']
+          format: uri
+        durationSeconds:
+          type: ['integer', 'null']
+          minimum: 0
+        availability:
+          $ref: '#/components/schemas/Availability'
+
+    MediaDetails:
+      allOf:
+        - $ref: '#/components/schemas/MediaSummary'
+        - type: object
+          properties:
+            description:
+              type: ['string', 'null']
+
+    Category:
+      type: object
+      required: [genre, items]
+      properties:
+        genre:
+          type: string
+        items:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/MediaSummary'
+
+    Root:
+      type: object
+      required: [id, path, createdAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        path:
+          type: string
+          description: Folder inside the container, under a mounted path.
+          examples: [/media/library/films]
+        createdAt:
+          type: string
+          format: date-time
+
+    RootRequest:
+      type: object
+      required: [path]
+      properties:
+        path:
+          type: string
+          minLength: 1
+          maxLength: 4096
+          examples: [/media/library/films]
+
+    ScanReport:
+      type: object
+      required: [startedAt, finishedAt, added, updated, markedUnavailable, unsupported, inaccessibleRoots]
+      properties:
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        added:
+          type: integer
+          minimum: 0
+          description: New titles created.
+        updated:
+          type: integer
+          minimum: 0
+          description: Known files seen again, or titles that became available again.
+        markedUnavailable:
+          type: integer
+          minimum: 0
+          description: Titles whose file is no longer found.
+        unsupported:
+          type: array
+          description: Videos found in a format HomeFlix does not play. Not added to the catalogue.
+          items:
+            type: object
+            required: [rootId, relativePath, error]
+            properties:
+              rootId:
+                $ref: './common.yaml#/components/schemas/Uuid'
+              relativePath:
+                type: string
+              error:
+                type: string
+                const: format_not_supported
+        inaccessibleRoots:
+          type: array
+          description: Roots that could not be read during this scan, with the reason.
+          items:
+            type: object
+            required: [rootId, error]
+            properties:
+              rootId:
+                $ref: './common.yaml#/components/schemas/Uuid'
+              error:
+                type: string
+                enum: [directory_not_found, directory_not_readable, not_a_directory]
+
+    ProgressState:
+      type: string
+      description: >
+        Computed from the saved position, not stored (PLY-09). `STARTED`: more than 5 seconds watched and less than 90 %.
+        `COMPLETED`: 90 % or more. Below 5 seconds a title is neither (no entry is shown as started).
+      enum: [STARTED, COMPLETED]
+
+    ProgressRequest:
+      type: object
+      required: [positionSeconds, durationSeconds]
+      properties:
+        positionSeconds:
+          type: integer
+          minimum: 0
+        durationSeconds:
+          type: integer
+          minimum: 1
+
+    ProgressEntry:
+      type: object
+      required: [mediaId, positionSeconds, durationSeconds, updatedAt]
+      properties:
+        mediaId:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        positionSeconds:
+          type: integer
+          minimum: 0
+        durationSeconds:
+          type: integer
+          minimum: 1
+        state:
+          description: Null when less than 5 seconds were watched.
+          oneOf:
+            - $ref: '#/components/schemas/ProgressState'
+            - type: 'null'
+        updatedAt:
+          type: string
+          format: date-time
+        media:
+          description: The title, included by `GET /progress` so a list needs no second request. Absent elsewhere.
+          $ref: '#/components/schemas/MediaSummary'
