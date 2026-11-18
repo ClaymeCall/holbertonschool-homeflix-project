@@ -37,6 +37,16 @@ public class ApiExceptionHandler {
 		return validationFailed(Map.of(ex.field(), ex.getMessage()));
 	}
 
+	@ExceptionHandler(UnauthenticatedException.class)
+	ResponseEntity<ApiError> unauthenticated(UnauthenticatedException ex) {
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiError("unauthenticated", ex.getMessage()));
+	}
+
+	@ExceptionHandler(ForbiddenException.class)
+	ResponseEntity<ApiError> forbidden(ForbiddenException ex) {
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError("forbidden", ex.getMessage()));
+	}
+
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	ResponseEntity<ApiError> unreadableBody(HttpMessageNotReadableException ex) {
 		return ResponseEntity.badRequest()

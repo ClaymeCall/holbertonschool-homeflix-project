@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.homeflix.identity.web.ApiError;
+import com.homeflix.identity.web.UnauthenticatedException;
 
 import jakarta.validation.Valid;
 
