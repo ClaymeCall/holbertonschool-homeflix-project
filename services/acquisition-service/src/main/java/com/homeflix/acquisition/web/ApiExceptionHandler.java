@@ -44,6 +44,16 @@ public class ApiExceptionHandler {
 				.body(new ApiError("invalid_request", "The request body is missing or is not valid JSON."));
 	}
 
+	@ExceptionHandler(UnauthenticatedException.class)
+	ResponseEntity<ApiError> unauthenticated(UnauthenticatedException ex) {
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiError("unauthenticated", ex.getMessage()));
+	}
+
+	@ExceptionHandler(ForbiddenException.class)
+	ResponseEntity<ApiError> forbidden(ForbiddenException ex) {
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError("forbidden", ex.getMessage()));
+	}
+
 	/** A called service is down, too slow, or answered with a 5xx: one answer for all of them. */
 	@ExceptionHandler({ ServiceUnavailableException.class, ResourceAccessException.class,
 			HttpServerErrorException.class })

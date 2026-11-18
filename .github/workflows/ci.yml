@@ -95,10 +95,24 @@ jobs:
             echo "LIBRARY_DB_PASSWORD=ci-placeholder"
             echo "ACQUISITION_DB_PASSWORD=ci-placeholder"
             echo "JWT_PRIVATE_KEY_PATH=./ci-placeholder.pem"
+            echo "JWT_PUBLIC_KEY_PATH=./ci-placeholder.pem"
           } > "$RUNNER_TEMP/ci.env"
 
       - name: Validate compose.yaml
         run: docker compose --env-file "$RUNNER_TEMP/ci.env" config --quiet
+
+      # R-12: business services and the database publish no port to the host, so they can only
+      # be reached through the gateway. Only the gateway (and later the torrent peer port, R-21)
+      # may publish one.
+      - name: Check that only the gateway publishes ports
+        run: |
+          published=$(docker compose --env-file "$RUNNER_TEMP/ci.env" config --format json \
+            | jq -r '.services | to_entries[] | select(.value.ports != null and (.value.ports | length) > 0) | .key' \
+            | grep -v -x -E 'gateway|qbittorrent' || true)
+          if [ -n "$published" ]; then
+            echo "These services must not publish ports: $published"
+            exit 1
+          fi
 
       # Builds the gateway (with the React app) and the three service images,
       # which catches a broken Dockerfile before it reaches main.

@@ -98,14 +98,20 @@ class AccessGuardTests {
 
 	@Test
 	void forgedAdministratorTokenIsRefused() throws Exception {
-		expectUnauthenticated(mvc.perform(withToken(post("/probe/admin"), new TokenService(SessionKeys.fromKeyText(TestKeys.newPrivateKey(2048)), Clock.systemUTC(),
-				Duration.ofMinutes(15)).issue(new SessionClaims(accountId, true, null)))));
+		TokenService otherKey = new TokenService(SessionKeys.fromKeyText(TestKeys.newPrivateKey(2048)),
+				Clock.systemUTC(), Duration.ofMinutes(15));
+		String forged = otherKey.issue(new SessionClaims(accountId, true, null));
+
+		expectUnauthenticated(mvc.perform(withToken(post("/probe/admin"), forged)));
 	}
 
 	@Test
 	void expiredAdministratorTokenIsRefused() throws Exception {
-		expectUnauthenticated(mvc.perform(withToken(post("/probe/admin"), new TokenService(KEYS, Clock.offset(Clock.systemUTC(), Duration.ofMinutes(-20)),
-				Duration.ofMinutes(15)).issue(new SessionClaims(accountId, true, null)))));
+		TokenService twentyMinutesAgo = new TokenService(KEYS,
+				Clock.offset(Clock.systemUTC(), Duration.ofMinutes(-20)), Duration.ofMinutes(15));
+		String expired = twentyMinutesAgo.issue(new SessionClaims(accountId, true, null));
+
+		expectUnauthenticated(mvc.perform(withToken(post("/probe/admin"), expired)));
 	}
 
 	@Test
@@ -127,6 +133,5 @@ class AccessGuardTests {
 				.andExpect(jsonPath("$.error").value("unauthenticated"))
 				.andExpect(jsonPath("$.message").value("Please sign in."));
 	}
-
 
 }
