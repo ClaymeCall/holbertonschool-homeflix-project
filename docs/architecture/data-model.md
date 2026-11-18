@@ -125,6 +125,12 @@ A path-based key means a renamed or moved file is seen as a new title, and the o
 
 The indexer and the download notifications write this column; an administrator does not.
 
+The database enforces two rules (migration `V2__create_media_tables.sql`): an `AVAILABLE` title must have a file, and a `DOWNLOADING` title cannot have one yet.
+
+### Removing a root (LIB-07)
+
+Removing an authorized folder deletes its `media_file` rows (`ON DELETE CASCADE`) but never a file on disk, and the catalogue entries stay: `media_item.media_file_id` is set to null (`ON DELETE SET NULL`), so titles keep their metadata, favourites and progress. Because an `AVAILABLE` title must have a file, the service marks its titles `UNAVAILABLE` first and removes the root in the same transaction; removing the root while a title is still `AVAILABLE` is refused by the database.
+
 ### Missing metadata (CAT-10)
 
 Only `title` is required. A title without description, poster, genre or duration is still listed, and the interface shows placeholders.
@@ -139,7 +145,7 @@ A title can have several genres through `media_item_genre`. The genre filter and
 
 ### Favourites and progress (PRF-03, CAT-08, PLY-07 to PLY-09)
 
-`favourite` and `progress` have one row per profile and title. `profile_id` is a plain uuid: the library does not know whether the profile still exists, which is a consistency rule for issue #13.
+`favourite` and `progress` have one row per profile and title. `profile_id` is a plain uuid: the library does not know whether the profile still exists, which is a consistency rule: see the [cross-service consistency rules](consistency-rules.md).
 
 - **Started** means `position_seconds` is above a few seconds; **completed** means 90 % or more of `duration_seconds` is watched. Both are computed from the row with one constant in code, not stored, so a flag can never disagree with the position (PLY-09).
 - **Reset** deletes the row.
@@ -174,6 +180,7 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz finished_at "nullable"
+        timestamptz library_synced_at "null while a notification to the library is pending"
     }
 ```
 
@@ -192,7 +199,7 @@ erDiagram
 
 | From (service) | Column | Points to (service) | Rule |
 |---|---|---|---|
-| Library | `favourite.profile_id`, `progress.profile_id` | Identity `profile.id` | No foreign key. Deleting a profile or account must delete these rows (issue #13, K2, K3). |
+| Library | `favourite.profile_id`, `progress.profile_id` | Identity `profile.id` | No foreign key. Deleting a profile or account must delete these rows ([consistency rules](consistency-rules.md), K2, K3). |
 | Library | `media_item.acquisition_entry_id` | Acquisition `acquisition_entry.id` | No foreign key. Set when a download starts, so a repeated notification does not create a second item. |
 | Acquisition | `download_job.started_by` | Identity `account.id` | No foreign key. Kept for audit; an account deletion does not delete the job. |
 
