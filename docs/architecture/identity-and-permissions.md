@@ -29,7 +29,10 @@ sequenceDiagram
     I->>I: check BCrypt hash, account not disabled
     I-->>B: 200 Account + Set-Cookie homeflix_token (no profile yet)
     B->>G: GET /api/identity/profiles
+    G->>I: forward
+    I-->>B: 200 the account's profiles
     B->>G: POST /api/identity/profiles/{id}/select
+    G->>I: forward
     I->>I: the profile belongs to the account in the token
     I-->>B: 200 Account + new cookie with the profileId claim
     B->>G: GET /api/library/media (cookie sent automatically)
@@ -37,6 +40,7 @@ sequenceDiagram
     L->>L: verify signature, expiry, issuer, then read the claims
     L-->>B: 200
     B->>G: POST /api/identity/auth/refresh (before expiry)
+    G->>I: forward
     I->>I: the account still exists and is not disabled
     I-->>B: 200 + fresh cookie
 ```
@@ -73,7 +77,7 @@ No service reads the identity service's tables or calls it to validate a request
 - `POST /auth/refresh` takes a **still valid** token and issues a new one for the same account and the same active profile. It reads the account again, so a disabled or deleted account gets a 401 and the session ends within 15 minutes (ACC-10). It does not accept an expired token.
 - A role change (`is_admin`) or a disabled account therefore takes effect at the next renewal, at most 15 minutes later. This is accepted to keep the services stateless (ADR-0009, R-10).
 - **Renewal is proactive.** The frontend renews at about two thirds of the lifetime (every 10 minutes) while the page is open, and when a hidden tab becomes visible again. A token that has already expired means signing in again, with the expired-session message (ACC-08). This also keeps a long video playing: each new range request carries the cookie, so the cookie must still be valid while the video is watched.
-- Signing out clears the cookie on the client. The token itself stays valid until it expires, which is the cost of having no revocation list.
+- Signing out is done by the server: `POST /auth/sign-out` answers with an expired `Set-Cookie` (empty value, `Max-Age=0`), because an `HttpOnly` cookie cannot be removed by JavaScript. The token itself stays valid until it expires, which is the cost of having no revocation list.
 
 ## Roles and permissions
 
@@ -104,7 +108,7 @@ Rules that apply to every row:
 
 - **The server enforces the matrix** (SEC-02). The interface hides what a user cannot do, but a request made by hand is refused all the same (AS-07).
 - An administrator has no extra access to another profile's favourites or progress: they are reached only through the active profile in the token.
-- The last administrator cannot be disabled, deleted or demoted, so the installation is never left without one (G8).
+- The last administrator cannot be disabled, deleted or demoted, so the installation is never left without one (G8). Like the first-administrator setup (R-07), this is checked on the server and must hold under simultaneous requests: two administrators demoting each other at the same time must leave one. The service does the check and the change in one transaction, after taking a lock on the administrators (for example a PostgreSQL advisory lock, as in setup), and a test runs two such requests concurrently.
 - A disabled account cannot sign in (`invalid_credentials`, the same answer as a wrong password, so accounts are not revealed) and cannot renew (ACC-10).
 
 ## Profile ownership
@@ -170,6 +174,6 @@ Settled here, as ADR-0009 asks:
 
 Still open:
 
-1. **Frontend renewal.** The frontend (#117) renews once when a request answers 401. With the rule above, a token that has already expired cannot be renewed, so that renewal only works if it happens before expiry. The frontend must renew on a timer and on tab focus. To be agreed with Thomas.
+1. **Frontend renewal.** The frontend (#117) renews once when a request answers 401. With the rule above, a token that has already expired cannot be renewed, so that renewal only works if it happens before expiry. The frontend must renew on a timer and on tab focus. To be agreed with Thomas **before #117 is merged**, otherwise playback stops after 15 minutes.
 2. **Calls from one service to another.** Operations such as deleting a profile's data in the library, or the acquisition handoff, are made by a service, not by a user. The gateway must not route them, and the receiving service must know the caller is a trusted service. The mechanism is part of the cross-service rules (issue #13) and the inter-service identity work (G5).
 3. **Token size and the `admin` claim.** If the roles ever grow beyond administrator and user, the claim becomes a list. Not needed for the MVP.
