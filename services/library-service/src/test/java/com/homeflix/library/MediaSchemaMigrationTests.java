@@ -156,6 +156,78 @@ class MediaSchemaMigrationTests {
 				.hasMessageContaining("media_item_downloading_no_file");
 	}
 
+	@Test
+	void relativePathWithADotDotSegmentIsRejected() {
+		UUID root = insertRoot("/media/library");
+		assertThatThrownBy(() -> insertFile(root, "../../etc/passwd"))
+				.isInstanceOf(DataIntegrityViolationException.class)
+				.hasMessageContaining("media_file_path_no_traversal");
+	}
+
+	@Test
+	void dotDotInTheMiddleOfAPathIsRejected() {
+		UUID root = insertRoot("/media/library");
+		assertThatThrownBy(() -> insertFile(root, "Films/../../x.mp4"))
+				.isInstanceOf(DataIntegrityViolationException.class)
+				.hasMessageContaining("media_file_path_no_traversal");
+	}
+
+	@Test
+	void dotDotInsideAFileNameIsAccepted() {
+		UUID root = insertRoot("/media/library");
+		insertFile(root, "film..final.mp4");
+		insertFile(root, "Films/..hidden.mp4");
+		assertThat(jdbc.queryForObject("select count(*) from media_file", Integer.class)).isEqualTo(2);
+	}
+
+	@Test
+	void rootPathMustBeAbsolute() {
+		assertThatThrownBy(() -> insertRoot("media/library"))
+				.isInstanceOf(DataIntegrityViolationException.class)
+				.hasMessageContaining("media_root_path_normalised");
+	}
+
+	@Test
+	void rootPathWithATrailingSlashIsRejected() {
+		assertThatThrownBy(() -> insertRoot("/media/library/"))
+				.isInstanceOf(DataIntegrityViolationException.class)
+				.hasMessageContaining("media_root_path_normalised");
+	}
+
+	@Test
+	void rootPathWithADotDotSegmentIsRejected() {
+		assertThatThrownBy(() -> insertRoot("/media/library/../secrets"))
+				.isInstanceOf(DataIntegrityViolationException.class)
+				.hasMessageContaining("media_root_path_normalised");
+	}
+
+	// ---- updated_at is set by a trigger ----
+
+	@Test
+	void updatingAnItemMovesItsUpdatedAt() {
+		UUID item = insertItem("Edited", "UNAVAILABLE", null);
+		Object before = jdbc.queryForObject("select updated_at from media_item where id = ?", Object.class, item);
+		jdbc.update("update media_item set title = 'Edited again' where id = ?", item);
+		assertThat(jdbc.queryForObject("select updated_at > ? from media_item where id = ?", Boolean.class, before, item)).isTrue();
+	}
+
+	@Test
+	void updatingProgressMovesItsUpdatedAt() {
+		UUID item = insertItem("Watched", "UNAVAILABLE", null);
+		UUID profile = UUID.randomUUID();
+		jdbc.update("insert into progress (profile_id, media_item_id, position_seconds, duration_seconds) values (?, ?, 10, 600)", profile, item);
+		Object before = jdbc.queryForObject("select updated_at from progress where profile_id = ?", Object.class, profile);
+		jdbc.update("update progress set position_seconds = 20 where profile_id = ?", profile);
+		assertThat(jdbc.queryForObject("select updated_at > ? from progress where profile_id = ?", Boolean.class, before, profile)).isTrue();
+	}
+
+	@Test
+	void updatedAtCannotBeSetBackByAnUpdate() {
+		UUID item = insertItem("Pinned", "UNAVAILABLE", null);
+		jdbc.update("update media_item set updated_at = '2000-01-01' where id = ?", item);
+		assertThat(jdbc.queryForObject("select updated_at > '2000-01-02' from media_item where id = ?", Boolean.class, item)).isTrue();
+	}
+
 	// ---- Duplicate-free scans (LIB-05) ----
 
 	@Test

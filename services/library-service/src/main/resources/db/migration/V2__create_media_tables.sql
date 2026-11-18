@@ -18,7 +18,11 @@ CREATE TABLE media_root (
     created_at timestamptz   NOT NULL DEFAULT now(),
 
     CONSTRAINT media_root_path_unique    UNIQUE (path),
-    CONSTRAINT media_root_path_not_blank CHECK (btrim(path) <> '')
+    CONSTRAINT media_root_path_not_blank CHECK (btrim(path) <> ''),
+    -- Absolute, with no trailing slash, so /media/library and /media/library/ cannot
+    -- both be stored. A '..' segment is refused. Nested roots are refused by the
+    -- service, not here (the indexer would otherwise index a file twice).
+    CONSTRAINT media_root_path_normalised CHECK (path ~ '^/' AND path !~ '/$' AND path !~ '(^|/)\.\.(/|$)')
 );
 
 -- Files found by the indexer. The key (root_id, relative_path) is what makes
@@ -35,6 +39,9 @@ CREATE TABLE media_file (
 
     CONSTRAINT media_file_path_unique       UNIQUE (root_id, relative_path),
     CONSTRAINT media_file_path_relative     CHECK (btrim(relative_path) <> '' AND left(relative_path, 1) <> '/'),
+    -- Defence in depth for R-01: refuse a '..' segment, but not a name such as
+    -- film..final.mp4. The Java path guard remains the main protection.
+    CONSTRAINT media_file_path_no_traversal CHECK (relative_path !~ '(^|/)\.\.(/|$)'),
     CONSTRAINT media_file_size_not_negative CHECK (size_bytes >= 0)
 );
 
@@ -130,6 +137,22 @@ CREATE TABLE progress (
 CREATE INDEX progress_media_item_idx ON progress (media_item_id);
 -- "Continue watching": a profile's most recently watched titles.
 CREATE INDEX progress_profile_updated_idx ON progress (profile_id, updated_at DESC);
+
+-- Sets updated_at on every UPDATE, so no code path can forget it. clock_timestamp()
+-- (not now()) so two updates in one transaction get different values.
+-- "Continue watching" orders by progress.updated_at.
+CREATE FUNCTION set_updated_at() RETURNS trigger AS $$
+BEGIN
+    NEW.updated_at := clock_timestamp();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER media_item_set_updated_at BEFORE UPDATE ON media_item
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER progress_set_updated_at BEFORE UPDATE ON progress
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 COMMENT ON TABLE media_item IS 'Catalogue entry. Catalogue fields are edited by administrators; availability is written by the indexer and download notifications.';
 COMMENT ON COLUMN media_item.availability IS 'AVAILABLE, UNAVAILABLE or DOWNLOADING (CAT-01).';
