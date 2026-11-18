@@ -13,7 +13,9 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
@@ -52,6 +54,26 @@ public class ApiExceptionHandler {
 	@ExceptionHandler(ForbiddenException.class)
 	ResponseEntity<ApiError> forbidden(ForbiddenException ex) {
 		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError("forbidden", ex.getMessage()));
+	}
+
+	@ExceptionHandler(NotFoundException.class)
+	ResponseEntity<ApiError> notFound(NotFoundException ex) {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+				.body(new ApiError("not_found", "This address does not exist."));
+	}
+
+	/**
+	 * A value that cannot be read as the expected type. An id in the address cannot match anything, so it is
+	 * a plain 404, as in the library. A value in the query string is a validation error that names it.
+	 */
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	ResponseEntity<ApiError> badValue(MethodArgumentTypeMismatchException ex) {
+		if (ex.getParameter().hasParameterAnnotation(PathVariable.class)) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND)
+					.body(new ApiError("not_found", "This address does not exist."));
+		}
+		return ResponseEntity.badRequest().body(new ApiError("validation_failed", "Some fields are invalid.",
+				Map.of(ex.getName(), "This value is not valid.")));
 	}
 
 	/** A called service is down, too slow, or answered with a 5xx: one answer for all of them. */

@@ -167,6 +167,7 @@ erDiagram
         varchar download_source "magnet or torrent address, never from a user"
         bigint expected_size_bytes
         varchar expected_format "MP4"
+        timestamptz created_at
     }
     download_job {
         uuid id PK
@@ -186,7 +187,7 @@ erDiagram
 
 ### The verified catalogue (ACQ-01, ACQ-02, R-15)
 
-`acquisition_entry` rows are inserted by a **Flyway migration**, reviewed in a pull request like code. Only the team can add or change an entry, and there is no screen or field that accepts a URL or a magnet link (ACQ-09, ACQ-10). Each entry records its source, its licence and the expected size and format, which are checked after the download (R-19).
+`acquisition_entry` rows are inserted by a **Flyway migration**, reviewed in a pull request like code. Only the team can add or change an entry, and there is no screen or field that accepts a URL or a magnet link (ACQ-09, ACQ-10). Each entry records its source, its licence and the expected size and format, which are checked after the download (R-19). The database refuses an entry whose source or licence page is not `https`, whose download source is not a magnet link with a v1 info hash or an `https` address of a `.torrent` file, whose size is not positive or whose format is not `MP4`, and a title or a download source listed twice (migration `V2__create_acquisition_entry.sql`). The API never returns the download source.
 
 ### Download jobs (ACQ-03 to ACQ-07)
 
