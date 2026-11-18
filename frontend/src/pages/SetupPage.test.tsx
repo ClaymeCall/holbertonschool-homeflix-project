@@ -77,10 +77,10 @@ describe('SetupPage', () => {
     expect(callsTo(fetch, 'POST /api/identity/setup/admin')).toHaveLength(0)
   })
 
-  it('explains the fields rejected by the server in its own words, never the server message', async () => {
+  it('shows the message of each field rejected by the server', async () => {
     firstRun(() =>
       jsonResponse(
-        { error: 'validation_failed', message: 'Some fields are invalid.', fields: { email: 'must be a well-formed email address' } },
+        { error: 'validation_failed', message: 'Some fields are invalid.', fields: { email: 'Enter a valid email address.' } },
         400,
       ),
     )
@@ -91,7 +91,7 @@ describe('SetupPage', () => {
     const email = await screen.findByLabelText('Email address')
     await waitFor(() => expect(email).toHaveFocus())
     expect(email).toHaveAccessibleDescription(/valid email address/)
-    expect(screen.queryByText(/well-formed/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Some fields are invalid.')).not.toBeInTheDocument()
   })
 
   it('tells the user when an administrator was created in the meantime', async () => {
@@ -102,7 +102,7 @@ describe('SetupPage', () => {
     await fillSetup('camille@home.example', 'a long passphrase')
     await userEvent.click(screen.getByRole('button', { name: 'Create the administrator account' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('An administrator already exists')
+    expect(await screen.findByRole('alert')).toHaveTextContent('HomeFlix is already set up. Sign in instead.')
     await userEvent.click(screen.getByRole('button', { name: 'Go to sign-in' }))
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
   })

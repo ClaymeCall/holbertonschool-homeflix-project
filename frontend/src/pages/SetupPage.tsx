@@ -3,8 +3,6 @@ import { ApiError } from '../api/client'
 import { describeError } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import {
-  EMAIL_INVALID,
-  PASSWORD_MAX_BYTES,
   PASSWORD_MIN_LENGTH,
   validateSetup,
   type FieldErrors,
@@ -15,12 +13,6 @@ import formStyles from '../components/Form.module.css'
 import { TextField } from '../components/TextField'
 
 type Field = 'email' | 'password' | 'confirmation'
-
-/** Text shown for a field the server rejected (400 `validation_failed`). Its own message is never shown. */
-const serverFieldError: Record<'email' | 'password', string> = {
-  email: EMAIL_INVALID,
-  password: `This password is not accepted. Use at least ${PASSWORD_MIN_LENGTH} characters and no more than ${PASSWORD_MAX_BYTES} bytes.`,
-}
 
 /** First-run setup: creates the first administrator. Only shown while none exists (ACC-01, ACC-02). */
 export function SetupPage() {
@@ -53,11 +45,10 @@ export function SetupPage() {
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setAlreadyDone(true)
-        setFormError('An administrator already exists. Sign in with that account.')
-      } else if (error instanceof ApiError && error.code === 'validation_failed' && error.fields.length > 0) {
-        const rejected: FieldErrors<Field> = {}
-        if (error.fields.includes('email')) rejected.email = serverFieldError.email
-        if (error.fields.includes('password')) rejected.password = serverFieldError.password
+        setFormError(describeError(error))
+      } else if (error instanceof ApiError && error.code === 'validation_failed' && (error.fields.email || error.fields.password)) {
+        // The server's own message for each rejected field (ADR-0021).
+        const rejected: FieldErrors<Field> = { email: error.fields.email, password: error.fields.password }
         setErrors(rejected)
         if (rejected.email) emailRef.current?.focus()
         else if (rejected.password) passwordRef.current?.focus()

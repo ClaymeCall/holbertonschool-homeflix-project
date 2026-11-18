@@ -47,5 +47,6 @@ describe('App', () => {
     renderApp('/')
     const alert = await screen.findByRole('alert')
     expect(alert).not.toHaveTextContent('NullPointerException')
+    expect(alert).toHaveTextContent('Something went wrong on our side')
   })
 })

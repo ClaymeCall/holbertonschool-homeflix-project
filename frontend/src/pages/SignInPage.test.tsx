@@ -43,20 +43,24 @@ describe('SignInPage', () => {
   })
 
   it('shows a clear message for wrong credentials and clears the password', async () => {
-    signedOut(() => jsonResponse({ error: 'bad_credentials' }, 401))
+    signedOut(() =>
+      jsonResponse({ error: 'invalid_credentials', message: 'The email or password is incorrect.' }, 401),
+    )
     renderApp('/sign-in')
     await signInWith('camille@home.example', 'wrong')
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Incorrect email address or password.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('The email or password is incorrect.')
     expect(screen.getByLabelText('Password')).toHaveValue('')
     expect(screen.getByLabelText('Password')).toHaveFocus()
   })
 
-  it('explains that a disabled account cannot sign in', async () => {
-    signedOut(() => jsonResponse({ error: 'account_disabled' }, 403))
+  it('gives a disabled account the same answer as a wrong password', async () => {
+    signedOut(() =>
+      jsonResponse({ error: 'invalid_credentials', message: 'The email or password is incorrect.' }, 401),
+    )
     renderApp('/sign-in')
     await signInWith('camille@home.example', 'a long passphrase')
-    expect(await screen.findByRole('alert')).toHaveTextContent('This account is disabled')
+    expect(await screen.findByRole('alert')).toHaveTextContent('The email or password is incorrect.')
   })
 
   it('asks for both fields before sending anything', async () => {

@@ -27,15 +27,15 @@ describe('apiRequest', () => {
     await expect(apiRequest('/api/x', { method: 'POST' })).resolves.toBeUndefined()
   })
 
-  it('throws an ApiError with the status and code, never the server message', async () => {
-    stubFetch(jsonResponse({ error: 'not_found', message: 'java.io.FileNotFoundException' }, 404))
+  it('throws an ApiError with the status, the code and the server message', async () => {
+    stubFetch(jsonResponse({ error: 'not_found', message: 'This address does not exist.' }, 404))
     const error = await apiRequest('/api/x').catch((e: unknown) => e)
     expect(error).toBeInstanceOf(ApiError)
-    expect(error).toMatchObject({ status: 404, code: 'not_found', fields: [] })
-    expect(describeError(error)).not.toContain('java')
+    expect(error).toMatchObject({ status: 404, code: 'not_found', serverMessage: 'This address does not exist.', fields: {} })
+    expect(describeError(error)).toBe('This address does not exist.')
   })
 
-  it('keeps the names of the fields rejected by the server, not their messages', async () => {
+  it('keeps the message of each field rejected by the server', async () => {
     stubFetch(
       jsonResponse(
         { error: 'validation_failed', message: 'Some fields are invalid.', fields: { email: 'Enter a valid email address.' } },
@@ -43,7 +43,27 @@ describe('apiRequest', () => {
       ),
     )
     const error = await apiRequest('/api/x', { method: 'POST' }).catch((e: unknown) => e)
-    expect(error).toMatchObject({ status: 400, code: 'validation_failed', fields: ['email'] })
+    expect(error).toMatchObject({ status: 400, code: 'validation_failed', fields: { email: 'Enter a valid email address.' } })
+    expect(describeError(error)).toBe('Some fields are invalid.')
+  })
+
+  it('does not trust the body of an unexpected 5xx', async () => {
+    stubFetch(jsonResponse({ error: 'internal_error', message: 'java.lang.NullPointerException' }, 500))
+    const error = await apiRequest('/api/x').catch((e: unknown) => e)
+    expect(describeError(error)).toBe('Something went wrong on our side. Please try again in a moment.')
+  })
+
+  it('writes its own text when the answer is not the common error body', async () => {
+    stubFetch(new Response('<html>Bad gateway</html>', { status: 502, headers: { 'Content-Type': 'text/html' } }))
+    const error = await apiRequest('/api/x').catch((e: unknown) => e)
+    expect(error).toMatchObject({ status: 502, code: undefined, serverMessage: undefined, fields: {} })
+    expect(describeError(error)).toBe('Something went wrong on our side. Please try again in a moment.')
+  })
+
+  it('writes its own text when the server cannot be reached', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
+    const error = await apiRequest('/api/x').catch((e: unknown) => e)
+    expect(describeError(error)).toBe('HomeFlix cannot be reached. Check your connection, then try again.')
   })
 
   it('reports network failures with status 0', async () => {

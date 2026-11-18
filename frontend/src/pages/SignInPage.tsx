@@ -1,5 +1,4 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { ApiError } from '../api/client'
 import { describeError } from '../api/errors'
 import { useAuth, type SignedOutReason } from '../auth/AuthContext'
 import { validateSignIn, type FieldErrors } from '../auth/validation'
@@ -12,15 +11,6 @@ const reasonMessage: Record<SignedOutReason, string> = {
   expired: 'Your session has expired. Sign in again to continue.',
   signedOut: 'You are signed out. See you soon!',
   setupDone: 'The administrator account has been created. Sign in to get started.',
-}
-
-function signInErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 401) return 'Incorrect email address or password.'
-    if (error.status === 403) return 'This account is disabled. Contact the household administrator.'
-    if (error.status === 429) return 'Too many attempts. Wait a moment, then try again.'
-  }
-  return describeError(error)
 }
 
 export function SignInPage() {
@@ -48,7 +38,7 @@ export function SignInPage() {
       await signIn({ email: email.trim(), password })
       // The guard redirects to the requested page once the session is signed in.
     } catch (error) {
-      setFormError(signInErrorMessage(error))
+      setFormError(describeError(error))
       setPassword('')
       passwordRef.current?.focus()
       setSubmitting(false)
