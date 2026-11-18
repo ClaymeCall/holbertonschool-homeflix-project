@@ -56,6 +56,21 @@ class CatalogueRepository {
 		return toSummaries(rows);
 	}
 
+	/** The summaries of these titles, in the order of {@code ids}. A title that no longer exists is left out. */
+	List<MediaSummary> summariesOf(List<UUID> ids) {
+		if (ids.isEmpty()) {
+			return List.of();
+		}
+		Map<UUID, Row> rows = new HashMap<>();
+		jdbc.query("select " + ITEM_COLUMNS + " from media_item m where m.id = any (?)", rs -> {
+			UUID id = rs.getObject("id", UUID.class);
+			rows.put(id, new Row(id, rs.getString("title"), rs.getString("poster_url"),
+					(Integer) rs.getObject("duration_seconds"), rs.getString("availability")));
+		}, (Object) ids.toArray(UUID[]::new));
+		Map<UUID, List<String>> genresById = genresOf(ids);
+		return ids.stream().filter(rows::containsKey).map(id -> summary(rows.get(id), genresById)).toList();
+	}
+
 	Optional<MediaDetails> find(UUID id) {
 		List<Row> rows = jdbc.query("select " + ITEM_COLUMNS + ", m.description from media_item m where m.id = ?",
 				(rs, n) -> new Row(rs.getObject("id", UUID.class), rs.getString("title"), rs.getString("poster_url"),

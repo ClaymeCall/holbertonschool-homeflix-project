@@ -66,6 +66,12 @@ public class CatalogueService {
 		return catalogue.search(new CatalogueQuery(trimmedText, trimmedGenre, order, pageSize, skipped));
 	}
 
+	/** The summaries of these titles, in the order given. Used by the lists of a profile (favourites, progress). */
+	@Transactional(readOnly = true)
+	public List<MediaSummary> summaries(List<UUID> ids) {
+		return catalogue.summariesOf(ids);
+	}
+
 	/** @throws NotFoundException when there is no such title */
 	@Transactional(readOnly = true)
 	public MediaDetails details(UUID id) {

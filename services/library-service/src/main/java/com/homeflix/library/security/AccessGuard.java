@@ -1,8 +1,11 @@
 package com.homeflix.library.security;
 
+import java.util.UUID;
+
 import org.springframework.stereotype.Component;
 
 import com.homeflix.library.web.ForbiddenException;
+import com.homeflix.library.web.ProfileNotSelectedException;
 import com.homeflix.library.web.UnauthenticatedException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,6 +27,21 @@ public class AccessGuard {
 	 */
 	public Caller requireAccount(HttpServletRequest request) {
 		return callers.current(request).orElseThrow(UnauthenticatedException::new);
+	}
+
+	/**
+	 * The profile chosen in this session, for what belongs to a profile (favourites, progress). It comes from
+	 * the signed token only, never from the request (PRF-04, R-06).
+	 *
+	 * @throws UnauthenticatedException 401 when nobody is signed in
+	 * @throws ProfileNotSelectedException 403 when the token carries no profile
+	 */
+	public UUID requireProfile(HttpServletRequest request) {
+		UUID profileId = requireAccount(request).profileId();
+		if (profileId == null) {
+			throw new ProfileNotSelectedException();
+		}
+		return profileId;
 	}
 
 	/**

@@ -58,6 +58,11 @@ public class ApiExceptionHandler {
 		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError("forbidden", ex.getMessage()));
 	}
 
+	@ExceptionHandler(ProfileNotSelectedException.class)
+	ResponseEntity<ApiError> profileNotSelected(ProfileNotSelectedException ex) {
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError("profile_not_selected", ex.getMessage()));
+	}
+
 	@ExceptionHandler(NotFoundException.class)
 	ResponseEntity<ApiError> notFound(NotFoundException ex) {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND)
