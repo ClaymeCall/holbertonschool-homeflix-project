@@ -30,3 +30,6 @@ homeflix:
     read-timeout: 5s
     retries: 1
     retry-pause: 200ms
+  library:
+    # The folders Docker mounts into the container. An authorized root must be inside one of them (R-02).
+    mounted-paths: /media/library,/media/downloads

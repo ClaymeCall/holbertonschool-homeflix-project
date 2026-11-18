@@ -95,7 +95,9 @@ paths:
         '403':
           $ref: './common.yaml#/components/responses/Forbidden'
         '409':
-          description: This folder is already authorized (`root_already_added`).
+          description: >
+            This folder is already authorized (`root_already_added`), or it contains or lies inside an authorized
+            folder (`root_overlaps`), which would make the indexer see the same file twice.
           content:
             application/json:
               schema:
@@ -105,6 +107,10 @@ paths:
                   value:
                     error: root_already_added
                     message: This folder is already added.
+                overlap:
+                  value:
+                    error: root_overlaps
+                    message: This folder overlaps a folder that is already added.
         '503':
           $ref: './common.yaml#/components/responses/ServiceUnavailable'
 
