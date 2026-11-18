@@ -84,7 +84,12 @@ check "the gateway has no route to qBittorrent (no configuration line names it)"
 
 echo "== From the host"
 
-check "the web interface is not published (no host port for 8080)" "[[ -z \"\$(\"\${COMPOSE[@]}\" port qbittorrent 8080 2>/dev/null)\" ]]"
+# Reads the running container's port bindings: 8080 must have no host binding, whatever its exposure.
+web_port_unpublished() {
+	docker inspect -f '{{json .NetworkSettings.Ports}}' "$("${COMPOSE[@]}" ps -q qbittorrent)" |
+		python3 -c 'import json,sys; ports=json.load(sys.stdin) or {}; sys.exit(0 if not ports.get("8080/tcp") else 1)'
+}
+check "the web interface is not published (no host binding for 8080)" "web_port_unpublished"
 check "the peer port $PEER_PORT accepts connections from the host" "python3 -c 'import socket,sys; socket.create_connection((\"127.0.0.1\", int(sys.argv[1])), 3).close()' $PEER_PORT"
 check "the gateway does not serve qBittorrent's web interface" "! curl -s -m 5 http://127.0.0.1:$GATEWAY_PORT/ http://127.0.0.1:$GATEWAY_PORT/api/qbittorrent/ http://127.0.0.1:$GATEWAY_PORT/api/v2/app/version | grep -qi 'qbittorrent'"
 check "the qBittorrent API is not reachable through the gateway" "[[ \"\$(curl -s -m 5 -o /dev/null -w '%{http_code}' -X POST --data 'username=x&password=y' http://127.0.0.1:$GATEWAY_PORT/api/v2/auth/login)\" != 200 ]]"
