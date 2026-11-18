@@ -108,3 +108,15 @@ A message is written for the person using HomeFlix, in English (PLY-05, SEC-04):
 ## Tests
 
 Issue #36 covers a slow dependency (timeout gives 503), a failing one (one retry for GET, none for POST, then 503), and the shape of the body without technical details (R-24, TST-05).
+
+## Where it is implemented
+
+| Part | Library service | Acquisition service | Identity service |
+|---|---|---|---|
+| Common error body and handler | `web/ApiError`, `web/ApiExceptionHandler` | same | first-administrator setup pull request (#125), to be checked against this model |
+| Dependency failure to 503 | `web/ServiceUnavailableException` and the handler | same | to do |
+| Timeouts and GET retry for outgoing calls | `client/ServiceClientFactory`, `client/RetryingGetInterceptor` | added with its first outgoing call (handoff to the library, qBittorrent) | no outgoing calls yet |
+
+The timeouts and the retry are configuration under `homeflix.http-client` (`connect-timeout`, `read-timeout`, `retries`, `retry-pause`), with the values of the table above as defaults. The library handler also maps the media file errors (`file_not_found`, `access_denied`).
+
+A call to a service that is stopped can take a few seconds to fail, because the name of a stopped container does not resolve and each of the two attempts waits for that.

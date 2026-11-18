@@ -22,5 +22,11 @@ management:
 homeflix:
   identity:
     base-url: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
+
+  # Calls to other services: timeouts and retry policy (ADR-0020, R-24).
+  # Only GET is retried, once, after a connection failure, a timeout or a 502, 503 or 504.
+  http-client:
     connect-timeout: 2s
     read-timeout: 5s
+    retries: 1
+    retry-pause: 200ms
