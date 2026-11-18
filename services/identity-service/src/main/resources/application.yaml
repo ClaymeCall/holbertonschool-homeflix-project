@@ -1,6 +1,13 @@
 spring:
   application:
     name: identity-service
+  datasource:
+    hikari:
+      data-source-properties:
+        # PostgreSQL adds the failing row to some errors ("Failing row contains ..."),
+        # which would put an email and a password hash into exceptions and logs.
+        # This keeps only the error itself, with the constraint name (SEC-04, R-08).
+        "[logServerErrorDetail]": "false"
 
 server:
   port: 8081
