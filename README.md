@@ -52,6 +52,7 @@ HomeFlix is split into at least three Java/Spring Boot business microservices (i
 | Cross-service consistency rules | [docs/architecture/consistency-rules.md](docs/architecture/consistency-rules.md) |
 | Demo: one service calls another | [docs/architecture/service-to-service-demo.md](docs/architecture/service-to-service-demo.md) |
 | Copyright and peer-to-peer awareness | [docs/copyright-and-p2p.md](docs/copyright-and-p2p.md) |
+| Torrent client: isolation and settings | [docs/acquisition/torrent-client.md](docs/acquisition/torrent-client.md) |
 | Contributing (branches, commits, pull requests) | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
 ## Rights and peer-to-peer
