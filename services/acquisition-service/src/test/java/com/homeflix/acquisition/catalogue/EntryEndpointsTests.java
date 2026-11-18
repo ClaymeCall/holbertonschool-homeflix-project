@@ -37,7 +37,7 @@ import com.homeflix.acquisition.TestcontainersConfiguration;
 @SpringBootTest
 class EntryEndpointsTests {
 
-	private static final String SINTEL_MAGNET_HASH = "338806f8ce250642f0525949dcb3be6ccdc9b430";
+	private static final String SINTEL_MAGNET_HASH = "4e626263b96d72a36b1b963f44188bf937004d5f";
 
 	@Autowired
 	private WebApplicationContext context;

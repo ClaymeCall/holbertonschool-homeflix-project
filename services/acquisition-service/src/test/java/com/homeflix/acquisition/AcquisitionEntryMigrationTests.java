@@ -43,7 +43,7 @@ class AcquisitionEntryMigrationTests {
 		assertThat(sintel.get("expected_format")).isEqualTo("MP4");
 		// The torrent built for the demo, recorded with issue J1 (#74).
 		assertThat((String) sintel.get("download_source"))
-				.startsWith("magnet:?xt=urn:btih:338806f8ce250642f0525949dcb3be6ccdc9b430&");
+				.startsWith("magnet:?xt=urn:btih:4e626263b96d72a36b1b963f44188bf937004d5f&");
 	}
 
 	@Test

@@ -13,6 +13,6 @@ VALUES (
     'Creative Commons Attribution 3.0 Unported (CC BY 3.0)',
     'https://creativecommons.org/licenses/by/3.0/',
     'Sintel © copyright Blender Foundation | durian.blender.org. Licensed under CC BY 3.0. Remuxed to MP4 faststart for HomeFlix; video and audio streams unchanged, full credits scroll kept.',
-    'magnet:?xt=urn:btih:338806f8ce250642f0525949dcb3be6ccdc9b430&dn=sintel.mp4&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce',
+    'magnet:?xt=urn:btih:4e626263b96d72a36b1b963f44188bf937004d5f&dn=sintel.mp4&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce',
     129184608,
     'MP4');
