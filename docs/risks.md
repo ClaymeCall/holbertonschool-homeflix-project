@@ -71,7 +71,7 @@ These combine a high impact with a real chance of happening, or are directly gra
 
 | ID | Risk | Impact | Likelihood | Mitigation | Status | Owner |
 |---|---|---|---|---|---|---|
-| R-14 | **A demo file or poster is used without the right to reproduce or share it.** | High | Low | Only personal videos, own creations or content with a licence that allows the use (ACQ-12). Source and licence evidence is kept for every demo file (DOC-06). Posters are supplied as links on an allowed host list (ADR-0018) and must be licensed for the use. | Planned | Thomas |
+| R-14 | **A demo file or poster is used without the right to reproduce or share it.** | High | Low | Only personal videos, own creations or content with a licence that allows the use (ACQ-12). Source and licence evidence is kept for every demo file (DOC-06). Posters are supplied as links on an allowed host list (ADR-0018) and must be licensed for the use. The evidence for the peer-to-peer test file is in [docs/media/p2p-test-file.md](media/p2p-test-file.md) (J1). | Done (P2P test file), Planned (demo videos I2, posters) | Thomas |
 | R-15 | **The rights warning is treated as permission,** or people use HomeFlix to fetch unauthorized works. | High | Low | Only entries of the team-verified catalogue can be downloaded. There is no free URL or magnet link field (ACQ-02, ACQ-09). A rights reminder is shown before the first download (ACQ-11). A copyright and peer-to-peer awareness note is provided (DOC-07). | Planned | Thomas |
 | R-16 | **Seeding redistributes content** that we are not allowed to share. | High | Low | Only redistributable content is downloaded in the first place (ACQ-12). Seeding after completion is limited (ADR-0014). | Planned | Thomas |
 
