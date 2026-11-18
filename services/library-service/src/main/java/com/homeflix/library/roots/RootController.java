@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.homeflix.library.security.AdminGuard;
+import com.homeflix.library.security.AccessGuard;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -24,9 +24,9 @@ import jakarta.validation.Valid;
 class RootController {
 
 	private final RootService service;
-	private final AdminGuard admin;
+	private final AccessGuard admin;
 
-	RootController(RootService service, AdminGuard admin) {
+	RootController(RootService service, AccessGuard admin) {
 		this.service = service;
 		this.admin = admin;
 	}
