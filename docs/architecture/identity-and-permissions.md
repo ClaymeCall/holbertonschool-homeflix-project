@@ -132,6 +132,12 @@ The library service trusts the signed claim for favourites and progress and neve
 
 If a profile is deleted while its id is still in a live token, the token stays valid for up to 15 minutes. The favourites and progress of that profile are removed by the cross-service rule (issue #13), so a leftover token can only create orphaned rows, which that rule must tolerate.
 
+## Email address
+
+- The email is only a sign-in identifier: HomeFlix sends no email in the MVP.
+- It is trimmed and lower-cased, at most 254 characters, and validated with Bean Validation `@Email`, which accepts a domain without a dot (for example `admin@homeflix`). This is accepted on purpose: on a home installation such an address is a valid identifier, and requiring a public domain would add nothing.
+- If HomeFlix ever sends email (for example password reset), validation must become stricter, and existing addresses without a dot must be handled at that point.
+
 ## Password storage
 
 - Passwords are hashed with **BCrypt** through Spring Security's `BCryptPasswordEncoder`, **strength 12** (R-08, ACC-04). The salt is part of the BCrypt output.
