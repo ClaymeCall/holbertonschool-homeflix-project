@@ -78,6 +78,7 @@ These codes are introduced by the contracts and must be added to the [error mode
 | `profile_name_taken` | 409 | A profile name already used in the account. |
 | `profile_not_selected` | 403 | A profile operation without an active profile. |
 | `root_already_added` | 409 | Authorizing a folder twice. |
+| `root_overlaps` | 409 | Authorizing a folder that contains, or lies inside, an authorized folder. |
 | `scan_in_progress` | 409 | A scan is already running. |
 | `media_not_available` | 409 | Streaming a title that is still downloading. |
 | `range_not_satisfiable` | 416 | A byte range outside the file, or several ranges. |

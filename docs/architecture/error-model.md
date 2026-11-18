@@ -62,9 +62,11 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 | `not_a_directory` | 400 | This path is a file, not a folder. | The root is not a directory. |
 | `directory_outside_library` | 400 | This folder is not inside the folders shared with HomeFlix. | The root is outside the mounted paths (R-02). |
 | `root_already_added` | 409 | This folder is already added. | Authorizing a folder twice. |
+| `root_overlaps` | 409 | This folder overlaps a folder that is already added. | Authorizing a folder that contains, or lies inside, an authorized folder. The indexer would see the same file twice (LIB-05). |
 | `scan_in_progress` | 409 | A scan is already running. Try again when it has finished. | An indexing is requested while one is running. |
 | `media_not_available` | 409 | This title is still downloading and cannot be played yet. | Streaming a title that has no file yet. |
 | `range_not_satisfiable` | 416 | This part of the video is not available. | A byte range outside the file, or several ranges. |
+| `already_in_library` | 409 | This title is already in the library. | Internal call: a download is started for a title that is already available. Shown to an administrator as a failed download. |
 
 `file_not_found` and `access_denied` have different messages, so the user can tell a missing file from a permission problem (PLY-05), but neither ever says where the file is. `format_not_supported` is **not** an HTTP error. It is the outcome reported for a video found during indexing in an unsupported format (see [media identification rules](../library/media-identification.md)), so such a file never gets a play endpoint.
 
@@ -89,7 +91,7 @@ A timeout, a refused connection, or a 5xx from the called service all become the
 
 | Situation | What the user sees | Rest of HomeFlix |
 |---|---|---|
-| Identity service down | Sign-in and account pages show the service-unavailable message | What the other services do without identity depends on the identity design (issue #14) |
+| Identity service down | Sign-in and account pages show the service-unavailable message | Services check tokens themselves, so signed-in users keep browsing and playing until their token expires (about 15 minutes), then cannot renew ([identity design](identity-and-permissions.md#expiry-and-renewal), [consistency rules](consistency-rules.md#when-a-service-is-down)) |
 | Library service down | Catalogue and player show the service-unavailable message, with a retry button | Sign-in still works |
 | Acquisition service down | Download screens show the service-unavailable message | Catalogue and playback are not affected |
 | Database down | The owning service answers 503 | The other services keep working |
@@ -108,3 +110,15 @@ A message is written for the person using HomeFlix, in English (PLY-05, SEC-04):
 ## Tests
 
 Issue #36 covers a slow dependency (timeout gives 503), a failing one (one retry for GET, none for POST, then 503), and the shape of the body without technical details (R-24, TST-05).
+
+## Where it is implemented
+
+| Part | Library service | Acquisition service | Identity service |
+|---|---|---|---|
+| Common error body and handler | `web/ApiError`, `web/ApiExceptionHandler` | same | first-administrator setup pull request (#125), to be checked against this model |
+| Dependency failure to 503 | `web/ServiceUnavailableException` and the handler | same | to do |
+| Timeouts and GET retry for outgoing calls | `client/ServiceClientFactory`, `client/RetryingGetInterceptor` | added with its first outgoing call (handoff to the library, qBittorrent) | no outgoing calls yet |
+
+The timeouts and the retry are configuration under `homeflix.http-client` (`connect-timeout`, `read-timeout`, `retries`, `retry-pause`), with the values of the table above as defaults. The library handler also maps the media file errors (`file_not_found`, `access_denied`).
+
+A call to a service that is stopped can take a few seconds to fail, because the name of a stopped container does not resolve and each of the two attempts waits for that.
