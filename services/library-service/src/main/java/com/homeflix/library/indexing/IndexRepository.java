@@ -51,6 +51,21 @@ class IndexRepository {
 	}
 
 	/**
+	 * A whole root cannot be read: every file it holds is now missing, and its available titles become
+	 * unavailable, keeping everything else they have (LIB-07). Returns how many titles changed.
+	 */
+	int markRootMissing(UUID rootId, OffsetDateTime now) {
+		return jdbc.update("""
+				with gone as (
+				    update media_file set missing_since = coalesce(missing_since, ?)
+				    where root_id = ?
+				    returning id)
+				update media_item set availability = 'UNAVAILABLE'
+				where availability = 'AVAILABLE' and media_file_id in (select id from gone)
+				""", now, rootId);
+	}
+
+	/**
 	 * Marks the files of a root that this scan did not see, and makes their titles unavailable (LIB-07).
 	 * Returns how many titles changed. A title keeps everything else it has.
 	 */

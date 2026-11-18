@@ -279,11 +279,63 @@ class ScanEndpointsTests {
 				.andExpect(jsonPath("$.inaccessibleRoots.length()").value(1))
 				.andExpect(jsonPath("$.inaccessibleRoots[0].rootId").value(showsRoot.toString()))
 				.andExpect(jsonPath("$.inaccessibleRoots[0].error").value("directory_not_found"))
-				.andExpect(jsonPath("$.updated").value(1));
+				.andExpect(jsonPath("$.updated").value(1))
+				.andExpect(jsonPath("$.markedUnavailable").value(1));
 
-		// An unreadable root says nothing about its files, so its titles are left as they are (H6, #55).
-		assertThat(availability("Show")).isEqualTo("AVAILABLE");
+		// The folder is gone: its title is unavailable. The other folder is not affected.
+		assertThat(availability("Show")).isEqualTo("UNAVAILABLE");
 		assertThat(availability("Film")).isEqualTo("AVAILABLE");
+	}
+
+	@Test
+	void theTitlesOfAFolderThatComesBackAreAvailableAgain() throws Exception {
+		Path shows = Files.createDirectory(mounted.resolve("shows"));
+		addRoot(shows);
+		Files.writeString(shows.resolve("Show.mp4"), "x");
+		scan();
+		jdbc.update("update media_item set description = 'Keep me' where title = 'Show'");
+		UUID profile = UUID.randomUUID();
+		jdbc.update("insert into favourite (profile_id, media_item_id) select ?, id from media_item where title = 'Show'", profile);
+		deleteTree(shows);
+		scan();
+		assertThat(availability("Show")).isEqualTo("UNAVAILABLE");
+		assertThat(jdbc.queryForObject("select description from media_item where title = 'Show'", String.class))
+				.isEqualTo("Keep me");
+		assertThat(count("favourite")).isEqualTo(1);
+
+		// The share is mounted again, as it was.
+		Files.createDirectory(shows);
+		Files.writeString(shows.resolve("Show.mp4"), "x");
+		scan().andExpect(jsonPath("$.inaccessibleRoots.length()").value(0))
+				.andExpect(jsonPath("$.added").value(0));
+
+		assertThat(availability("Show")).isEqualTo("AVAILABLE");
+		assertThat(count("media_item")).isEqualTo(1);
+	}
+
+	@Test
+	void aRootThatBecameAFileIsReportedAndItsTitlesAreUnavailable() throws Exception {
+		Path shows = Files.createDirectory(mounted.resolve("shows"));
+		UUID showsRoot = addRoot(shows);
+		Files.writeString(shows.resolve("Show.mp4"), "x");
+		scan();
+		deleteTree(shows);
+		Files.writeString(shows, "now a file");
+
+		scan().andExpect(status().isOk())
+				.andExpect(jsonPath("$.inaccessibleRoots[0].rootId").value(showsRoot.toString()))
+				.andExpect(jsonPath("$.inaccessibleRoots[0].error").value("not_a_directory"));
+		assertThat(availability("Show")).isEqualTo("UNAVAILABLE");
+	}
+
+	@Test
+	void aFolderThatIsEmptyBecauseTheShareIsNotMountedMakesItsTitlesUnavailable() throws Exception {
+		video("Film.mp4");
+		scan();
+		Files.delete(films.resolve("Film.mp4"));
+
+		scan().andExpect(jsonPath("$.markedUnavailable").value(1)).andExpect(jsonPath("$.inaccessibleRoots.length()").value(0));
+		assertThat(availability("Film")).isEqualTo("UNAVAILABLE");
 	}
 
 	@Test
