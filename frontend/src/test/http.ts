@@ -22,7 +22,7 @@ export function signedInRoutes(account: Account = testAccount): Record<string, R
     'GET /api/identity/setup/status': () => jsonResponse({ setupRequired: false }),
     'GET /api/identity/auth/me': () => jsonResponse(account),
     'POST /api/identity/auth/refresh': () => emptyResponse(),
-    'POST /api/identity/auth/logout': () => emptyResponse(),
+    'POST /api/identity/auth/sign-out': () => emptyResponse(),
   }
 }
 

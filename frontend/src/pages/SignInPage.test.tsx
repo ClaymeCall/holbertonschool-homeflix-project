@@ -19,7 +19,7 @@ function signedOut(login: Route = () => jsonResponse(testAccount)) {
   return mockApi({
     ...signedInRoutes(),
     'GET /api/identity/auth/me': () => jsonResponse({}, 401),
-    'POST /api/identity/auth/login': login,
+    'POST /api/identity/auth/sign-in': login,
     'GET /api/library/media/m1': () => jsonResponse(movie),
   })
 }
@@ -38,7 +38,7 @@ describe('SignInPage', () => {
 
     expect(await screen.findByRole('heading', { name: movie.title })).toBeInTheDocument()
     expect(screen.getByText('camille@home.example')).toBeInTheDocument()
-    const [[, init]] = callsTo(fetch, 'POST /api/identity/auth/login')
+    const [[, init]] = callsTo(fetch, 'POST /api/identity/auth/sign-in')
     expect(JSON.parse(String(init?.body))).toEqual({ email: 'camille@home.example', password: 'a long passphrase' })
   })
 
@@ -67,7 +67,7 @@ describe('SignInPage', () => {
     expect(screen.getByLabelText('Email address')).toHaveFocus()
     expect(screen.getByLabelText('Email address')).toHaveAccessibleDescription('Enter your email address.')
     expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Enter your password.')
-    expect(callsTo(fetch, 'POST /api/identity/auth/login')).toHaveLength(0)
+    expect(callsTo(fetch, 'POST /api/identity/auth/sign-in')).toHaveLength(0)
   })
 
   it('can be used with the keyboard only', async () => {
@@ -90,7 +90,7 @@ describe('SignInPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('You are signed out')
-    expect(callsTo(fetch, 'POST /api/identity/auth/logout')).toHaveLength(1)
+    expect(callsTo(fetch, 'POST /api/identity/auth/sign-out')).toHaveLength(1)
   })
 
   it('explains that the session expired when it cannot be renewed', async () => {

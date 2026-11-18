@@ -1,12 +1,10 @@
 /**
  * Identity service API (first-run setup and session).
  *
- * First-run setup matches the identity service of #125 (G2): `GET /setup/status`
- * and `POST /setup/admin`, behind the gateway prefix `/api/identity` (ADR-0017).
- *
- * PROVISIONAL: the session endpoints (`/auth/...`, G3) and the OpenAPI contract
- * (docs/api/, ADR-0010) do not exist yet. Their paths are assumptions kept in
- * this single file. The account shape follows #125 (`email`, `admin`).
+ * Paths follow the OpenAPI contract docs/api/identity.yaml (#134, ADR-0010),
+ * behind the gateway prefix `/api/identity` (ADR-0017): first-run setup
+ * (`/setup/status`, `/setup/admin`, implemented in #125) and the session
+ * (`/auth/sign-in`, `/auth/sign-out`, `/auth/refresh`, `/auth/me`, G3).
  *
  * The session token lives in an HttpOnly cookie set by the server (ADR-0009):
  * these calls never see or store it.
@@ -44,11 +42,11 @@ export function createFirstAdministrator(credentials: Credentials): Promise<Acco
 }
 
 export function signIn(credentials: Credentials): Promise<Account> {
-  return apiRequest<Account>(`${BASE}/auth/login`, { method: 'POST', body: credentials, renewSession: false })
+  return apiRequest<Account>(`${BASE}/auth/sign-in`, { method: 'POST', body: credentials, renewSession: false })
 }
 
 export function signOut(): Promise<void> {
-  return apiRequest<void>(`${BASE}/auth/logout`, { method: 'POST', renewSession: false })
+  return apiRequest<void>(`${BASE}/auth/sign-out`, { method: 'POST', renewSession: false })
 }
 
 /** The signed-in account, or an ApiError with status 401 when there is no valid session. */
