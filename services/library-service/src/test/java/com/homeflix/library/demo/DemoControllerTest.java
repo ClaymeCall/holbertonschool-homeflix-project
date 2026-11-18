@@ -19,6 +19,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.client.RestClient;
 
+import com.homeflix.library.web.ApiExceptionHandler;
+
 class DemoControllerTest {
 
 	private MockRestServiceServer identity;
@@ -28,7 +30,8 @@ class DemoControllerTest {
 	void setUp() {
 		RestClient.Builder builder = RestClient.builder().baseUrl("http://identity-service:8081");
 		identity = MockRestServiceServer.bindTo(builder).build();
-		mvc = MockMvcBuilders.standaloneSetup(new DemoController(new IdentityClient(builder.build()))).build();
+		mvc = MockMvcBuilders.standaloneSetup(new DemoController(new IdentityClient(builder.build())))
+				.setControllerAdvice(new ApiExceptionHandler()).build();
 	}
 
 	@Test
