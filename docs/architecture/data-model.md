@@ -172,7 +172,7 @@ erDiagram
     download_job {
         uuid id PK
         uuid entry_id FK
-        varchar client_hash UK "qBittorrent info hash"
+        varchar client_hash "qBittorrent info hash, unique among active jobs"
         varchar state "QUEUED, DOWNLOADING, COMPLETED, FAILED"
         smallint progress_percent
         varchar error_code "nullable"
@@ -192,7 +192,7 @@ erDiagram
 ### Download jobs (ACQ-03 to ACQ-07)
 
 - States are `QUEUED`, `DOWNLOADING`, `COMPLETED` and `FAILED` (ACQ-04). A cancelled job is `FAILED` with `error_code = 'cancelled'`.
-- At most one job per entry is active at a time: a unique index on `entry_id` where `state` is `QUEUED` or `DOWNLOADING`.
+- At most one job per entry is active at a time: a unique index on `entry_id` where `state` is `QUEUED` or `DOWNLOADING`. The same entry always gives the same torrent, so `client_hash` is unique among active jobs only: an entry downloaded again after a cancel has a new job with the same hash.
 - `completed_relative_path` is relative to the downloads folder. After the size and format check it is handed to the library, which indexes it (ACQ-07).
 - `started_by` is an account id for the audit trail. Only an administrator can start or cancel a job (ACQ-05); the server enforces it.
 

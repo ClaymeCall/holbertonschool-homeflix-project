@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
  * (data model, "The verified catalogue"; ACQ-09).
  */
 @Repository
-class EntryRepository {
+public class EntryRepository {
 
 	private static final String COLUMNS = """
 			id, title, source_name, source_url, licence, licence_url, attribution,
@@ -38,6 +38,14 @@ class EntryRepository {
 
 	List<Entry> findAll() {
 		return jdbc.query("select " + COLUMNS + " from acquisition_entry order by lower(title), id", ENTRY);
+	}
+
+	/** The title and download source of an entry, for the download service only. */
+	public Optional<DownloadableEntry> findDownloadable(UUID id) {
+		return jdbc.query("select id, title, download_source from acquisition_entry where id = ?",
+				(rs, row) -> new DownloadableEntry(rs.getObject("id", UUID.class), rs.getString("title"),
+						rs.getString("download_source")),
+				id).stream().findFirst();
 	}
 
 	Optional<Entry> find(UUID id) {
