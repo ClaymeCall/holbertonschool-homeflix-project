@@ -125,6 +125,12 @@ A path-based key means a renamed or moved file is seen as a new title, and the o
 
 The indexer and the download notifications write this column; an administrator does not.
 
+The database enforces two rules (migration `V2__create_media_tables.sql`): an `AVAILABLE` title must have a file, and a `DOWNLOADING` title cannot have one yet.
+
+### Removing a root (LIB-07)
+
+Removing an authorized folder deletes its `media_file` rows (`ON DELETE CASCADE`) but never a file on disk, and the catalogue entries stay: `media_item.media_file_id` is set to null (`ON DELETE SET NULL`), so titles keep their metadata, favourites and progress. Because an `AVAILABLE` title must have a file, the service marks its titles `UNAVAILABLE` first and removes the root in the same transaction; removing the root while a title is still `AVAILABLE` is refused by the database.
+
 ### Missing metadata (CAT-10)
 
 Only `title` is required. A title without description, poster, genre or duration is still listed, and the interface shows placeholders.
