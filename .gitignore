@@ -1,5 +1,6 @@
 # Real configuration and secrets: never commit
 .env
+secrets/
 
 # Local runtime data (media library, downloads)
 data/
