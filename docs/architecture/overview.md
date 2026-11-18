@@ -28,9 +28,8 @@ flowchart LR
     gateway -->|/api/library| library
     gateway -->|/api/acquisition| acquisition
 
-    acquisition -.->|REST: completed file| library
-    library -.->|REST: validate identity| identity
-    acquisition -.->|REST: validate identity| identity
+    acquisition -.->|REST: download started, completed, failed| library
+    identity -.->|REST: delete profile data| library
 
     identity --- postgres
     library --- postgres
@@ -62,14 +61,14 @@ A distributed monolith is several containers that cannot work, change or fail in
 
 1. **Distinct responsibilities (ARC-02).** Each service answers a different question: who is this person, what can they watch, what can we download. None of them is a copy of another.
 2. **Each service owns its data (ARC-04).** There is one database and one database user per service, and the user has rights only on its own database (ADR-0006, `db/init/01-create-databases.sh`). No foreign key crosses a service: a reference to another service's row is a plain `uuid` ([data model](data-model.md#references-between-services)). Nobody reads another service's tables.
-3. **Services meet only through documented APIs.** Calls go through the REST contracts in [`docs/api`](../api/README.md) (ADR-0008, ADR-0010). There is no shared library of business code and no shared schema.
+3. **Services meet only through documented APIs.** Calls go through the REST contracts in [`docs/api`](../api/README.md) (ADR-0008, ADR-0010). The calls from one service to another use `/internal` paths with an `X-Service-Token` for each caller, and the gateway does not route them to the browser ([ADR-0022](../adr/0022-internal-service-calls.md)). There is no shared library of business code and no shared schema.
 4. **Identity is verified without calling the identity service for every request.** The token is signed with RS256 and the other services hold only the public key (ADR-0009). They check the signature themselves and read the role from the token.
 5. **Failure is contained and visible.** Calls use timeouts, one retry for idempotent GET requests, and a common error format (ADR-0020). When a service is down, the others return an understandable error instead of hanging ([error model](error-model.md), ADR-0020). Playback of an already indexed video does not need the acquisition service.
 6. **Each service deploys and tests on its own.** It has its own Dockerfile, its own Flyway migrations, and its own CI job (matrix in `.github/workflows/ci.yml`). A change inside one service does not force a change in another unless its API contract changes.
 
 ### Honest limits
 
-- The calls between services are synchronous (ADR-0008), so an outage can spread: if the library cannot reach the acquisition service, a handoff fails until it comes back. The error model defines what the user sees.
+- The calls between services are synchronous (ADR-0008), so an outage can spread: if the acquisition service cannot reach the library, a handoff is repeated until it works, and if the identity service cannot reach the library, deleting a profile is refused with a 503. The [consistency rules](consistency-rules.md) say what happens in each case, and the [error model](error-model.md) says what the user sees.
 - Deleting an account must reach every service (SEC-07). This is a cross-service rule, written in issue #13, not something the database enforces.
 
 ## Network and storage
