@@ -29,6 +29,6 @@ This supersedes the part of ADR-0020 that says the frontend translates the error
 
 - Fewer moving parts: adding an error code only needs a clear message on the server, and an unknown code is still readable.
 - The frontend keeps the `message` and the `fields` of the error body instead of dropping them, and shows them. A status-to-text map for the cases above only is the one piece of text it still owns.
-- The French strings already written in the frontend pull requests (setup, sign-in, catalogue, player screens) must be rewritten in English. This is frontend work to schedule with its owner; this decision does not change that code.
+- The French strings that were written in the frontend pull requests (setup, sign-in, catalogue, player screens) have been rewritten in English (#117, #118, #119). This decision does not change that code.
 - The error model and the API contracts show the messages the user sees.
 - A second language is not ruled out forever, but it would need its own decision and a translation mechanism.
