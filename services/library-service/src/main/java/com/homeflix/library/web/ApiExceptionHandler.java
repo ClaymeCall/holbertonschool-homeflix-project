@@ -13,7 +13,9 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
@@ -44,6 +46,42 @@ public class ApiExceptionHandler {
 	ResponseEntity<ApiError> unreadableBody(HttpMessageNotReadableException ex) {
 		return ResponseEntity.badRequest()
 				.body(new ApiError("invalid_request", "The request body is missing or is not valid JSON."));
+	}
+
+	@ExceptionHandler(UnauthenticatedException.class)
+	ResponseEntity<ApiError> unauthenticated(UnauthenticatedException ex) {
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiError("unauthenticated", ex.getMessage()));
+	}
+
+	@ExceptionHandler(ForbiddenException.class)
+	ResponseEntity<ApiError> forbidden(ForbiddenException ex) {
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError("forbidden", ex.getMessage()));
+	}
+
+	@ExceptionHandler(NotFoundException.class)
+	ResponseEntity<ApiError> notFound(NotFoundException ex) {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+				.body(new ApiError("not_found", "This address does not exist."));
+	}
+
+	/**
+	 * A value that cannot be read as the expected type. An id in the address cannot match anything, so it is
+	 * a plain 404. A value in the query string is a validation error that names the parameter.
+	 */
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	ResponseEntity<ApiError> badValue(MethodArgumentTypeMismatchException ex) {
+		if (ex.getParameter().hasParameterAnnotation(PathVariable.class)) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND)
+					.body(new ApiError("not_found", "This address does not exist."));
+		}
+		return ResponseEntity.badRequest().body(new ApiError("validation_failed", "Some fields are invalid.",
+				Map.of(ex.getName(), "Enter a whole number.")));
+	}
+
+	/** A refusal with its own code and a message the user can act on. */
+	@ExceptionHandler(RejectedRequestException.class)
+	ResponseEntity<ApiError> rejected(RejectedRequestException ex) {
+		return ResponseEntity.status(ex.status()).body(new ApiError(ex.code(), ex.getMessage(), ex.fields()));
 	}
 
 	/** A media file is missing, or its real path is outside the authorized roots (PLY-04, PLY-05). */

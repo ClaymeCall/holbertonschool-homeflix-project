@@ -39,7 +39,18 @@ The extension is the text after the last `.`, compared without regard to case. S
 | Unsupported video | No | Yes, with the outcome code `format_not_supported` and a plain-language message such as "This video format is not supported. Convert it to MP4 (H.264 video, AAC audio)." |
 | Ignored | No | No |
 
-The report is produced by the indexer (issue #54); this document only fixes the rule and the outcome code.
+The report is produced by the indexer (`POST /scans`, issue #54). This document fixes the rule and the outcome code.
+
+## How the indexer applies the rules
+
+- **Where it looks.** Every authorized folder, and its subfolders. Access to each folder is checked again at each scan, and a folder that cannot be read is reported (`inaccessibleRoots`) and the other folders are still scanned. The scan never fails because a folder or a network share is unavailable.
+- **Links are not followed.** A symbolic link to a file or to a folder is skipped, so a link can neither lead out of the folder nor show the same file twice.
+- **One title per file.** A file is identified by its folder and its path inside it. A new supported file gets a catalogue entry whose title is the file name without its extension, `Films/The Great Escape.mp4` giving `The Great Escape`. Nothing else is filled in.
+- **Repeating a scan changes nothing.** A file already known only gets its size and the time it was last seen updated. The title, description, genres and poster are never touched by a scan, so an administrator's edits survive.
+- **Files that disappear.** A known file that is not found in a folder that was read completely makes its title `UNAVAILABLE`, with its information, favourites and progress kept. When the file is back, the title is `AVAILABLE` again. If part of a folder could not be read, nothing is marked unavailable for it in that scan, because a file that cannot be seen is not a file that is gone.
+- **A folder that cannot be read at all** (it was removed, is now a file, or the share is not mounted) makes all its available titles `UNAVAILABLE` in the same way, and they come back at the first scan that can read it again. The administrator sees the folder in `inaccessibleRoots`, and the member sees that the title is not available (AS-09).
+- **A removed entry stays removed.** The file record is kept when an administrator removes the catalogue entry, so a later scan does not create it again (LIB-12, issue #57).
+- **One scan at a time.** A second request while a scan runs answers 409 `scan_in_progress`.
 
 ## Out of scope
 

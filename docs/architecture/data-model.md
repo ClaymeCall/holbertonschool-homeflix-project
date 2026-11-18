@@ -205,6 +205,6 @@ erDiagram
 
 ## Open points
 
-- **Removing a catalogue entry (LIB-12, H8 #57):** a re-index would create it again, because its file is still in the folder. How a removed entry stays removed is decided in H8.
+- **Removing a catalogue entry (LIB-12, H8 #57):** the indexer keeps the file record when the entry is removed, and does not create an entry for a known file that has none, so the entry stays removed (see the [media identification rules](../library/media-identification.md)). H8 must remove only the entry, not the file record.
 - **Active profile (PRF-02):** where the selected profile is kept between requests belongs to the identity design (issue #14). It does not change these tables.
 - **Indexing report:** a video in an unsupported format is reported in the result of the indexing request and is not stored (see the media identification rules, issue #50).

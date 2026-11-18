@@ -62,6 +62,7 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 | `not_a_directory` | 400 | This path is a file, not a folder. | The root is not a directory. |
 | `directory_outside_library` | 400 | This folder is not inside the folders shared with HomeFlix. | The root is outside the mounted paths (R-02). |
 | `root_already_added` | 409 | This folder is already added. | Authorizing a folder twice. |
+| `root_overlaps` | 409 | This folder overlaps a folder that is already added. | Authorizing a folder that contains, or lies inside, an authorized folder. The indexer would see the same file twice (LIB-05). |
 | `scan_in_progress` | 409 | A scan is already running. Try again when it has finished. | An indexing is requested while one is running. |
 | `media_not_available` | 409 | This title is still downloading and cannot be played yet. | Streaming a title that has no file yet. |
 | `range_not_satisfiable` | 416 | This part of the video is not available. | A byte range outside the file, or several ranges. |
