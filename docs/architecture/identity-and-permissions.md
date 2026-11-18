@@ -61,7 +61,7 @@ The token carries no email, no password or hash, and no name, so a leaked token 
 
 ### Validation in each service
 
-Every service does the same, in one security filter, before any controller runs:
+Every service does the same, before any controller logic runs:
 
 1. Read the token from the `homeflix_token` cookie. A request without it is anonymous.
 2. Accept **only RS256**, with the configured public key. Any other algorithm, including `none` and HS256, is rejected, so the public key cannot be used as a secret.
@@ -70,6 +70,21 @@ Every service does the same, in one security filter, before any controller runs:
 5. Answer 401 `unauthenticated` for a missing, invalid or expired token, and 403 `forbidden` for a valid token that lacks the permission, using the common error body (ADR-0020).
 
 No service reads the identity service's tables or calls it to validate a request (ACC-07). The identity service validates its own tokens the same way.
+
+**How it is built (G5).** The three services share the same small set of classes, in their `security` package:
+
+| Class | Role |
+|---|---|
+| `Caller` | `accountId`, `admin`, `profileId`: what the token says. |
+| `CallerProvider` | Finds the caller of a request. The implementation, `TokenCallerProvider`, reads only the `homeflix_token` cookie: an `Authorization` header, a parameter or a header such as `X-Account-Id` is ignored (R-06). |
+| `SessionTokenVerifier` | Library and acquisition: steps 2 and 3, with the public key read from `JWT_PUBLIC_KEY_FILE`. The identity service uses its own `TokenService`, which applies the same rules. |
+| `AccessGuard` | `requireAccount(request)` and `requireAdmin(request)`. Each protected controller method starts with one of them; it throws `UnauthenticatedException` (401) or `ForbiddenException` (403), turned into the common error body by the service's `ApiExceptionHandler`. |
+
+A service starts only with a valid key file (2048-bit RSA at least), and its tests use a public key from `src/test/resources` (its private key was discarded) or a key pair generated for the run. The guard calls are explicit, so a new endpoint is protected only if its method calls the guard: reviews check it, and the authorization review (K4) goes through every endpoint. A `requireProfile` check (403 `profile_not_selected`) is added with the first operation that needs a profile.
+
+The CSRF rules of the identity service (Fetch Metadata filter, JSON-only bodies, no CORS) apply to the library and acquisition services too: each has the same `CrossSiteRequestFilter`.
+
+CI checks on every pull request that only the gateway (and the torrent peer port, R-21) publishes a port to the host, so a service cannot be reached without going through the gateway, and even then it checks the token itself (R-12).
 
 ### Expiry and renewal
 
@@ -188,7 +203,7 @@ Protections, from the browser to the service:
 3. **No CORS:** no `Access-Control-Allow-Origin` header is sent, so a script on another site cannot send JSON or read answers.
 4. **Fetch Metadata check:** a `POST`, `PUT`, `PATCH` or `DELETE` whose `Sec-Fetch-Site` header is `cross-site` or `same-site` gets `403 forbidden`. HomeFlix pages come from the same origin through the gateway, so they send `same-origin`. Requests without the header (older browsers, scripts, tests) are covered by points 1 to 3.
 
-The library and acquisition services apply the same rules to their state-changing endpoints (G5).
+The library and acquisition services apply the same rules (G5, see "How it is built").
 
 ## Decisions and open points
 

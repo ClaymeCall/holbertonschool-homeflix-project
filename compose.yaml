@@ -50,6 +50,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/homeflix_library
       SPRING_DATASOURCE_USERNAME: homeflix_library
       SPRING_DATASOURCE_PASSWORD: ${LIBRARY_DB_PASSWORD:?Set LIBRARY_DB_PASSWORD in .env}
+      # Verifies the session token with the identity service's PUBLIC key only (G5).
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public_key
+    secrets:
+      - jwt_public_key
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,6 +77,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/homeflix_acquisition
       SPRING_DATASOURCE_USERNAME: homeflix_acquisition
       SPRING_DATASOURCE_PASSWORD: ${ACQUISITION_DB_PASSWORD:?Set ACQUISITION_DB_PASSWORD in .env}
+      # Verifies the session token with the identity service's PUBLIC key only (G5).
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public_key
+    secrets:
+      - jwt_public_key
     depends_on:
       postgres:
         condition: service_healthy
@@ -144,3 +152,7 @@ secrets:
   # (see .env.example). Mounted read-only at /run/secrets/jwt_private_key.
   jwt_private_key:
     file: ${JWT_PRIVATE_KEY_PATH:?Set JWT_PRIVATE_KEY_PATH in .env}
+  # Matching public key, mounted read-only into the library and acquisition services, which
+  # verify tokens but cannot sign them (identity and permissions design, "Keys and secrets").
+  jwt_public_key:
+    file: ${JWT_PUBLIC_KEY_PATH:?Set JWT_PUBLIC_KEY_PATH in .env}

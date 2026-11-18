@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.homeflix.identity.account.AccountRecord;
 import com.homeflix.identity.account.AccountRepository;
 import com.homeflix.identity.security.PasswordConfig;
+import com.homeflix.identity.web.UnauthenticatedException;
 
 /**
  * Sign-in, renewal and current account (ACC-03, ACC-10, R-10).
