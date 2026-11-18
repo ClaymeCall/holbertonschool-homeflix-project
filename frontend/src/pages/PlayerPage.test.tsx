@@ -10,7 +10,7 @@ const movie: MediaDetails = {
   title: 'Night of the Stars',
   description: null,
   posterUrl: null,
-  genre: null,
+  genres: [],
   durationSeconds: 5520,
   availability: 'AVAILABLE',
 }
