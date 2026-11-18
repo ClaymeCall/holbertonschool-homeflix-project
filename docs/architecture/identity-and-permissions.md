@@ -162,11 +162,31 @@ If a profile is deleted while its id is still in a live token, the token stays v
 ## Protection against theft and forgery
 
 - **XSS (R-09):** the cookie is `HttpOnly`, so a script cannot read the token. User text is rendered safely (SEC-03).
-- **CSRF (R-09):** `SameSite=Strict`, and the frontend and APIs share one origin through the gateway (ADR-0013). Operations that change state use `POST`, `PUT` or `DELETE`, never `GET`. This is reviewed in K5.
+- **CSRF (R-09):** `SameSite=Strict`, and the frontend and APIs share one origin through the gateway (ADR-0013). Operations that change state use `POST`, `PUT` or `DELETE`, never `GET`. The identity service endpoints are reviewed below (G3); the whole application is reviewed in K5.
 - **Cookie flags:** `Secure` is added when HomeFlix is served over HTTPS, which is a requirement for any Internet exposure (L8).
 - **Direct calls (R-12):** services publish no port to the host. Even so, each one verifies the token itself, so a request that bypasses the gateway is still refused.
 - **Errors (SEC-04):** a bad token, a wrong password and a missing permission each get a short message without technical details. Reasons go to the server log.
 - **Brute force:** not limited in the MVP. Slow BCrypt hashing makes it costly. A delay or lockout after repeated failures is listed as a future extension.
+
+### CSRF review of the identity service
+
+`SameSite=Strict` is only a mitigation (ADR-0009, consequences), so each state-changing endpoint was reviewed (G3):
+
+| Endpoint | Uses the cookie | Risk | Protection |
+|---|---|---|---|
+| `POST /setup/admin` | No | Another site makes the browser create the first administrator. | JSON body only, refused cross-site, closed once an administrator exists. |
+| `POST /auth/sign-in` | No | Login CSRF: another site signs the user into the attacker's account. | JSON body only, refused cross-site. |
+| `POST /auth/sign-out` | No | Another site signs the user out. Nuisance only. | Refused cross-site. |
+| `POST /auth/refresh` | Yes | Another site renews the session. Gives the attacker nothing: the new cookie stays in the user's browser. | `SameSite=Strict`, refused cross-site. |
+
+Protections, from the browser to the service:
+
+1. **`SameSite=Strict` cookie:** not sent on requests started from another site.
+2. **JSON-only bodies:** endpoints with a body accept `application/json` only, and a form post answers `415`. An HTML form on another site cannot send JSON.
+3. **No CORS:** no `Access-Control-Allow-Origin` header is sent, so a script on another site cannot send JSON or read answers.
+4. **Fetch Metadata check:** a `POST`, `PUT`, `PATCH` or `DELETE` whose `Sec-Fetch-Site` header is `cross-site` or `same-site` gets `403 forbidden`. HomeFlix pages come from the same origin through the gateway, so they send `same-origin`. Requests without the header (older browsers, scripts, tests) are covered by points 1 to 3.
+
+The library and acquisition services apply the same rules to their state-changing endpoints (G5).
 
 ## Decisions and open points
 

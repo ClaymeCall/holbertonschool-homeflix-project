@@ -17,3 +17,13 @@ management:
       probes:
         enabled: true
       show-details: never
+
+# Session token (ADR-0009, docs/architecture/identity-and-permissions.md).
+homeflix:
+  session:
+    # Path of the RSA private key file (PKCS#8 PEM), a mounted secret in Docker
+    # (identity and permissions design, "Keys and secrets"). The service refuses to start without it.
+    private-key-file: ${IDENTITY_JWT_PRIVATE_KEY_FILE:}
+    token-lifetime: 15m
+    # Set to true once HomeFlix is served over HTTPS (issue L8).
+    cookie-secure: false
