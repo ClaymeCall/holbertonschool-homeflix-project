@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { media } from '../test/fixtures'
@@ -29,7 +29,8 @@ describe('SearchPage', () => {
     search()
     renderApp('/search')
     const field = await screen.findByRole('searchbox', { name: 'Title' })
-    expect(field).toHaveFocus()
+    // The page focuses the field in an effect, which can run after the first render on a slow machine.
+    await waitFor(() => expect(field).toHaveFocus())
 
     await userEvent.type(field, 'stars{Enter}')
 
