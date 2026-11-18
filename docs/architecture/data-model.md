@@ -145,7 +145,7 @@ A title can have several genres through `media_item_genre`. The genre filter and
 
 ### Favourites and progress (PRF-03, CAT-08, PLY-07 to PLY-09)
 
-`favourite` and `progress` have one row per profile and title. `profile_id` is a plain uuid: the library does not know whether the profile still exists, which is a consistency rule for issue #13.
+`favourite` and `progress` have one row per profile and title. `profile_id` is a plain uuid: the library does not know whether the profile still exists, which is a consistency rule: see the [cross-service consistency rules](consistency-rules.md).
 
 - **Started** means `position_seconds` is above a few seconds; **completed** means 90 % or more of `duration_seconds` is watched. Both are computed from the row with one constant in code, not stored, so a flag can never disagree with the position (PLY-09).
 - **Reset** deletes the row.
@@ -180,6 +180,7 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz finished_at "nullable"
+        timestamptz library_synced_at "null while a notification to the library is pending"
     }
 ```
 
@@ -198,7 +199,7 @@ erDiagram
 
 | From (service) | Column | Points to (service) | Rule |
 |---|---|---|---|
-| Library | `favourite.profile_id`, `progress.profile_id` | Identity `profile.id` | No foreign key. Deleting a profile or account must delete these rows (issue #13, K2, K3). |
+| Library | `favourite.profile_id`, `progress.profile_id` | Identity `profile.id` | No foreign key. Deleting a profile or account must delete these rows ([consistency rules](consistency-rules.md), K2, K3). |
 | Library | `media_item.acquisition_entry_id` | Acquisition `acquisition_entry.id` | No foreign key. Set when a download starts, so a repeated notification does not create a second item. |
 | Acquisition | `download_job.started_by` | Identity `account.id` | No foreign key. Kept for audit; an account deletion does not delete the job. |
 
