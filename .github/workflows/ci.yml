@@ -90,6 +90,7 @@ jobs:
       - name: Create a placeholder environment file
         run: |
           {
+            echo "ACQUISITION_TO_LIBRARY_TOKEN=$(openssl rand -hex 32)"
             echo "POSTGRES_PASSWORD=ci-placeholder"
             echo "IDENTITY_DB_PASSWORD=ci-placeholder"
             echo "LIBRARY_DB_PASSWORD=ci-placeholder"
