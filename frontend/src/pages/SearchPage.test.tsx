@@ -6,9 +6,9 @@ import { jsonResponse, mockApi, signedInRoutes, type Route } from '../test/http'
 import { renderApp } from '../test/render'
 
 const catalogue = [
-  media({ id: 'm1', title: 'Night of the Stars', genre: 'Documentary' }),
-  media({ id: 'm2', title: 'Stars of the Sea', genre: 'Animation' }),
-  media({ id: 'm3', title: 'Holidays 2024', genre: 'Family' }),
+  media({ id: 'm1', title: 'Night of the Stars', genres: ['Documentary'] }),
+  media({ id: 'm2', title: 'Stars of the Sea', genres: ['Animation'] }),
+  media({ id: 'm3', title: 'Holidays 2024', genres: ['Family'] }),
 ]
 
 /** A fake catalogue that filters like the library service is expected to. */
@@ -16,7 +16,7 @@ const searchRoute: Route = ({ url }) => {
   const query = (url.searchParams.get('query') ?? '').toLowerCase()
   const genre = url.searchParams.get('genre')
   return jsonResponse(
-    catalogue.filter((m) => m.title.toLowerCase().includes(query) && (!genre || m.genre === genre)),
+    catalogue.filter((m) => m.title.toLowerCase().includes(query) && (!genre || m.genres.includes(genre))),
   )
 }
 

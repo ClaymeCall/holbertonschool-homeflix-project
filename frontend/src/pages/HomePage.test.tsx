@@ -5,7 +5,7 @@ import { media } from '../test/fixtures'
 import { jsonResponse, mockApi, signedInRoutes, testAccount, type Route } from '../test/http'
 import { renderApp } from '../test/render'
 
-const stars = media({ id: 'm1', title: 'Night of the Stars', genre: 'Documentary', durationSeconds: 5520 })
+const stars = media({ id: 'm1', title: 'Night of the Stars', genres: ['Documentary'], durationSeconds: 5520 })
 const holidays = media({ id: 'm2', title: 'Holidays 2024', availability: 'DOWNLOADING' })
 
 function home(recent: Route, categories: Route = () => jsonResponse([]), account = testAccount) {

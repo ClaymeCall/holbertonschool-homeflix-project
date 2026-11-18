@@ -7,7 +7,7 @@ import styles from './MediaCard.module.css'
 
 export function MediaCard({ media }: { media: MediaSummary }) {
   const duration = formatDuration(media.durationSeconds)
-  const details = [media.genre, duration].filter(Boolean).join(' · ')
+  const details = [media.genres.join(', '), duration].filter(Boolean).join(' · ')
 
   return (
     <Link to={`/movies/${encodeURIComponent(media.id)}`} className={styles.card}>

@@ -54,8 +54,10 @@ function MovieDetails({ media }: { media: MediaDetails }) {
 
           <dl className={styles.meta}>
             <div>
-              <dt className="visually-hidden">Genre</dt>
-              <dd className={media.genre ? undefined : styles.missing}>{media.genre ?? 'Genre not specified'}</dd>
+              <dt className="visually-hidden">Genres</dt>
+              <dd className={media.genres.length > 0 ? undefined : styles.missing}>
+                {media.genres.length > 0 ? media.genres.join(', ') : 'Genre not specified'}
+              </dd>
             </div>
             <div>
               <dt className="visually-hidden">Duration</dt>

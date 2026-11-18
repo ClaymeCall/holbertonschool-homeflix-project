@@ -16,7 +16,8 @@ export interface MediaSummary {
   title: string
   /** External image URL from the allowed host list (ADR-0018), or null. */
   posterUrl: string | null
-  genre: string | null
+  /** Zero or more genre names (a title can have several). */
+  genres: string[]
   durationSeconds: number | null
   availability: Availability
 }

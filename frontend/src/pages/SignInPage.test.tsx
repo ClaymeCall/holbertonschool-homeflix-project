@@ -9,7 +9,7 @@ const movie = {
   title: 'Night of the Stars',
   description: null,
   posterUrl: null,
-  genre: null,
+  genres: [],
   durationSeconds: null,
   availability: 'AVAILABLE',
 }
