@@ -34,8 +34,9 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 |---|---|---|---|
 | `validation_failed` | 400 | Some fields are invalid. | Input broke a rule; `fields` says which. |
 | `invalid_request` | 400 | The request body is missing or is not valid JSON. | Unreadable body. |
-| `unauthenticated` | 401 | Please sign in. | No valid session. *(behavior to confirm in #14)* |
-| `forbidden` | 403 | You do not have permission to do this. | Signed in, but the role does not allow it. *(to confirm in #14)* |
+| `unauthenticated` | 401 | Please sign in. | No valid session. Missing, invalid or expired token ([identity and permissions](identity-and-permissions.md)). |
+| `forbidden` | 403 | You do not have permission to do this. | Signed in, but the role does not allow it. See the [permission matrix](identity-and-permissions.md#roles-and-permissions). |
+| `profile_not_selected` | 403 | Choose a profile first. | An operation that needs an active profile, with a token that has none. |
 | `not_found` | 404 | This address does not exist. | Unknown address or resource. |
 | `request_rejected` | 4xx | This request cannot be processed. | Framework rejection (wrong method, unsupported media type). Keeps its status. |
 | `internal_error` | 500 | Something went wrong. Please try again. | Unexpected failure. |
@@ -46,6 +47,9 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 | Code | Status | Message | When |
 |---|---|---|---|
 | `setup_already_completed` | 409 | HomeFlix is already set up. Sign in instead. | First-run setup after an administrator exists. |
+| `invalid_credentials` | 401 | The email or password is incorrect. | Sign-in with an unknown email, a wrong password or a disabled account. One answer for all three, so accounts are not revealed (ACC-10). |
+| `profile_limit_reached` | 409 | This account already has the maximum number of profiles. | Creating a sixth profile. |
+| `profile_name_taken` | 409 | A profile with this name already exists. | A profile name already used in the account. |
 
 ### Library service
 
@@ -57,6 +61,10 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 | `directory_not_readable` | 400 | HomeFlix cannot read this folder. | The root exists but is not readable. |
 | `not_a_directory` | 400 | This path is a file, not a folder. | The root is not a directory. |
 | `directory_outside_library` | 400 | This folder is not inside the folders shared with HomeFlix. | The root is outside the mounted paths (R-02). |
+| `root_already_added` | 409 | This folder is already added. | Authorizing a folder twice. |
+| `scan_in_progress` | 409 | A scan is already running. Try again when it has finished. | An indexing is requested while one is running. |
+| `media_not_available` | 409 | This title is still downloading and cannot be played yet. | Streaming a title that has no file yet. |
+| `range_not_satisfiable` | 416 | This part of the video is not available. | A byte range outside the file, or several ranges. |
 
 `file_not_found` and `access_denied` have different messages, so the user can tell a missing file from a permission problem (PLY-05), but neither ever says where the file is. `format_not_supported` is **not** an HTTP error. It is the outcome reported for a video found during indexing in an unsupported format (see [media identification rules](../library/media-identification.md)), so such a file never gets a play endpoint.
 
