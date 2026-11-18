@@ -19,7 +19,7 @@ import com.nimbusds.jwt.SignedJWT;
  */
 class TokenServiceTests {
 
-	private static final SessionKeys KEYS = new SessionKeys(TestKeys.newPrivateKey(2048));
+	private static final SessionKeys KEYS = SessionKeys.fromKeyText(TestKeys.newPrivateKey(2048));
 	private static final Duration LIFETIME = Duration.ofMinutes(15);
 	private static final Instant NOW = Instant.parse("2026-11-17T12:00:00Z");
 
@@ -44,20 +44,26 @@ class TokenServiceTests {
 		assertThat(jwt.getJWTClaimsSet().getBooleanClaim("admin")).isFalse();
 		assertThat(jwt.getJWTClaimsSet().getClaim("profileId")).isNull();
 		assertThat(jwt.getJWTClaimsSet().getExpirationTime().toInstant()).isEqualTo(NOW.plus(LIFETIME));
+		assertThat(jwt.getJWTClaimsSet().getIssuer()).isEqualTo("homeflix-identity");
+		// Only the claims of the identity and permissions design: no email, no password or hash.
+		assertThat(jwt.getJWTClaimsSet().getClaims().keySet())
+				.containsExactlyInAnyOrder("iss", "sub", "admin", "iat", "exp");
 	}
 
 	@Test
-	void tokenIsValidJustBeforeExpiryAndRefusedAfter() {
+	void tokenIsValidUntilExpiryPlusClockToleranceAndRefusedAfter() {
 		String token = tokensAt(NOW).issue(new SessionClaims(accountId, false, null));
+		Instant expiry = NOW.plus(LIFETIME);
 
-		assertThat(tokensAt(NOW.plus(LIFETIME).minusSeconds(1)).verify(token)).isPresent();
-		assertThat(tokensAt(NOW.plus(LIFETIME)).verify(token)).isEmpty();
+		assertThat(tokensAt(expiry.minusSeconds(1)).verify(token)).isPresent();
+		assertThat(tokensAt(expiry.plus(TokenService.CLOCK_SKEW).minusSeconds(1)).verify(token)).isPresent();
+		assertThat(tokensAt(expiry.plus(TokenService.CLOCK_SKEW)).verify(token)).isEmpty();
 		assertThat(tokensAt(NOW.plus(Duration.ofHours(1))).verify(token)).isEmpty();
 	}
 
 	@Test
 	void tokenSignedWithAnotherKeyIsRefused() {
-		SessionKeys otherKeys = new SessionKeys(TestKeys.newPrivateKey(2048));
+		SessionKeys otherKeys = SessionKeys.fromKeyText(TestKeys.newPrivateKey(2048));
 		String forged = new TokenService(otherKeys, fixedClock(NOW), LIFETIME)
 				.issue(new SessionClaims(accountId, true, null));
 

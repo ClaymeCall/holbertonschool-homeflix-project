@@ -33,6 +33,9 @@ public class TokenService {
 	static final String ADMIN_CLAIM = "admin";
 	static final String PROFILE_CLAIM = "profileId";
 
+	/** Clock tolerance on expiry (identity and permissions design, "Validation in each service"). */
+	static final Duration CLOCK_SKEW = Duration.ofSeconds(5);
+
 	private final RSASSASigner signer;
 	private final RSASSAVerifier verifier;
 	private final Clock clock;
@@ -57,8 +60,7 @@ public class TokenService {
 				.subject(session.accountId().toString())
 				.claim(ADMIN_CLAIM, session.admin())
 				.issueTime(Date.from(now))
-				.expirationTime(Date.from(now.plus(lifetime)))
-				.jwtID(UUID.randomUUID().toString());
+				.expirationTime(Date.from(now.plus(lifetime)));
 		if (session.profileId() != null) {
 			claims.claim(PROFILE_CLAIM, session.profileId().toString());
 		}
@@ -77,7 +79,7 @@ public class TokenService {
 
 	/**
 	 * Returns the claims of a valid token: RS256, signed with our key, issued by the identity
-	 * service and not expired. Anything else, including a malformed token, gives an empty result.
+	 * service and not expired (with {@link #CLOCK_SKEW} of tolerance). Anything else, including a malformed token, gives an empty result.
 	 */
 	public Optional<SessionClaims> verify(String token) {
 		if (token == null || token.isBlank()) {
@@ -91,7 +93,7 @@ public class TokenService {
 			}
 			JWTClaimsSet claims = jwt.getJWTClaimsSet();
 			Date expiry = claims.getExpirationTime();
-			if (expiry == null || !clock.instant().isBefore(expiry.toInstant())) {
+			if (expiry == null || !clock.instant().isBefore(expiry.toInstant().plus(CLOCK_SKEW))) {
 				return Optional.empty();
 			}
 			Boolean admin = claims.getBooleanClaim(ADMIN_CLAIM);

@@ -19,12 +19,12 @@ class TestcontainersConfiguration {
 	}
 
 	/**
-	 * The service refuses to start without a signing key. Tests use a key generated for this
-	 * run only, so no private key is ever committed (OPS-03, R-11).
+	 * The service refuses to start without a signing key file. Tests use a key generated for
+	 * this run only, in a temporary file, so no private key is ever committed (R-11).
 	 */
 	@Bean
 	DynamicPropertyRegistrar sessionKeyProperty() {
-		return registry -> registry.add("homeflix.session.private-key", () -> TestKeys.SESSION_PRIVATE_KEY);
+		return registry -> registry.add("homeflix.session.private-key-file", () -> TestKeys.SESSION_PRIVATE_KEY_FILE);
 	}
 
 }

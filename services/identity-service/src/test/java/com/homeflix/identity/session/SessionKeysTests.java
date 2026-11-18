@@ -3,58 +3,73 @@ package com.homeflix.identity.session;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Reading JWT_PRIVATE_KEY (OPS-03). Fast unit tests, no Spring context.
+ * Reading the private key file (IDENTITY_JWT_PRIVATE_KEY_FILE). Fast unit tests, no Spring context.
  */
 class SessionKeysTests {
 
-	@Test
-	void base64KeyIsAcceptedAndPublicKeyIsDerived() {
-		SessionKeys keys = new SessionKeys(TestKeys.newPrivateKey(2048));
+	@TempDir
+	Path tempDir;
 
+	@Test
+	void pemKeyFileIsReadAndPublicKeyIsDerived() {
+		SessionKeys keys = new SessionKeys(TestKeys.writeTemporaryKeyFile(TestKeys.newPrivateKey(2048)));
+
+		assertThat(keys.privateKey().getModulus().bitLength()).isEqualTo(2048);
 		assertThat(keys.publicKey().getModulus()).isEqualTo(keys.privateKey().getModulus());
 		assertThat(keys.publicKey().getPublicExponent()).isEqualTo(BigInteger.valueOf(65537));
 	}
 
 	@Test
-	void pemKeyIsAccepted() {
-		String base64 = TestKeys.newPrivateKey(2048);
-		String pem = "-----BEGIN PRIVATE KEY-----\n"
-				+ base64.replaceAll("(.{64})", "$1\n")
-				+ "\n-----END PRIVATE KEY-----\n";
-
-		assertThat(new SessionKeys(pem).privateKey().getModulus().bitLength()).isEqualTo(2048);
+	void oneLineBase64KeyIsAccepted() {
+		assertThat(SessionKeys.fromKeyText(TestKeys.newPrivateKey(2048)).privateKey()).isNotNull();
 	}
 
 	@Test
-	void missingKeyStopsTheService() {
+	void missingSettingStopsTheService() {
 		assertThatThrownBy(() -> new SessionKeys(""))
 				.isInstanceOf(IllegalStateException.class)
-				.hasMessageContaining("JWT_PRIVATE_KEY is not set");
+				.hasMessageContaining("IDENTITY_JWT_PRIVATE_KEY_FILE is not set");
 	}
 
 	@Test
-	void invalidKeyIsRejectedWithoutPrintingIt() {
-		assertThatThrownBy(() -> new SessionKeys("bm90LWEta2V5"))
+	void missingFileStopsTheService() {
+		String path = tempDir.resolve("absent.pem").toString();
+
+		assertThatThrownBy(() -> new SessionKeys(path))
 				.isInstanceOf(IllegalStateException.class)
-				.hasMessageContaining("not a valid RSA private key")
+				.hasMessageContaining("does not exist");
+	}
+
+	@Test
+	void invalidKeyIsRejectedWithoutPrintingIt() throws IOException {
+		Path file = Files.writeString(tempDir.resolve("bad.pem"), "bm90LWEta2V5");
+
+		assertThatThrownBy(() -> new SessionKeys(file.toString()))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("not a valid RSA key")
 				.hasMessageNotContaining("bm90LWEta2V5");
 	}
 
 	@Test
 	void pkcs1KeyIsRejectedWithAHint() {
-		assertThatThrownBy(() -> new SessionKeys("-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----"))
+		assertThatThrownBy(() -> SessionKeys.fromKeyText(
+				"-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----"))
 				.isInstanceOf(IllegalStateException.class)
 				.hasMessageContaining("PKCS#1");
 	}
 
 	@Test
 	void shortKeyIsRejected() {
-		assertThatThrownBy(() -> new SessionKeys(TestKeys.newPrivateKey(1024)))
+		assertThatThrownBy(() -> SessionKeys.fromKeyText(TestKeys.newPrivateKey(1024)))
 				.isInstanceOf(IllegalStateException.class)
 				.hasMessageContaining("2048");
 	}

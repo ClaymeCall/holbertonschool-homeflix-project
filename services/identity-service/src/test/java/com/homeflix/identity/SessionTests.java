@@ -239,7 +239,7 @@ class SessionTests {
 
 	@Test
 	void renewalIsRefusedForATokenSignedWithAnotherKey() throws Exception {
-		TokenService attacker = new TokenService(new SessionKeys(TestKeys.newPrivateKey(2048)),
+		TokenService attacker = new TokenService(SessionKeys.fromKeyText(TestKeys.newPrivateKey(2048)),
 				Clock.systemUTC(), Duration.ofMinutes(15));
 		String forged = attacker.issue(new SessionClaims(accountId, true, null));
 
