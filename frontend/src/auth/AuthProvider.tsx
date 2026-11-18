@@ -4,11 +4,18 @@ import * as identity from '../api/identity'
 import { AuthContext, type AuthContextValue, type Session } from './AuthContext'
 
 /**
- * The token lasts about 15 minutes (G3). Renewing it before that keeps
- * requests the app cannot retry itself, such as video streaming, working.
- * To align with the identity design (issue #14) once it is written.
+ * The token lasts 15 minutes. Renewing it at about two thirds of that keeps
+ * requests the app cannot retry itself, such as video streaming, working
+ * (identity and permissions design, "Expiry and renewal").
  */
 const RENEW_EVERY_MS = 10 * 60 * 1000
+
+/**
+ * Browsers slow down timers in a hidden tab, so the token may have run low
+ * meanwhile: the session is also renewed when the tab becomes visible again,
+ * unless it was renewed less than this long ago.
+ */
+const MIN_RENEW_GAP_MS = 60 * 1000
 
 async function loadSession(signal: AbortSignal): Promise<Session> {
   if (await identity.isSetupRequired(signal)) {
@@ -50,12 +57,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signedIn = session.status === 'signedIn'
   useEffect(() => {
     if (!signedIn) return
-    const timer = window.setInterval(() => {
+    let lastRenewal = Date.now()
+    const renew = () => {
+      lastRenewal = Date.now()
       identity.renewSession().catch((error: unknown) => {
         if (error instanceof ApiError && error.status === 401) expire()
       })
-    }, RENEW_EVERY_MS)
-    return () => window.clearInterval(timer)
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastRenewal >= MIN_RENEW_GAP_MS) renew()
+    }
+    const timer = window.setInterval(renew, RENEW_EVERY_MS)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
   }, [signedIn, expire])
 
   const value = useMemo<AuthContextValue>(
