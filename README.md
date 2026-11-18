@@ -42,6 +42,7 @@ HomeFlix is split into at least three Java/Spring Boot business microservices (i
 | API contracts (OpenAPI) | [docs/api/](docs/api/README.md) |
 | Data model (entities per service) | [docs/architecture/data-model.md](docs/architecture/data-model.md) |
 | Error model and outage behavior | [docs/architecture/error-model.md](docs/architecture/error-model.md) |
+| Gateway checks (Range, blocked paths, 503) | [gateway/tests/README.md](gateway/tests/README.md) |
 | User journeys | [docs/product/user-journeys.md](docs/product/user-journeys.md) |
 | Prioritized backlog | [docs/product/backlog.md](docs/product/backlog.md) |
 | Identity and permissions design | [docs/architecture/identity-and-permissions.md](docs/architecture/identity-and-permissions.md) |

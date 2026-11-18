@@ -69,6 +69,16 @@ jobs:
       - name: Test
         run: npm test
 
+  gateway:
+    name: Gateway
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Range requests, blocked paths and the 503 answer, with real HTTP (gateway/tests/README.md).
+      - name: Check the gateway
+        run: gateway/tests/check-gateway.sh
+
   docker:
     name: Docker Compose
     runs-on: ubuntu-latest
