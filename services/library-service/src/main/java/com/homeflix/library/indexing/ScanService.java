@@ -87,6 +87,7 @@ public class ScanService {
 				String code = ROOT_ERRORS.contains(e.code()) ? e.code() : "directory_not_readable";
 				log.warn("Root skipped, it cannot be scanned: {} ({})", root.path(), e.code());
 				inaccessible.add(new ScanReport.InaccessibleRoot(root.id(), code));
+				counts.markedUnavailable += markUnavailable(root);
 				continue;
 			}
 			try {
@@ -103,6 +104,23 @@ public class ScanService {
 				counts.added, counts.updated, counts.markedUnavailable, unsupported.size(), inaccessible.size());
 		return new ScanReport(startedAt, finishedAt, counts.added, counts.updated, counts.markedUnavailable,
 				unsupported, inaccessible);
+	}
+
+	/**
+	 * A root that cannot be read has no file we can see, so its titles are unavailable until it can be read
+	 * again (LIB-07, AS-09). The titles keep their information, favourites and progress. Never throws: a
+	 * failure here is logged and the scan goes on with the other roots.
+	 */
+	private int markUnavailable(Root root) {
+		try {
+			Integer changed = transaction.execute(status -> index.markRootMissing(root.id(),
+					OffsetDateTime.now().truncatedTo(ChronoUnit.MICROS)));
+			return changed == null ? 0 : changed;
+		}
+		catch (RuntimeException e) {
+			log.error("Titles of an unreadable root could not be marked unavailable: {}", root.path(), e);
+			return 0;
+		}
 	}
 
 	private void scanRoot(Root root, RootValidator.Accepted folder, OffsetDateTime startedAt, Counts counts,

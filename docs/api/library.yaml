@@ -714,7 +714,7 @@ components:
         markedUnavailable:
           type: integer
           minimum: 0
-          description: Titles whose file is no longer found.
+          description: Titles whose file is no longer found, including every title of a root that could not be read.
         unsupported:
           type: array
           description: Videos found in a format HomeFlix does not play. Not added to the catalogue.
@@ -731,7 +731,7 @@ components:
                 const: format_not_supported
         inaccessibleRoots:
           type: array
-          description: Roots that could not be read during this scan, with the reason.
+          description: Roots that could not be read during this scan, with the reason. Their titles are marked `UNAVAILABLE` and come back when the root can be read again.
           items:
             type: object
             required: [rootId, error]
