@@ -34,8 +34,8 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 |---|---|---|---|
 | `validation_failed` | 400 | Some fields are invalid. | Input broke a rule; `fields` says which. |
 | `invalid_request` | 400 | The request body is missing or is not valid JSON. | Unreadable body. |
-| `unauthenticated` | 401 | Please sign in. | No valid session. *(behavior to confirm in #14)* |
-| `forbidden` | 403 | You do not have permission to do this. | Signed in, but the role does not allow it. *(to confirm in #14)* |
+| `unauthenticated` | 401 | Please sign in. | No valid session. Missing, invalid or expired token ([identity and permissions](identity-and-permissions.md)). |
+| `forbidden` | 403 | You do not have permission to do this. | Signed in, but the role does not allow it. See the [permission matrix](identity-and-permissions.md#roles-and-permissions). |
 | `not_found` | 404 | This address does not exist. | Unknown address or resource. |
 | `request_rejected` | 4xx | This request cannot be processed. | Framework rejection (wrong method, unsupported media type). Keeps its status. |
 | `internal_error` | 500 | Something went wrong. Please try again. | Unexpected failure. |
