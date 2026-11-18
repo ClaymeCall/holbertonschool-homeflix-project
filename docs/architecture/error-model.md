@@ -66,6 +66,7 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 | `scan_in_progress` | 409 | A scan is already running. Try again when it has finished. | An indexing is requested while one is running. |
 | `media_not_available` | 409 | This title is still downloading and cannot be played yet. | Streaming a title that has no file yet. |
 | `range_not_satisfiable` | 416 | This part of the video is not available. | A byte range outside the file, or several ranges. |
+| `already_in_library` | 409 | This title is already in the library. | Internal call: a download is started for a title that is already available. Shown to an administrator as a failed download. |
 
 `file_not_found` and `access_denied` have different messages, so the user can tell a missing file from a permission problem (PLY-05), but neither ever says where the file is. `format_not_supported` is **not** an HTTP error. It is the outcome reported for a video found during indexing in an unsupported format (see [media identification rules](../library/media-identification.md)), so such a file never gets a play endpoint.
 
@@ -90,7 +91,7 @@ A timeout, a refused connection, or a 5xx from the called service all become the
 
 | Situation | What the user sees | Rest of HomeFlix |
 |---|---|---|
-| Identity service down | Sign-in and account pages show the service-unavailable message | What the other services do without identity depends on the identity design (issue #14) |
+| Identity service down | Sign-in and account pages show the service-unavailable message | Services check tokens themselves, so signed-in users keep browsing and playing until their token expires (about 15 minutes), then cannot renew ([identity design](identity-and-permissions.md#expiry-and-renewal), [consistency rules](consistency-rules.md#when-a-service-is-down)) |
 | Library service down | Catalogue and player show the service-unavailable message, with a retry button | Sign-in still works |
 | Acquisition service down | Download screens show the service-unavailable message | Catalogue and playback are not affected |
 | Database down | The owning service answers 503 | The other services keep working |
