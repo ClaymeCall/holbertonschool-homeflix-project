@@ -45,6 +45,7 @@ HomeFlix is split into at least three Java/Spring Boot business microservices (i
 | User journeys | [docs/product/user-journeys.md](docs/product/user-journeys.md) |
 | Prioritized backlog | [docs/product/backlog.md](docs/product/backlog.md) |
 | Identity and permissions design | [docs/architecture/identity-and-permissions.md](docs/architecture/identity-and-permissions.md) |
+| Cross-service consistency rules | [docs/architecture/consistency-rules.md](docs/architecture/consistency-rules.md) |
 | Demo: one service calls another | [docs/architecture/service-to-service-demo.md](docs/architecture/service-to-service-demo.md) |
 | Copyright and peer-to-peer awareness | [docs/copyright-and-p2p.md](docs/copyright-and-p2p.md) |
 | Contributing (branches, commits, pull requests) | [CONTRIBUTING.md](CONTRIBUTING.md) |
