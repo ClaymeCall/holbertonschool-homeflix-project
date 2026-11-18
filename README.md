@@ -36,13 +36,23 @@ HomeFlix is split into at least three Java/Spring Boot business microservices (i
 | Team and working agreement | [docs/team/working-agreement.md](docs/team/working-agreement.md) |
 | Mandatory requirements checklist | [docs/product/requirements.md](docs/product/requirements.md) |
 | Technology stack | [docs/architecture/tech-stack.md](docs/architecture/tech-stack.md) |
+| Supported video format and conversion | [docs/user/supported-video-format.md](docs/user/supported-video-format.md) |
 | Architecture decision records | [docs/adr/](docs/adr/README.md) |
 | Risk register | [docs/risks.md](docs/risks.md) |
+| API contracts (OpenAPI) | [docs/api/](docs/api/README.md) |
+| Data model (entities per service) | [docs/architecture/data-model.md](docs/architecture/data-model.md) |
+| Error model and outage behavior | [docs/architecture/error-model.md](docs/architecture/error-model.md) |
+| User journeys | [docs/product/user-journeys.md](docs/product/user-journeys.md) |
+| Prioritized backlog | [docs/product/backlog.md](docs/product/backlog.md) |
+| Identity and permissions design | [docs/architecture/identity-and-permissions.md](docs/architecture/identity-and-permissions.md) |
+| Cross-service consistency rules | [docs/architecture/consistency-rules.md](docs/architecture/consistency-rules.md) |
+| Demo: one service calls another | [docs/architecture/service-to-service-demo.md](docs/architecture/service-to-service-demo.md) |
+| Copyright and peer-to-peer awareness | [docs/copyright-and-p2p.md](docs/copyright-and-p2p.md) |
 | Contributing (branches, commits, pull requests) | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
 ## Rights and peer-to-peer
 
-Peer-to-peer is only a transfer method. It does not grant permission to download or share a work. HomeFlix is only meant to be used with personal videos, your own creations, or content whose licence allows the intended use.
+Peer-to-peer is only a transfer method. It does not grant permission to download or share a work. HomeFlix is only meant to be used with personal videos, your own creations, or content whose licence allows the intended use. Read the [copyright and peer-to-peer awareness note](docs/copyright-and-p2p.md) before the first download.
 
 ## Team
 

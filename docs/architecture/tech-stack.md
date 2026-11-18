@@ -15,6 +15,8 @@ This page is a **summary**. The reasons, alternatives and consequences of each c
 | Database | PostgreSQL, one database and one user per service | [0006](../adr/0006-postgresql-database-per-service.md) |
 | Migrations | Flyway | [0007](../adr/0007-flyway-migrations.md) |
 | Service-to-service calls | Synchronous REST over HTTP (`RestClient`) | [0008](../adr/0008-rest-inter-service-communication.md) |
+| Error format and outages | Common `{error, message, fields}` body, 2 s / 5 s timeouts, GET-only retry, 503 for outages (proposed) | [0020](../adr/0020-common-error-format-and-outage-behavior.md) |
+| Interface language | English only; the server `message` is the text the user reads (proposed) | [0021](../adr/0021-english-only-interface.md) |
 | Authentication | JWT signed with RS256, in an HttpOnly `SameSite=Strict` cookie | [0009](../adr/0009-jwt-rs256-httponly-cookie.md) |
 | API contracts | Hand-written OpenAPI YAML in `docs/api/`, written first | [0010](../adr/0010-handwritten-openapi-contracts.md) |
 | Backend tests | JUnit 5, Spring Boot Test, MockMvc, Testcontainers (PostgreSQL) | [0011](../adr/0011-backend-testing-strategy.md) |

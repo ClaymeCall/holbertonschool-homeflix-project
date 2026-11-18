@@ -9,3 +9,10 @@ data/
 .DS_Store
 .idea/
 .vscode/
+
+# devenv
+.devenv/
+.devenv.flake.nix
+devenv.local.nix
+devenv.local.yaml
+.direnv/
