@@ -1,0 +1,139 @@
+# Acquisition service contract (ADR-0010). Written before the implementation.
+# Shapes follow the data model (docs/architecture/data-model.md, "Acquisition service").
+openapi: 3.1.0
+info:
+  title: HomeFlix acquisition service
+  version: 0.1.0
+  description: |
+    The verified acquisition catalogue: content the team has checked as downloadable and redistributable,
+    each entry with its source, its licence and its expected size (ACQ-01, ACQ-02, R-19). Downloads (J5, J6)
+    and the handoff to the library (J7) are added to this file by the pull requests that build them.
+
+    Paths are those of the service. Through the gateway they are served under `/api/acquisition`
+    (ADR-0017), which is the server URL below.
+
+    **Permissions** are written on each operation as `x-permission`. Every operation of this service is
+    `admin` (ACQ-05). The identity comes from the signed token only, never from a parameter (ADR-0009).
+
+    **No arbitrary source.** Entries are added by a reviewed database migration, never through the API.
+    No operation accepts a URL, a magnet link or a torrent file, and the download address of an entry is
+    never returned (ACQ-09, ACQ-10, R-15).
+
+    **Errors** use the common body of `common.yaml` (ADR-0020).
+servers:
+  - url: /api/acquisition
+    description: Through the gateway
+tags:
+  - name: Catalogue
+security:
+  - cookieAuth: []
+paths:
+  /entries:
+    get:
+      tags: [Catalogue]
+      operationId: listEntries
+      summary: List the verified acquisition catalogue
+      description: |
+        Every entry, by title. This catalogue is separate from the library: an entry is content that may be
+        downloaded, not a title that is already available (ACQ-01). The list is short and curated, so it is
+        not paged.
+      x-permission: admin
+      responses:
+        '200':
+          description: The entries, alphabetical by title without regard to case.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Entry'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /entries/{entryId}:
+    parameters:
+      - $ref: '#/components/parameters/EntryId'
+    get:
+      tags: [Catalogue]
+      operationId: getEntry
+      summary: One entry of the verified catalogue
+      x-permission: admin
+      responses:
+        '200':
+          description: The entry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      $ref: './common.yaml#/components/securitySchemes/cookieAuth'
+
+  parameters:
+    EntryId:
+      name: entryId
+      in: path
+      required: true
+      description: An id that is not a valid UUID answers `404`, the same as an unknown entry.
+      schema:
+        $ref: './common.yaml#/components/schemas/Uuid'
+
+  schemas:
+    Entry:
+      type: object
+      description: |
+        Content verified as downloadable and redistributable. The source and the licence are shown to the
+        administrator before a download starts, with the rights reminder (ACQ-11). The download address is
+        kept by the service and never returned.
+      required: [id, title, sourceName, sourceUrl, licence, licenceUrl, attribution, expectedSizeBytes, expectedFormat]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        title:
+          type: string
+          examples: [Sintel]
+        sourceName:
+          description: Who publishes the content.
+          type: string
+          examples: [Blender Foundation]
+        sourceUrl:
+          description: '`https` page of the source.'
+          type: string
+          format: uri
+          examples: ['https://durian.blender.org/']
+        licence:
+          description: Name of the licence or other authorization.
+          type: string
+          examples: [Creative Commons Attribution 3.0 Unported (CC BY 3.0)]
+        licenceUrl:
+          description: '`https` page of the licence.'
+          type: string
+          format: uri
+          examples: ['https://creativecommons.org/licenses/by/3.0/']
+        attribution:
+          description: Credit the licence requires, or null when it requires none.
+          type: ['string', 'null']
+        expectedSizeBytes:
+          description: Size of the file once downloaded. The completed file is checked against it (R-19, J7).
+          type: integer
+          format: int64
+          minimum: 1
+          examples: [129184608]
+        expectedFormat:
+          description: Format of the file once downloaded. Only MP4 (H.264, AAC) is supported (ADR-0015).
+          type: string
+          enum: [MP4]
