@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -18,10 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -30,12 +26,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import com.homeflix.library.HeaderCallers;
 import com.homeflix.library.TestcontainersConfiguration;
-import com.homeflix.library.security.Caller;
-import com.homeflix.library.security.CallerProvider;
 
 /** The roots endpoints against a real PostgreSQL: permissions, errors and what removal keeps (LIB-01, LIB-07). */
-@Import({ TestcontainersConfiguration.class, RootEndpointsTests.TestCallers.class })
+@Import({ TestcontainersConfiguration.class, HeaderCallers.class })
 @SpringBootTest
 class RootEndpointsTests {
 
@@ -45,22 +40,6 @@ class RootEndpointsTests {
 	@DynamicPropertySource
 	static void mountedPaths(DynamicPropertyRegistry registry) {
 		registry.add("homeflix.library.mounted-paths", () -> mounted.toString());
-	}
-
-	/** Stands in for the token check of issue G5: the header says who is calling. */
-	@TestConfiguration(proxyBeanMethods = false)
-	static class TestCallers {
-
-		@Bean
-		@Primary
-		CallerProvider headerCallers() {
-			return request -> switch (String.valueOf(request.getHeader("X-Test-Caller"))) {
-				case "admin" -> Optional.of(new Caller(UUID.randomUUID(), true, null));
-				case "user" -> Optional.of(new Caller(UUID.randomUUID(), false, UUID.randomUUID()));
-				default -> Optional.empty();
-			};
-		}
-
 	}
 
 	@Autowired
