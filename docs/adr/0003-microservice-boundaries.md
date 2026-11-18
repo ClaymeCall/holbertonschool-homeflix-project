@@ -30,4 +30,4 @@ Each service owns its data (see ADR-0006), exposes a documented API (ADR-0010), 
 
 - Each learner can own one service end to end, which also makes it easier to explain individual contributions.
 - Cross-service rules (for example what happens to progress when an account is deleted) must be designed explicitly (issue #13).
-- The detailed diagram and boundary rationale are in the architecture overview (issue #10).
+- The detailed diagram and boundary rationale are in the [architecture overview](../architecture/overview.md).

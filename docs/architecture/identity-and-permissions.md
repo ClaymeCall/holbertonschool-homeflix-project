@@ -132,6 +132,12 @@ The library service trusts the signed claim for favourites and progress and neve
 
 If a profile is deleted while its id is still in a live token, the token stays valid for up to 15 minutes. The favourites and progress of that profile are removed by the cross-service rule (issue #13), so a leftover token can only create orphaned rows, which that rule must tolerate.
 
+## Email address
+
+- The email is only a sign-in identifier: HomeFlix sends no email in the MVP.
+- It is trimmed and lower-cased, at most 254 characters, and validated with Bean Validation `@Email`, which accepts a domain without a dot (for example `admin@homeflix`). This is accepted on purpose: on a home installation such an address is a valid identifier, and requiring a public domain would add nothing.
+- If HomeFlix ever sends email (for example password reset), validation must become stricter, and existing addresses without a dot must be handled at that point.
+
 ## Password storage
 
 - Passwords are hashed with **BCrypt** through Spring Security's `BCryptPasswordEncoder`, **strength 12** (R-08, ACC-04). The salt is part of the BCrypt output.
@@ -139,6 +145,8 @@ If a profile is deleted while its id is still in a live token, the token stays v
 - BCrypt reads only the first 72 bytes, so a longer password is **refused** instead of being silently cut: 12 characters at least, 72 bytes at most.
 - Sign-in compares against a dummy hash when the email is unknown, so the response time does not reveal which accounts exist (ACC-10).
 - No default account or password exists (ACC-02): the first administrator comes from the setup screen, which the server accepts only while no administrator exists, and creates at most one even for simultaneous requests (R-07).
+- Objects that hold a password or a hash (`SetupRequest`, `Credentials`, `AccountRecord`) print `***` in `toString()`, so they cannot leak into a log line by accident (SEC-04).
+- PostgreSQL adds the failing row (`Failing row contains (...)`, `Key (email)=(...)`) to some constraint errors, which would put an email and a password hash into exceptions and logs. The driver setting `logServerErrorDetail=false` (Hikari `data-source-properties` in `application.yaml`) keeps only the error and the constraint name. **Do not remove it**: `PasswordAndSecretsTests` checks that constraint errors carry no email and no hash. Any other service that stores personal data or file paths should set it too.
 
 ## Keys and secrets
 
