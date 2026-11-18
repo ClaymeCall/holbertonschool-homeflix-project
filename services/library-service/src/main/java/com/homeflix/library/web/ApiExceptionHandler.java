@@ -13,6 +13,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -57,11 +58,24 @@ public class ApiExceptionHandler {
 		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError("forbidden", ex.getMessage()));
 	}
 
-	/** An id in the address that is not a valid id cannot match anything, so it is a plain 404. */
-	@ExceptionHandler({ NotFoundException.class, MethodArgumentTypeMismatchException.class })
-	ResponseEntity<ApiError> notFound(Exception ex) {
+	@ExceptionHandler(NotFoundException.class)
+	ResponseEntity<ApiError> notFound(NotFoundException ex) {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND)
 				.body(new ApiError("not_found", "This address does not exist."));
+	}
+
+	/**
+	 * A value that cannot be read as the expected type. An id in the address cannot match anything, so it is
+	 * a plain 404. A value in the query string is a validation error that names the parameter.
+	 */
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	ResponseEntity<ApiError> badValue(MethodArgumentTypeMismatchException ex) {
+		if (ex.getParameter().hasParameterAnnotation(PathVariable.class)) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND)
+					.body(new ApiError("not_found", "This address does not exist."));
+		}
+		return ResponseEntity.badRequest().body(new ApiError("validation_failed", "Some fields are invalid.",
+				Map.of(ex.getName(), "Enter a whole number.")));
 	}
 
 	/** A refusal with its own code and a message the user can act on. */
