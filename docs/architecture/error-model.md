@@ -47,6 +47,7 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 | Code | Status | Message | When |
 |---|---|---|---|
 | `setup_already_completed` | 409 | HomeFlix is already set up. Sign in instead. | First-run setup after an administrator exists. |
+| `last_administrator` | 409 | HomeFlix needs at least one administrator. Make another account an administrator first. | Disabling or demoting the last enabled administrator (G8). |
 | `invalid_credentials` | 401 | The email or password is incorrect. | Sign-in with an unknown email, a wrong password or a disabled account. One answer for all three, so accounts are not revealed (ACC-10). |
 | `profile_limit_reached` | 409 | This account already has the maximum number of profiles. | Creating a sixth profile. |
 | `profile_name_taken` | 409 | A profile with this name already exists. | A profile name already used in the account. |
