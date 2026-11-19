@@ -96,6 +96,7 @@ jobs:
             echo "ACQUISITION_DB_PASSWORD=ci-placeholder"
             echo "JWT_PRIVATE_KEY_PATH=./ci-placeholder.pem"
             echo "JWT_PUBLIC_KEY_PATH=./ci-placeholder.pem"
+            echo "IDENTITY_TO_LIBRARY_TOKEN=ci-placeholder"
           } > "$RUNNER_TEMP/ci.env"
 
       - name: Validate compose.yaml

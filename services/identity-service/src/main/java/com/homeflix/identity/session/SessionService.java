@@ -10,11 +10,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.homeflix.identity.account.AccountRecord;
 import com.homeflix.identity.account.AccountRepository;
+import com.homeflix.identity.profile.ProfileRepository;
 import com.homeflix.identity.security.PasswordConfig;
+import com.homeflix.identity.web.NotFoundException;
 import com.homeflix.identity.web.UnauthenticatedException;
 
 /**
- * Sign-in, renewal and current account (ACC-03, ACC-10, R-10).
+ * Sign-in, renewal, current account and active-profile selection (ACC-03, ACC-10, PRF-02, R-10).
  */
 @Service
 public class SessionService {
@@ -22,6 +24,7 @@ public class SessionService {
 	private final AccountRepository accounts;
 	private final PasswordEncoder passwordEncoder;
 	private final TokenService tokens;
+	private final ProfileRepository profiles;
 
 	/**
 	 * Compared against when the email is unknown, so a sign-in takes about the same time
@@ -29,10 +32,12 @@ public class SessionService {
 	 */
 	private final String unknownAccountHash;
 
-	public SessionService(AccountRepository accounts, PasswordEncoder passwordEncoder, TokenService tokens) {
+	public SessionService(AccountRepository accounts, PasswordEncoder passwordEncoder, TokenService tokens,
+			ProfileRepository profiles) {
 		this.accounts = accounts;
 		this.passwordEncoder = passwordEncoder;
 		this.tokens = tokens;
+		this.profiles = profiles;
 		this.unknownAccountHash = passwordEncoder.encode(UUID.randomUUID().toString());
 	}
 
@@ -61,14 +66,34 @@ public class SessionService {
 	public SignedIn refresh(String token) {
 		SessionClaims claims = tokens.verify(token).orElseThrow(UnauthenticatedException::new);
 		AccountRecord account = activeAccount(claims.accountId());
-		return issue(account, claims.profileId());
+		return issue(account, stillOwned(claims.profileId(), account.id()));
+	}
+
+	/**
+	 * Re-issues the token with a profile of the account (PRF-02). The account is read again, like a
+	 * renewal, since a new token is issued: a disabled or deleted account gets a 401.
+	 *
+	 * @throws NotFoundException 404 when the profile does not exist or belongs to another account
+	 */
+	@Transactional(readOnly = true)
+	public SignedIn selectProfile(UUID accountId, UUID profileId) {
+		AccountRecord account = activeAccount(accountId);
+		if (!profiles.belongsTo(profileId, account.id())) {
+			throw new NotFoundException();
+		}
+		return issue(account, profileId);
 	}
 
 	@Transactional(readOnly = true)
 	public AccountView currentAccount(String token) {
 		SessionClaims claims = tokens.verify(token).orElseThrow(UnauthenticatedException::new);
 		AccountRecord account = activeAccount(claims.accountId());
-		return view(account, claims.profileId());
+		return view(account, stillOwned(claims.profileId(), account.id()));
+	}
+
+	/** The profile of the token, or null when it was deleted since the token was issued. */
+	private UUID stillOwned(UUID profileId, UUID accountId) {
+		return profileId != null && profiles.belongsTo(profileId, accountId) ? profileId : null;
 	}
 
 	private AccountRecord activeAccount(UUID id) {

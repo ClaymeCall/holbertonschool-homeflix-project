@@ -30,6 +30,8 @@ services:
       # Signs the session token (ADR-0009). Only the identity service gets the private key,
       # as a mounted secret (identity and permissions design, "Keys and secrets").
       IDENTITY_JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private_key
+      # Secret sent to the library when a profile is deleted (ADR-0022, consistency rules).
+      IDENTITY_TO_LIBRARY_TOKEN: ${IDENTITY_TO_LIBRARY_TOKEN:?Set IDENTITY_TO_LIBRARY_TOKEN in .env}
     secrets:
       - jwt_private_key
     depends_on:

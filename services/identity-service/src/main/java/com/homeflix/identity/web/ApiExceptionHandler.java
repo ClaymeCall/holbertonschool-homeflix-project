@@ -67,6 +67,13 @@ public class ApiExceptionHandler {
 		return validationFailed(Map.of(ex.getName(), "This value is not valid."));
 	}
 
+	@ExceptionHandler(ServiceUnavailableException.class)
+	ResponseEntity<ApiError> serviceUnavailable(ServiceUnavailableException ex) {
+		log.warn("A service this one depends on is unavailable: {}", ex.getMessage(), ex.getCause());
+		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ApiError("service_unavailable",
+				"This part of HomeFlix is temporarily unavailable. Please try again in a moment."));
+	}
+
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	ResponseEntity<ApiError> unreadableBody(HttpMessageNotReadableException ex) {
 		return ResponseEntity.badRequest()
