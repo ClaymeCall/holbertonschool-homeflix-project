@@ -41,7 +41,9 @@ Open question 6. `DELETE /profiles/{profileId}` in the identity service (the con
 1. Identity checks that the profile belongs to the account in the token. If not, 404.
 2. Identity calls `DELETE /internal/profiles/{profileId}/data` on the library.
 3. If the library answers, identity deletes the profile row and answers 204.
-4. If the library does not answer (timeout, refused connection, 5xx), identity **does not delete the profile** and answers 503. The user tries again.
+4. If the library does not answer (timeout, refused connection) or answers anything but a 2xx, identity **does not delete the profile** and answers 503. The user tries again. A 4xx also counts, so a library without the endpoint, or a wrong service token, never leads to a profile deleted with its data left behind.
+
+Identity sends its secret for the library in `X-Service-Token` (ADR-0022). It comes from `IDENTITY_TO_LIBRARY_TOKEN` in `.env`, and the identity service refuses to start without it. The library checks the same value when K3 adds the endpoint.
 
 **Why this order.** Deleting the data first means a failure never leaves favourites or progress that belong to a profile that no longer exists, which is what R-13 is about. The opposite order could leave orphan rows that nobody can ever find again, because their profile id is gone. The cost of this order is small: if step 3 fails after step 2 worked, the profile exists with an empty list and an empty progress, which is harmless and is repaired by repeating the request.
 
