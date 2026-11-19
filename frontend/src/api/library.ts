@@ -62,3 +62,26 @@ export function searchMedia({ query, genre }: SearchFilters, signal?: AbortSigna
 export function getGenres(signal?: AbortSignal): Promise<string[]> {
   return apiRequest<string[]>(`${BASE}/genres`, { signal })
 }
+
+/** Streaming URL for the browser's <video> element. The cookie authenticates it (ADR-0009, issue I3). */
+export function streamUrl(id: string): string {
+  return `${BASE}/media/${encodeURIComponent(id)}/stream`
+}
+
+/**
+ * The <video> element does not expose the HTTP status of a failed stream, so
+ * after a playback error we ask for the first byte to learn why it failed.
+ * Returns the HTTP status, or 0 when the server cannot be reached.
+ */
+export async function probeStream(id: string): Promise<number> {
+  try {
+    const response = await fetch(streamUrl(id), {
+      headers: { Range: 'bytes=0-0' },
+      credentials: 'same-origin',
+    })
+    await response.body?.cancel()
+    return response.status
+  } catch {
+    return 0
+  }
+}

@@ -94,12 +94,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await identity.createFirstAdministrator(credentials)
         setSession({ status: 'signedOut', reason: 'setupDone' })
       },
+      expire,
       retry: () => {
         setSession({ status: 'checking' })
         setAttempt((value) => value + 1)
       },
     }),
-    [session],
+    [session, expire],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
