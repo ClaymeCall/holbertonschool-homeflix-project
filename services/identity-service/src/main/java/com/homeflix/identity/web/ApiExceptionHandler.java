@@ -13,7 +13,9 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Turns exceptions into {@link ApiError} bodies without technical details (SEC-04).
@@ -45,6 +47,31 @@ public class ApiExceptionHandler {
 	@ExceptionHandler(ForbiddenException.class)
 	ResponseEntity<ApiError> forbidden(ForbiddenException ex) {
 		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError("forbidden", ex.getMessage()));
+	}
+
+	@ExceptionHandler(NotFoundException.class)
+	ResponseEntity<ApiError> notFound(NotFoundException ex) {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError("not_found", ex.getMessage()));
+	}
+
+	/**
+	 * A path id that is not a uuid is an unknown resource: 404, like an id that does not exist.
+	 * A query parameter of the wrong type (limit=abc) is a validation error on that parameter.
+	 */
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	ResponseEntity<ApiError> wrongType(MethodArgumentTypeMismatchException ex) {
+		if (ex.getParameter().hasParameterAnnotation(PathVariable.class)) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND)
+					.body(new ApiError("not_found", "This address does not exist."));
+		}
+		return validationFailed(Map.of(ex.getName(), "This value is not valid."));
+	}
+
+	@ExceptionHandler(ServiceUnavailableException.class)
+	ResponseEntity<ApiError> serviceUnavailable(ServiceUnavailableException ex) {
+		log.warn("A service this one depends on is unavailable: {}", ex.getMessage(), ex.getCause());
+		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ApiError("service_unavailable",
+				"This part of HomeFlix is temporarily unavailable. Please try again in a moment."));
 	}
 
 	@ExceptionHandler(HttpMessageNotReadableException.class)

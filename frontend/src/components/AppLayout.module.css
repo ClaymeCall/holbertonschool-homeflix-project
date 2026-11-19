@@ -39,6 +39,41 @@
   border-radius: var(--radius-sm);
 }
 
+.nav {
+  display: flex;
+  gap: 0.25rem;
+  order: 3;
+  width: 100%;
+}
+
+.navLink {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.navLink:hover {
+  color: var(--text);
+}
+
+/* The active page is marked by colour and an underline, not colour alone. */
+.active {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.4em;
+}
+
+@media (min-width: 40rem) {
+  .nav {
+    order: 0;
+    width: auto;
+  }
+}
+
 .main {
   flex: 1;
   outline: none;

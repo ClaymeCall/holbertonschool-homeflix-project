@@ -96,6 +96,9 @@ jobs:
             echo "ACQUISITION_DB_PASSWORD=ci-placeholder"
             echo "JWT_PRIVATE_KEY_PATH=./ci-placeholder.pem"
             echo "JWT_PUBLIC_KEY_PATH=./ci-placeholder.pem"
+            echo "IDENTITY_TO_LIBRARY_TOKEN=ci-placeholder"
+            echo "QBITTORRENT_USERNAME=ci-placeholder"
+            echo "QBITTORRENT_PASSWORD=$(openssl rand -hex 16)"
           } > "$RUNNER_TEMP/ci.env"
 
       - name: Validate compose.yaml
@@ -118,3 +121,18 @@ jobs:
       # which catches a broken Dockerfile before it reaches main.
       - name: Build the images
         run: docker compose --env-file "$RUNNER_TEMP/ci.env" build
+
+      # The torrent client is reachable only by the acquisition service and publishes only its peer port
+      # (ADR-0014, ADR-0023, R-18, R-21). Starts the gateway and qBittorrent and checks it from every side.
+      - name: Check the torrent client isolation
+        run: |
+          docker compose --env-file "$RUNNER_TEMP/ci.env" up -d --wait gateway qbittorrent
+          qbittorrent/check-isolation.sh "$RUNNER_TEMP/ci.env"
+
+      - name: Show the torrent client log on failure
+        if: failure()
+        run: docker compose --env-file "$RUNNER_TEMP/ci.env" logs qbittorrent
+
+      - name: Stop the containers
+        if: always()
+        run: docker compose --env-file "$RUNNER_TEMP/ci.env" down -v

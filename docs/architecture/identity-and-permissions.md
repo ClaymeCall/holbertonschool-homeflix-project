@@ -80,7 +80,7 @@ No service reads the identity service's tables or calls it to validate a request
 | `SessionTokenVerifier` | Library and acquisition: steps 2 and 3, with the public key read from `JWT_PUBLIC_KEY_FILE`. The identity service uses its own `TokenService`, which applies the same rules. |
 | `AccessGuard` | `requireAccount(request)` and `requireAdmin(request)`. Each protected controller method starts with one of them; it throws `UnauthenticatedException` (401) or `ForbiddenException` (403), turned into the common error body by the service's `ApiExceptionHandler`. |
 
-A service starts only with a valid key file (2048-bit RSA at least), and its tests use a public key from `src/test/resources` (its private key was discarded) or a key pair generated for the run. The guard calls are explicit, so a new endpoint is protected only if its method calls the guard: reviews check it, and the authorization review (K4) goes through every endpoint. A `requireProfile` check (403 `profile_not_selected`) is added with the first operation that needs a profile.
+A service starts only with a valid key file (2048-bit RSA at least), and its tests use a public key from `src/test/resources` (its private key was discarded) or a key pair generated for the run. The guard calls are explicit, so a new endpoint is protected only if its method calls the guard: reviews check it, and the authorization review (K4) goes through every endpoint. In the identity service, `AuthenticationAndAuthorizationTests` also scans every mapped endpoint and fails if one that is not on its anonymous list (the `x-permission: anonymous` operations of the contract) answers an anonymous request with anything but 401 (or 400 when the endpoint reads a body, which is validated before the guard runs). A `requireProfile` check (403 `profile_not_selected`) is added with the first operation that needs a profile.
 
 The CSRF rules of the identity service (Fetch Metadata filter, JSON-only bodies, no CORS) apply to the library and acquisition services too: each has the same `CrossSiteRequestFilter`.
 
@@ -123,7 +123,8 @@ Rules that apply to every row:
 
 - **The server enforces the matrix** (SEC-02). The interface hides what a user cannot do, but a request made by hand is refused all the same (AS-07).
 - An administrator has no extra access to another profile's favourites or progress: they are reached only through the active profile in the token.
-- The last administrator cannot be disabled, deleted or demoted, so the installation is never left without one (G8). Like the first-administrator setup (R-07), this is checked on the server and must hold under simultaneous requests: two administrators demoting each other at the same time must leave one. The service does the check and the change in one transaction, after taking a lock on the administrators (for example a PostgreSQL advisory lock, as in setup), and a test runs two such requests concurrently.
+- The last administrator cannot be disabled, deleted or demoted, so the installation is never left without one (G8). Like the first-administrator setup (R-07), this is checked on the server and must hold under simultaneous requests: two administrators demoting each other at the same time must leave one. The service does the check and the change in one transaction, after taking a lock on the administrators (for example a PostgreSQL advisory lock, as in setup), and a test runs two such requests concurrently. Only enabled administrators count: a disabled administrator cannot sign in, so it would not keep the installation manageable.
+- **Account management reads the caller from the database** (G8). Elsewhere the `admin` claim is enough, but a disabled or demoted administrator must not be able to undo that change with a token that is still valid. The account operations therefore check, after taking the administrators lock, that the caller is still an enabled administrator: 401 if it is disabled or deleted, 403 if it is no longer an administrator.
 - A disabled account cannot sign in (`invalid_credentials`, the same answer as a wrong password, so accounts are not revealed) and cannot renew (ACC-10).
 
 ## Profile ownership
@@ -140,12 +141,12 @@ The account and the profile always come from the token.
 
 1. Sign-in succeeds and sets a cookie with **no** `profileId`.
 2. The interface lists the account's profiles (`GET /profiles`) and shows the profile screen.
-3. The user picks one. `POST /profiles/{profileId}/select` checks that it belongs to the account, then **re-issues the cookie** with the `profileId` claim and a fresh 15 minutes.
+3. The user picks one. `POST /profiles/{profileId}/select` checks that it belongs to the account, then **re-issues the cookie** with the `profileId` claim and a fresh 15 minutes. Because it issues a new token, it reads the account again like a renewal: a disabled or deleted account gets a 401, so selecting a profile cannot extend a session that renewal would refuse.
 4. The interface goes to the catalogue. Switching profile repeats steps 2 and 3, and the old profile's data is no longer reachable (AS-05).
 
 The library service trusts the signed claim for favourites and progress and never asks the identity service. If an account has exactly one profile, the interface may select it automatically; the server rule does not change.
 
-If a profile is deleted while its id is still in a live token, the token stays valid for up to 15 minutes. The favourites and progress of that profile are removed by the cross-service rule (issue #13), so a leftover token can only create orphaned rows, which that rule must tolerate.
+If a profile is deleted while its id is still in a live token, the token stays valid for up to 15 minutes. The next renewal checks that the profile still belongs to the account and otherwise issues the token without a profile, so the interface goes back to the profile screen. The favourites and progress of that profile are removed by the cross-service rule (issue #13), so a leftover token can only create orphaned rows, which that rule must tolerate.
 
 ## Email address
 

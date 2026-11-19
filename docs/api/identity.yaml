@@ -21,6 +21,7 @@ servers:
 tags:
   - name: Setup
   - name: Session
+  - name: Accounts
   - name: Profiles
 security: []
 paths:
@@ -147,7 +148,8 @@ paths:
       description: |
         Issues a fresh token for the same account and the same active profile. Fails for an expired,
         disabled or deleted account (R-10): there is no revocation list, so this is where a disabled
-        account stops working.
+        account stops working. If the active profile was deleted since, the new token has no profile
+        (`profileId` null), and the interface shows the profile screen again.
       x-permission: account
       security:
         - cookieAuth: []
@@ -184,6 +186,182 @@ paths:
                 $ref: '#/components/schemas/Account'
         '401':
           $ref: './common.yaml#/components/responses/Unauthenticated'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /accounts:
+    get:
+      tags: [Accounts]
+      operationId: listAccounts
+      summary: List the accounts
+      description: |
+        For the administration area (ACC-09). Oldest first. Never contains a password or a hash.
+      x-permission: admin
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: The accounts, oldest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ManagedAccount'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Accounts]
+      operationId: createAccount
+      summary: Create an account
+      description: |
+        Creates an enabled account with the password chosen by the administrator, who gives it to the
+        user. The same rules as setup apply: the email is trimmed and lower-cased, the password is
+        12 characters to 72 bytes and stored as a BCrypt hash, never returned. `admin` defaults to false.
+      x-permission: admin
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewAccountRequest'
+      responses:
+        '201':
+          description: Account created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedAccount'
+        '400':
+          description: |
+            Input is invalid (`validation_failed`), including an email already used by another account
+            (`fields.email`), or the body is missing or not valid JSON (`invalid_request`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                emailTaken:
+                  value:
+                    error: validation_failed
+                    message: Some fields are invalid.
+                    fields:
+                      email: This email address is already used by another account.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /accounts/{accountId}/role:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+    put:
+      tags: [Accounts]
+      operationId: changeAccountRole
+      summary: Make an account administrator or user
+      description: |
+        Takes effect in the account's own session at its next renewal, at most 15 minutes later (R-10).
+        Setting the role the account already has changes nothing and succeeds.
+        Refused with `last_administrator` when it would leave no enabled administrator.
+      x-permission: admin
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleRequest'
+      responses:
+        '200':
+          description: The account after the change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedAccount'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LastAdministrator'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /accounts/{accountId}/disable:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+    post:
+      tags: [Accounts]
+      operationId: disableAccount
+      summary: Disable an account
+      description: |
+        The account can no longer sign in (`invalid_credentials`) nor renew its session, so its access
+        ends at the latest when its current token expires, within 15 minutes (ACC-10, R-10). Its data is kept.
+        Disabling a disabled account changes nothing and succeeds.
+        Refused with `last_administrator` when it would leave no enabled administrator.
+      x-permission: admin
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: The account after the change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedAccount'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LastAdministrator'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /accounts/{accountId}/enable:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+    post:
+      tags: [Accounts]
+      operationId: enableAccount
+      summary: Re-enable an account
+      description: The account can sign in again with its password. Enabling an enabled account changes nothing and succeeds.
+      x-permission: admin
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: The account after the change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedAccount'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
         '503':
           $ref: './common.yaml#/components/responses/ServiceUnavailable'
 
@@ -256,14 +434,58 @@ paths:
   /profiles/{profileId}:
     parameters:
       - $ref: '#/components/parameters/ProfileId'
+    put:
+      tags: [Profiles]
+      operationId: renameProfile
+      summary: Rename a profile
+      description: |
+        Same name rules as creation. Renaming a profile to its current name changes nothing and succeeds.
+        A profile of another account answers 404, the same as a profile that does not exist (PRF-04).
+      x-permission: account
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileRequest'
+      responses:
+        '200':
+          description: The renamed profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '409':
+          description: Another profile of this account already has this name (`profile_name_taken`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                name:
+                  value:
+                    error: profile_name_taken
+                    message: A profile with this name already exists.
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
     delete:
       tags: [Profiles]
       operationId: deleteProfile
       summary: Delete a profile
       description: |
         Deletes the profile and, through the library service, its favourites and viewing progress
-        (consistency rules: issue #13). Source media is never deleted. A profile of another account
-        answers 404, the same as a profile that does not exist (PRF-04).
+        (consistency rules: issue #13). The library is called first: if it does not answer, or answers
+        with an error, the profile is **not** deleted and the answer is 503, so the user can try again.
+        Source media is never deleted. A profile of another account answers 404, the same as a profile
+        that does not exist (PRF-04).
       x-permission: account
       security:
         - cookieAuth: []
@@ -286,7 +508,8 @@ paths:
       summary: Choose the active profile
       description: |
         Checks that the profile belongs to the signed-in account, then re-issues the session cookie with a
-        `profileId` claim. The library service trusts that signed claim for favourites and progress, so it
+        `profileId` claim and a fresh 15 minutes. Since it issues a new token, it reads the account again like
+        `/auth/refresh`: a disabled or deleted account answers 401. The library service trusts that signed claim for favourites and progress, so it
         never has to ask the identity service and a user cannot act as another profile by changing an id (PRF-02, PRF-04).
       x-permission: account
       security:
@@ -310,12 +533,53 @@ paths:
 
 components:
   parameters:
+    Limit:
+      name: limit
+      in: query
+      description: Maximum number of entries to return.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    Offset:
+      name: offset
+      in: query
+      description: Number of entries to skip.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      description: An id that is not a valid uuid answers 404, like an unknown account.
+      schema:
+        $ref: './common.yaml#/components/schemas/Uuid'
+
     ProfileId:
       name: profileId
       in: path
       required: true
       schema:
         $ref: './common.yaml#/components/schemas/Uuid'
+
+  responses:
+    LastAdministrator:
+      description: |
+        The change would leave HomeFlix without an enabled administrator (`last_administrator`).
+        Checked on the server under a lock, so two administrators demoting or disabling each other
+        at the same moment still leave one (identity design, "Roles and permissions").
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/Error'
+          examples:
+            default:
+              value:
+                error: last_administrator
+                message: HomeFlix needs at least one administrator. Make another account an administrator first.
 
   headers:
     SessionCookie:
@@ -394,6 +658,7 @@ components:
           type: string
           minLength: 1
           maxLength: 30
+          description: Trimmed by the server, then 1 to 30 characters. Unique within the account, case-sensitive.
 
     Profile:
       type: object
@@ -405,6 +670,52 @@ components:
           type: string
           minLength: 1
           maxLength: 30
+        createdAt:
+          type: string
+          format: date-time
+
+    NewAccountRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Trimmed and lower-cased by the server.
+        password:
+          type: string
+          minLength: 12
+          maxLength: 72
+          description: At least 12 characters and at most 72 bytes in UTF-8 (the BCrypt limit). Kept exactly as typed.
+          writeOnly: true
+        admin:
+          type: boolean
+          default: false
+
+    RoleRequest:
+      type: object
+      required: [admin]
+      properties:
+        admin:
+          type: boolean
+          description: true to make the account an administrator, false to make it a user.
+
+    ManagedAccount:
+      type: object
+      description: An account as seen by an administrator. Never contains the password or its hash.
+      required: [id, email, admin, disabled, createdAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        email:
+          type: string
+          format: email
+        admin:
+          type: boolean
+        disabled:
+          type: boolean
+          description: A disabled account cannot sign in or renew its session.
         createdAt:
           type: string
           format: date-time

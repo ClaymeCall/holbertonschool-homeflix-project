@@ -4,7 +4,7 @@ import styles from './StatusMessage.module.css'
 
 /** Loading, error and empty states shared by every screen (UX-05). */
 
-export function LoadingState({ label = 'Chargement…' }: { label?: string }) {
+export function LoadingState({ label = 'Loading…' }: { label?: string }) {
   return (
     <div className={styles.box} role="status">
       <span className={styles.spinner} aria-hidden="true" />
@@ -14,7 +14,7 @@ export function LoadingState({ label = 'Chargement…' }: { label?: string }) {
 }
 
 export function ErrorState({
-  title = 'Un problème est survenu',
+  title = 'Something went wrong',
   message,
   onRetry,
   children,
@@ -30,7 +30,7 @@ export function ErrorState({
       <p className={styles.text}>{message}</p>
       {(onRetry || children) && (
         <div className={styles.actions}>
-          {onRetry && <Button onClick={onRetry}>Réessayer</Button>}
+          {onRetry && <Button onClick={onRetry}>Try again</Button>}
           {children}
         </div>
       )}

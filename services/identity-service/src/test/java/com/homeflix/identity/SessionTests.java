@@ -201,7 +201,8 @@ class SessionTests {
 
 	@Test
 	void renewalKeepsTheActiveProfile() throws Exception {
-		UUID profileId = UUID.randomUUID();
+		UUID profileId = jdbc.queryForObject(
+				"insert into profile (account_id, name) values (?, 'Kids') returning id", UUID.class, accountId);
 		String token = tokens.issue(new SessionClaims(accountId, false, profileId));
 
 		MvcResult result = mvc.perform(post("/auth/refresh").cookie(sessionCookie(token)))

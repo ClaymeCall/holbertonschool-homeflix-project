@@ -27,4 +27,13 @@ class TestcontainersConfiguration {
 		return registry -> registry.add("homeflix.session.private-key-file", () -> TestKeys.SESSION_PRIVATE_KEY_FILE);
 	}
 
+	/** The library service is replaced by {@link FakeLibrary}, with a secret that exists only in the tests. */
+	@Bean
+	DynamicPropertyRegistrar libraryProperties() {
+		return registry -> {
+			registry.add("homeflix.library.base-url", () -> FakeLibrary.instance().baseUrl());
+			registry.add("homeflix.library.service-token", () -> FakeLibrary.SERVICE_TOKEN);
+		};
+	}
+
 }

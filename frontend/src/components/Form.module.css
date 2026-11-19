@@ -1,0 +1,28 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+}
+
+.alert {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--accent);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  background: var(--bg-hero);
+  color: var(--text);
+}
+
+.notice {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-control);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.submit {
+  width: 100%;
+  margin-top: 0.25rem;
+}

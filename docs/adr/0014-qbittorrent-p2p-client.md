@@ -1,6 +1,6 @@
 # ADR-0014: Headless qBittorrent as the peer-to-peer client
 
-- **Status:** Accepted
+- **Status:** Accepted. The sentence "the container publishes **no port**" is refined by [ADR-0023](0023-qbittorrent-peer-port-and-enforced-settings.md): the web interface and API port stays unpublished, and only the BitTorrent peer port is published.
 - **Date:** 2026-11-16
 - **Deciders:** Clement Callejon and Benjamin Bommier (Thomas Rousseau was absent and delegated the decision to them)
 - **Related:** issue #17, brief section "Safe and authorized acquisition"
