@@ -29,7 +29,8 @@ class AcquisitionEntryMigrationTests {
 
 	@AfterEach
 	void cleanUp() {
-		jdbc.update("delete from acquisition_entry where title <> 'Sintel'");
+		// Only the rows this class inserted: the migrated entries are kept.
+		jdbc.update("delete from acquisition_entry where source_name = 'Test source'");
 	}
 
 	@Test
@@ -48,10 +49,11 @@ class AcquisitionEntryMigrationTests {
 
 	@Test
 	void aValidEntryIsAccepted() {
-		assertThatCode(() -> insert("Big Buck Bunny", "https://peach.blender.org/", "https://creativecommons.org/licenses/by/3.0/",
+		assertThatCode(() -> insert("Test entry one", "https://example.org/", "https://example.org/licence?lang=en",
 				VALID_MAGNET, 1000, "MP4")).doesNotThrowAnyException();
-		assertThatCode(() -> insert("Tears of Steel", "https://mango.blender.org/", "https://creativecommons.org/licenses/by/3.0/",
-				"https://example.org/tears-of-steel.torrent", 1000, "MP4")).doesNotThrowAnyException();
+		assertThatCode(() -> insert("Test entry two", "https://example.org", "https://example.org/licence#by",
+				"magnet:?xt=urn:btih:" + "b".repeat(40) + "&dn=film.mp4&tr=udp%3A%2F%2Ftracker.example.org%3A1337&tr=https%3A%2F%2Ftracker.example.org%2Fannounce",
+				1000, "MP4")).doesNotThrowAnyException();
 	}
 
 	@Test
@@ -60,15 +62,32 @@ class AcquisitionEntryMigrationTests {
 				"acquisition_entry_source_url_https");
 		assertRefused(() -> insert("A", "https://example.org/", "http://example.org/licence", VALID_MAGNET, 1000, "MP4"),
 				"acquisition_entry_licence_url_https");
+		for (String page : new String[] { "https://", "https:///path", "https://example.org/a page" }) {
+			assertRefused(() -> insert("A", page, "https://example.org/licence", VALID_MAGNET, 1000, "MP4"),
+					"acquisition_entry_source_url_https");
+			assertRefused(() -> insert("A", "https://example.org/", page, VALID_MAGNET, 1000, "MP4"),
+					"acquisition_entry_licence_url_https");
+		}
 	}
 
 	@Test
-	void theDownloadSourceIsAMagnetLinkOrATorrentAddressOnly() {
+	void theDownloadSourceIsAMagnetLinkWithANameAndTrackersOnly() {
+		String magnet = VALID_MAGNET;
 		for (String source : new String[] {
 				"https://example.org/film.mp4",
+				"https://example.org/film.torrent",
 				"http://example.org/film.torrent",
 				"magnet:?xt=urn:btih:tooshort",
+				"magnet:?xt=urn:btih:" + "A".repeat(40),
 				"magnet:?dn=film.mp4",
+				magnet + "&xs=http%3A%2F%2Finternal-host%2Ffilm.torrent",
+				magnet + "&ws=file%3A%2F%2F%2Fetc%2Fpasswd",
+				magnet + "&as=https%3A%2F%2Fexample.org%2Ffilm.mp4",
+				magnet + "&dn=film.mp4&xs=http%3A%2F%2Finternal-host",
+				magnet + "&dn=",
+				magnet + "&dn=a film.mp4",
+				magnet + "&",
+				magnet + "#tr=x",
 				"file:///etc/passwd",
 				"/downloads/film.mp4" }) {
 			assertRefused(() -> insert("A", "https://example.org/", "https://example.org/licence", source, 1000, "MP4"),
@@ -89,13 +108,21 @@ class AcquisitionEntryMigrationTests {
 	}
 
 	@Test
-	void aTitleOrADownloadSourceCannotBeListedTwice() {
-		insert("Big Buck Bunny", "https://example.org/", "https://example.org/licence", VALID_MAGNET, 1000, "MP4");
+	void aTitleOrAnInfoHashCannotBeListedTwice() {
+		insert("Test entry", "https://example.org/", "https://example.org/licence", VALID_MAGNET, 1000, "MP4");
 
-		assertRefused(() -> insert("big buck bunny", "https://example.org/", "https://example.org/licence",
+		assertRefused(() -> insert("TEST ENTRY", "https://example.org/", "https://example.org/licence",
 				"magnet:?xt=urn:btih:" + "b".repeat(40), 1000, "MP4"), "acquisition_entry_title_lower_unique");
 		assertRefused(() -> insert("Another title", "https://example.org/", "https://example.org/licence",
-				VALID_MAGNET, 1000, "MP4"), "acquisition_entry_download_source_unique");
+				VALID_MAGNET, 1000, "MP4"), "acquisition_entry_info_hash_unique");
+		// The same content with another display name or other trackers is still the same info hash.
+		assertRefused(() -> insert("Another title", "https://example.org/", "https://example.org/licence",
+				VALID_MAGNET + "&dn=other.mp4&tr=udp%3A%2F%2Ftracker.example.org%3A1337", 1000, "MP4"),
+				"acquisition_entry_info_hash_unique");
+		// The Sintel entry of V3 too.
+		assertRefused(() -> insert("Another title", "https://example.org/", "https://example.org/licence",
+				"magnet:?xt=urn:btih:4e626263b96d72a36b1b963f44188bf937004d5f", 1000, "MP4"),
+				"acquisition_entry_info_hash_unique");
 	}
 
 	private void insert(String title, String sourceUrl, String licenceUrl, String downloadSource, long size,

@@ -20,22 +20,26 @@ CREATE TABLE acquisition_entry (
     CONSTRAINT acquisition_entry_source_name_not_blank CHECK (btrim(source_name) <> ''),
     CONSTRAINT acquisition_entry_licence_not_blank     CHECK (btrim(licence) <> ''),
     CONSTRAINT acquisition_entry_attribution_not_blank CHECK (attribution IS NULL OR btrim(attribution) <> ''),
-    -- The source and the licence must be pages anyone can check (ACQ-02).
-    CONSTRAINT acquisition_entry_source_url_https      CHECK (source_url LIKE 'https://%'),
-    CONSTRAINT acquisition_entry_licence_url_https     CHECK (licence_url LIKE 'https://%'),
-    -- A magnet link with a v1 info hash, or an https address of a .torrent file. Nothing else.
+    -- The source and the licence must be pages anyone can check (ACQ-02): https, with a host.
+    CONSTRAINT acquisition_entry_source_url_https      CHECK (source_url ~ '^https://[^/?#[:space:]]+([/?#][^[:space:]]*)?$'),
+    CONSTRAINT acquisition_entry_licence_url_https     CHECK (licence_url ~ '^https://[^/?#[:space:]]+([/?#][^[:space:]]*)?$'),
+    -- A magnet link with a lower-case v1 info hash, followed only by a display name (dn) and trackers (tr).
+    -- Any other parameter (xs, as, ws...) would make the torrent client fetch an address of its own, so it is
+    -- refused. An https address of a .torrent file is refused too: its info hash is only known once the
+    -- client has fetched it, so neither a duplicate entry nor the download could be checked by its hash (J5).
     CONSTRAINT acquisition_entry_download_source_valid CHECK (
-        download_source ~ '^magnet:\?xt=urn:btih:[0-9a-fA-F]{40}(&|$)'
-        OR download_source ~ '^https://[^[:space:]]+\.torrent$'),
+        download_source ~ '^magnet:\?xt=urn:btih:[0-9a-f]{40}(&(dn|tr)=[^&#[:space:]]+)*$'),
     -- Checked against the completed file (R-19, J7).
     CONSTRAINT acquisition_entry_size_positive         CHECK (expected_size_bytes > 0),
     -- The only supported format (ADR-0015).
-    CONSTRAINT acquisition_entry_format_valid          CHECK (expected_format = 'MP4'),
-    CONSTRAINT acquisition_entry_download_source_unique UNIQUE (download_source)
+    CONSTRAINT acquisition_entry_format_valid          CHECK (expected_format = 'MP4')
 );
 
 CREATE UNIQUE INDEX acquisition_entry_title_lower_unique ON acquisition_entry (lower(title));
+-- The same content cannot be listed twice, whatever its display name or trackers: one entry per info hash.
+CREATE UNIQUE INDEX acquisition_entry_info_hash_unique
+    ON acquisition_entry (substring(download_source from '^magnet:\?xt=urn:btih:([0-9a-f]{40})'));
 
 COMMENT ON TABLE acquisition_entry IS 'Verified acquisition catalogue. Written by reviewed migrations only, never by an endpoint (ACQ-09).';
-COMMENT ON COLUMN acquisition_entry.download_source IS 'Magnet link or https .torrent address chosen by the team. Never returned by the API, never from a user (R-15).';
+COMMENT ON COLUMN acquisition_entry.download_source IS 'Magnet link chosen by the team. Never returned by the API, never from a user (R-15).';
 COMMENT ON COLUMN acquisition_entry.expected_size_bytes IS 'Size of the completed file, checked before the handoff to the library (R-19).';
