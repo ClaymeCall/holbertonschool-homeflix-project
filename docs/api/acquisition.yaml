@@ -98,8 +98,11 @@ paths:
         downloaded again after its download failed or was cancelled.
 
         If the library cannot be told, nothing starts and the answer is `503`. If the torrent client fails
-        after the library was told, the download is recorded as `FAILED` with `client_error`, the library is
-        told, and the answer is `503`.
+        after the library was told, the torrent is removed in case the client accepted it, the download is
+        recorded as `FAILED` with `client_error`, the library is told, and the answer is `503`.
+
+        If the download is cancelled while its torrent is being added, the start removes the torrent and
+        answers `201` with the download as the cancel left it (`FAILED`, `cancelled`).
       x-permission: admin
       requestBody:
         required: true
@@ -109,7 +112,7 @@ paths:
               $ref: '#/components/schemas/StartRequest'
       responses:
         '201':
-          description: The download is queued in the torrent client.
+          description: The download is queued in the torrent client, or was cancelled while it was added.
           content:
             application/json:
               schema:
@@ -125,7 +128,8 @@ paths:
         '409':
           description: >
             `download_in_progress` when a download of this entry is already queued or downloading,
-            `already_in_library` when the library already has this title available.
+            `already_in_library` when the library already has this title available. No download is recorded
+            then.
           content:
             application/json:
               schema:

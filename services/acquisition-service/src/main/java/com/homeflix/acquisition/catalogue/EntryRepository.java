@@ -40,11 +40,18 @@ public class EntryRepository {
 		return jdbc.query("select " + COLUMNS + " from acquisition_entry order by lower(title), id", ENTRY);
 	}
 
-	/** The title and download source of an entry, for the download service only. */
+	/**
+	 * The title, download source and info hash of an entry, for the download service only. V2 only accepts a
+	 * magnet link with a lower-case v1 info hash, so the hash is always there.
+	 */
 	public Optional<DownloadableEntry> findDownloadable(UUID id) {
-		return jdbc.query("select id, title, download_source from acquisition_entry where id = ?",
+		return jdbc.query("""
+				select id, title, download_source,
+				    substring(download_source from '^magnet:\\?xt=urn:btih:([0-9a-f]{40})') as info_hash
+				from acquisition_entry where id = ?
+				""",
 				(rs, row) -> new DownloadableEntry(rs.getObject("id", UUID.class), rs.getString("title"),
-						rs.getString("download_source")),
+						rs.getString("download_source"), rs.getString("info_hash")),
 				id).stream().findFirst();
 	}
 

@@ -5,8 +5,9 @@
 CREATE TABLE download_job (
     id                      uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
     entry_id                uuid          NOT NULL REFERENCES acquisition_entry (id),
-    -- Info hash (v1) given by the torrent client when the torrent is added. Null only if adding it failed.
-    client_hash             varchar(40),
+    -- Info hash (v1) of the entry's magnet link, set when the job is created: the torrent is found and
+    -- removed by it in the client, even if adding it failed or was interrupted.
+    client_hash             varchar(40)   NOT NULL,
     state                   varchar(20)   NOT NULL,
     progress_percent        smallint      NOT NULL DEFAULT 0,
     error_code              varchar(50),
@@ -21,7 +22,7 @@ CREATE TABLE download_job (
 
     CONSTRAINT download_job_state_valid       CHECK (state IN ('QUEUED', 'DOWNLOADING', 'COMPLETED', 'FAILED')),
     CONSTRAINT download_job_progress_range    CHECK (progress_percent BETWEEN 0 AND 100),
-    CONSTRAINT download_job_hash_format       CHECK (client_hash IS NULL OR client_hash ~ '^[0-9a-f]{40}$'),
+    CONSTRAINT download_job_hash_format       CHECK (client_hash ~ '^[0-9a-f]{40}$'),
     -- A failed job always says why (cancelled, client_error, handoff_failed, verification_failed).
     CONSTRAINT download_job_failed_has_reason CHECK ((state = 'FAILED') = (error_code IS NOT NULL)),
     CONSTRAINT download_job_finished_when_done CHECK ((state IN ('COMPLETED', 'FAILED')) = (finished_at IS NOT NULL)),

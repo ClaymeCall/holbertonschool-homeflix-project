@@ -44,18 +44,15 @@ class DownloadRepository {
 	}
 
 	/**
-	 * A new job, QUEUED. The library was told just before, so it is in sync.
-	 * The unique index refuses a second active job for the same entry (DuplicateKeyException).
+	 * A new job, QUEUED, with the info hash of the entry's magnet link: the torrent can be found or removed by
+	 * it from the start, even if adding it fails or is interrupted. The library was told just before, so it
+	 * is in sync. The unique indexes refuse a second active job for the same entry (DuplicateKeyException).
 	 */
-	UUID insertQueued(UUID entryId, UUID startedBy) {
+	UUID insertQueued(UUID entryId, String infoHash, UUID startedBy) {
 		return jdbc.queryForObject("""
-				insert into download_job (entry_id, state, started_by, library_synced_at)
-				values (?, 'QUEUED', ?, now()) returning id
-				""", UUID.class, entryId, startedBy);
-	}
-
-	void setClientHash(UUID id, String hash) {
-		jdbc.update("update download_job set client_hash = ? where id = ?", hash, id);
+				insert into download_job (entry_id, client_hash, state, started_by, library_synced_at)
+				values (?, ?, 'QUEUED', ?, now()) returning id
+				""", UUID.class, entryId, infoHash, startedBy);
 	}
 
 	/** Locks the job until the end of the transaction, so a cancel and a status update cannot cross. */
@@ -66,12 +63,17 @@ class DownloadRepository {
 				id).stream().findFirst();
 	}
 
-	/** FAILED with its reason. The library is not told yet: library_synced_at is cleared. */
-	void markFailed(UUID id, String errorCode) {
-		jdbc.update("""
+	/**
+	 * FAILED with its reason, if the job is still active. The library is not told yet: library_synced_at is
+	 * cleared.
+	 *
+	 * @return false when the job had already finished (a cancel came first): nothing was changed
+	 */
+	boolean markFailed(UUID id, String errorCode) {
+		return jdbc.update("""
 				update download_job set state = 'FAILED', error_code = ?, finished_at = now(), library_synced_at = null
-				where id = ?
-				""", errorCode, id);
+				where id = ? and state in ('QUEUED', 'DOWNLOADING')
+				""", errorCode, id) == 1;
 	}
 
 	void markLibrarySynced(UUID id) {

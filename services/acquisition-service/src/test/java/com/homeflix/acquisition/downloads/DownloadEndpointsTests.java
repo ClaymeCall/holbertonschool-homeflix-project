@@ -1,6 +1,9 @@
 package com.homeflix.acquisition.downloads;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
@@ -26,6 +29,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
@@ -37,6 +41,8 @@ import com.homeflix.acquisition.HeaderCallers;
 import com.homeflix.acquisition.TestcontainersConfiguration;
 import com.homeflix.acquisition.support.LibraryStub;
 import com.homeflix.acquisition.support.QbittorrentContainer;
+import com.homeflix.acquisition.torrent.QbittorrentClient;
+import com.homeflix.acquisition.web.ServiceUnavailableException;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -68,6 +74,11 @@ class DownloadEndpointsTests {
 	private WebApplicationContext context;
 	@Autowired
 	private JdbcTemplate jdbc;
+	@Autowired
+	private DownloadService downloads;
+	/** The real client, unless a test makes it fail or interleaves a cancel. */
+	@MockitoSpyBean
+	private QbittorrentClient torrents;
 
 	private final ObjectMapper json = new ObjectMapper();
 	private MockMvc mvc;
@@ -86,7 +97,7 @@ class DownloadEndpointsTests {
 	@AfterEach
 	void clean() {
 		jdbc.update("delete from download_job");
-		jdbc.update("delete from acquisition_entry where title <> 'Sintel'");
+		jdbc.update("delete from acquisition_entry where source_name = 'Test source'");
 	}
 
 	// ---- Permissions (ACQ-05, SEC-02) ----
@@ -109,11 +120,21 @@ class DownloadEndpointsTests {
 		assertNothingStarted();
 	}
 
+	/** A caller who is not an administrator learns nothing about the rules of the body or the path. */
 	@Test
-	void permissionIsCheckedBeforeTheBody() throws Exception {
-		// An ordinary user learns nothing about the rules of the body.
+	void permissionIsCheckedBeforeTheBodyAndThePath() throws Exception {
 		as("user", post("/downloads").contentType(MediaType.APPLICATION_JSON).content("{}"))
 				.andExpect(status().isForbidden());
+		as("user", post("/downloads").contentType(MediaType.APPLICATION_JSON).content("not json"))
+				.andExpect(status().isForbidden());
+		as("user", post("/downloads").contentType(MediaType.TEXT_PLAIN).content("x"))
+				.andExpect(status().isForbidden());
+		mvc.perform(post("/downloads").contentType(MediaType.APPLICATION_JSON).content("not json"))
+				.andExpect(status().isUnauthorized());
+		mvc.perform(post("/downloads/not-an-id/cancel")).andExpect(status().isUnauthorized());
+		as("user", get("/downloads/not-an-id")).andExpect(status().isForbidden());
+
+		assertNothingStarted();
 	}
 
 	// ---- Validation (SEC-01, ACQ-11) ----
@@ -136,6 +157,14 @@ class DownloadEndpointsTests {
 		as("admin", post("/downloads").contentType(MediaType.APPLICATION_JSON).content("{\"rightsAcknowledged\":true}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.fields.entryId").value("Choose a title from the catalogue."));
+		assertNothingStarted();
+	}
+
+	@Test
+	void aBodyThatIsNotJsonIsRefused() throws Exception {
+		as("admin", post("/downloads").contentType(MediaType.APPLICATION_JSON).content("not json"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("invalid_request"));
 		assertNothingStarted();
 	}
 
@@ -215,6 +244,29 @@ class DownloadEndpointsTests {
 	}
 
 	@Test
+	void anotherConflictFromTheLibraryIsNotShownAsAlreadyInTheLibrary() throws Exception {
+		LIBRARY.answerStartWithConflict("something_else");
+
+		as("admin", start(entryId))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.error").value("service_unavailable"));
+		assertThat(countJobs()).isZero();
+		assertThat(QbittorrentContainer.hasTorrent(entryHash)).isFalse();
+	}
+
+	@Test
+	void aTorrentLeftInTheClientByAnEarlierStartIsKept() throws Exception {
+		// qBittorrent answers 409 to an add of a torrent it already has.
+		QbittorrentContainer.addTorrent("magnet:?xt=urn:btih:" + entryHash);
+
+		UUID jobId = startedJob();
+
+		assertThat(QbittorrentContainer.hasTorrent(entryHash)).isTrue();
+		assertThat(jdbc.queryForObject("select state from download_job where id = ?", String.class, jobId))
+				.isEqualTo("QUEUED");
+	}
+
+	@Test
 	void nothingStartsWhenTheLibraryFailsOrRefusesTheCall() throws Exception {
 		// 503: the library is down. 404: a library without the internal endpoints. 401: a wrong token.
 		for (int libraryStatus : new int[] { 503, 404, 401 }) {
@@ -227,6 +279,61 @@ class DownloadEndpointsTests {
 		}
 		assertThat(countJobs()).isZero();
 		assertThat(QbittorrentContainer.hasTorrent(entryHash)).isFalse();
+	}
+
+	// ---- A start that fails or is cancelled while the torrent is added ----
+
+	@Test
+	void aTorrentAcceptedBeforeTheClientTimedOutIsRemoved() throws Exception {
+		// The client accepts the torrent, then the answer is lost (read timeout).
+		doAnswer(call -> {
+			call.callRealMethod();
+			throw new ServiceUnavailableException("Torrent client unavailable", null);
+		}).when(torrents).add(any(), any(), any());
+
+		as("admin", start(entryId))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.error").value("service_unavailable"));
+
+		assertThat(QbittorrentContainer.hasTorrent(entryHash)).isFalse();
+		assertFailedAndLibraryTold("client_error");
+	}
+
+	@Test
+	void anUnexpectedErrorWhileAddingLeavesNoActiveJob() throws Exception {
+		doAnswer(call -> {
+			call.callRealMethod();
+			throw new IllegalStateException("unexpected");
+		}).when(torrents).add(any(), any(), any());
+
+		as("admin", start(entryId))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.error").value("internal_error"));
+
+		assertThat(QbittorrentContainer.hasTorrent(entryHash)).isFalse();
+		assertFailedAndLibraryTold("client_error");
+		// Nothing blocks a new start.
+		doAnswer(call -> call.callRealMethod()).when(torrents).add(any(), any(), any());
+		as("admin", start(entryId)).andExpect(status().isCreated());
+	}
+
+	@Test
+	void aCancelThatArrivesWhileTheTorrentIsAddedLeavesNoTorrent() throws Exception {
+		// The cancel runs after the job is created and before the torrent is added: it has nothing to
+		// remove yet, so the start must remove the torrent it adds.
+		doAnswer(call -> {
+			UUID jobId = jdbc.queryForObject("select id from download_job where entry_id = ?", UUID.class, entryId);
+			downloads.cancel(jobId);
+			return call.callRealMethod();
+		}).when(torrents).add(any(), any(), any());
+
+		as("admin", start(entryId))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.state").value("FAILED"))
+				.andExpect(jsonPath("$.errorCode").value("cancelled"));
+
+		assertThat(QbittorrentContainer.hasTorrent(entryHash)).isFalse();
+		assertFailedAndLibraryTold("cancelled");
 	}
 
 	// ---- Cancel (consistency rules, "Failing and cancelling") ----
@@ -324,6 +431,17 @@ class DownloadEndpointsTests {
 
 	private ResultActions as(String caller, MockHttpServletRequestBuilder request) throws Exception {
 		return mvc.perform(request.header("X-Test-Caller", caller));
+	}
+
+	/** The only job is FAILED with this reason, and the library was told it started, then that it failed. */
+	private void assertFailedAndLibraryTold(String errorCode) {
+		Map<String, Object> job = jdbc.queryForMap("select * from download_job where entry_id = ?", entryId);
+		assertThat(job.get("state")).isEqualTo("FAILED");
+		assertThat(job.get("error_code")).isEqualTo(errorCode);
+		assertThat(job.get("library_synced_at")).isNotNull();
+		assertThat(LIBRARY.calls()).extracting(LibraryStub.Call::method, LibraryStub.Call::path).containsExactly(
+				tuple("PUT", "/internal/downloads/" + entryId),
+				tuple("POST", "/internal/downloads/" + entryId + "/failed"));
 	}
 
 	private void assertNothingStarted() {

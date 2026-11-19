@@ -23,6 +23,7 @@ public final class LibraryStub {
 	private final List<Call> calls = new CopyOnWriteArrayList<>();
 	private volatile int startStatus = 200;
 	private volatile int failedStatus = 204;
+	private volatile String conflictCode = "already_in_library";
 
 	public LibraryStub() {
 		try {
@@ -37,8 +38,7 @@ public final class LibraryStub {
 			calls.add(new Call(exchange.getRequestMethod(), path, exchange.getRequestHeaders().getFirst("X-Service-Token"), body));
 			int status = path.endsWith("/failed") ? failedStatus : startStatus;
 			byte[] answer = status == 409
-					? "{\"error\":\"already_in_library\",\"message\":\"This title is already in the library.\"}"
-							.getBytes(StandardCharsets.UTF_8)
+					? ("{\"error\":\"" + conflictCode + "\",\"message\":\"Refused.\"}").getBytes(StandardCharsets.UTF_8)
 					: new byte[0];
 			exchange.getResponseHeaders().add("Content-Type", "application/json");
 			exchange.sendResponseHeaders(status, answer.length == 0 ? -1 : answer.length);
@@ -65,10 +65,17 @@ public final class LibraryStub {
 		calls.clear();
 		startStatus = 200;
 		failedStatus = 204;
+		conflictCode = "already_in_library";
 	}
 
 	public void answerStartWith(int status) {
 		startStatus = status;
+	}
+
+	/** A 409 to the start, with this error code in the body. */
+	public void answerStartWithConflict(String code) {
+		conflictCode = code;
+		startStatus = 409;
 	}
 
 	public void answerFailedWith(int status) {

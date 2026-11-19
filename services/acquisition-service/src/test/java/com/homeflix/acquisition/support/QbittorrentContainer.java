@@ -71,6 +71,11 @@ public final class QbittorrentContainer {
 		return !get("/api/v2/torrents/info?hashes=" + hash).strip().equals("[]");
 	}
 
+	/** Adds a torrent directly, as a start that was interrupted would have left it. */
+	public static void addTorrent(String magnetLink) {
+		post("/api/v2/torrents/add", "urls=" + encode(magnetLink));
+	}
+
 	/** The details of a torrent as qBittorrent lists them (JSON), for example its tags. */
 	public static String torrentInfo(String hash) {
 		return get("/api/v2/torrents/info?hashes=" + hash);

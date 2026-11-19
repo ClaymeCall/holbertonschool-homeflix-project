@@ -1,6 +1,7 @@
 package com.homeflix.acquisition.downloads;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -58,7 +59,7 @@ class TorrentClientDownTests {
 	@AfterEach
 	void clean() {
 		jdbc.update("delete from download_job");
-		jdbc.update("delete from acquisition_entry where title <> 'Sintel'");
+		jdbc.update("delete from acquisition_entry where source_name = 'Test source'");
 	}
 
 	@Test
@@ -82,12 +83,12 @@ class TorrentClientDownTests {
 		Map<String, Object> job = jdbc.queryForMap("select * from download_job where entry_id = ?", entryId);
 		assertThat(job.get("state")).isEqualTo("FAILED");
 		assertThat(job.get("error_code")).isEqualTo("client_error");
-		assertThat(job.get("client_hash")).isNull();
+		assertThat(job.get("client_hash")).isEqualTo("d".repeat(40));
 		assertThat(job.get("finished_at")).isNotNull();
 		assertThat(job.get("library_synced_at")).isNotNull();
 		assertThat(LIBRARY.calls()).extracting(LibraryStub.Call::method, LibraryStub.Call::path).containsExactly(
-				org.assertj.core.groups.Tuple.tuple("PUT", "/internal/downloads/" + entryId),
-				org.assertj.core.groups.Tuple.tuple("POST", "/internal/downloads/" + entryId + "/failed"));
+				tuple("PUT", "/internal/downloads/" + entryId),
+				tuple("POST", "/internal/downloads/" + entryId + "/failed"));
 	}
 
 }
