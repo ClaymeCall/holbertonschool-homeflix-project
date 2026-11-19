@@ -12,6 +12,8 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import com.homeflix.acquisition.client.ServiceClientFactory;
 import com.homeflix.acquisition.config.LibraryProperties;
 import com.homeflix.acquisition.web.RejectedRequestException;
@@ -26,10 +28,16 @@ import com.homeflix.acquisition.web.ServiceUnavailableException;
 public class LibraryClient {
 
 	static final String TOKEN_HEADER = "X-Service-Token";
+	static final String ALREADY_IN_LIBRARY = "already_in_library";
 
 	private static final Logger log = LoggerFactory.getLogger(LibraryClient.class);
 
 	private final RestClient rest;
+
+	/** The code of the library's error body (common.yaml). Other fields are ignored. */
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private record LibraryError(String error) {
+	}
 
 	public LibraryClient(ServiceClientFactory clients, LibraryProperties library) {
 		this.rest = clients.create(library.baseUrl()).mutate()
@@ -41,7 +49,8 @@ public class LibraryClient {
 	 * Tells the library a download of this entry starts, so its catalogue shows the title as downloading
 	 * before the torrent is added. Repeating it changes nothing (consistency rules, "Starting").
 	 *
-	 * @throws RejectedRequestException 409 {@code already_in_library} when the title is already available
+	 * @throws RejectedRequestException 409 {@code already_in_library} when the title is already available. A
+	 *         409 with another code is not one the consistency rules describe, and is handled as below.
 	 * @throws ServiceUnavailableException when the library does not answer or refuses the call for any other
 	 *         reason: the download must not start
 	 */
@@ -54,7 +63,13 @@ public class LibraryClient {
 					.toBodilessEntity();
 		}
 		catch (HttpClientErrorException.Conflict ex) {
-			throw new RejectedRequestException(HttpStatus.CONFLICT, "already_in_library",
+			if (!ALREADY_IN_LIBRARY.equals(errorCode(ex))) {
+				// Not a conflict the consistency rules describe: the library and this service disagree.
+				log.error("The library refused the start of a download for entry {} with an unexpected conflict",
+						entryId, ex);
+				throw new ServiceUnavailableException("Library refused a download start", ex);
+			}
+			throw new RejectedRequestException(HttpStatus.CONFLICT, ALREADY_IN_LIBRARY,
 					"This title is already in the library.");
 		}
 		catch (RestClientException ex) {
@@ -79,6 +94,17 @@ public class LibraryClient {
 			log.warn("The library could not be told that the download of entry {} failed; it will be told later",
 					entryId, ex);
 			return false;
+		}
+	}
+
+	/** The error code of a refusal, or null when its body is not the common error body. */
+	private static String errorCode(HttpClientErrorException ex) {
+		try {
+			LibraryError body = ex.getResponseBodyAs(LibraryError.class);
+			return body == null ? null : body.error();
+		}
+		catch (RuntimeException unreadable) {
+			return null;
 		}
 	}
 

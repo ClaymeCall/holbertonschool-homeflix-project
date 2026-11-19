@@ -86,7 +86,13 @@ public class ApiExceptionHandler {
 	@ExceptionHandler({ ServiceUnavailableException.class, ResourceAccessException.class,
 			HttpServerErrorException.class })
 	ResponseEntity<ApiError> serviceUnavailable(Exception ex) {
-		log.warn("A service this one depends on is unavailable", ex);
+		if (ex instanceof ServiceUnavailableException) {
+			// Thrown by a client of this service, which has already logged the cause with its details.
+			log.warn("A service this one depends on is unavailable: {}", ex.getMessage());
+		}
+		else {
+			log.warn("A service this one depends on is unavailable", ex);
+		}
 		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
 				.body(new ApiError("service_unavailable", SERVICE_UNAVAILABLE_MESSAGE));
 	}
