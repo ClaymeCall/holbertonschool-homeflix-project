@@ -4,10 +4,10 @@ import { ErrorState } from '../components/StatusMessage'
 export function NotFoundPage() {
   return (
     <>
-      <title>Page introuvable · HomeFlix</title>
-      <ErrorState title="Page introuvable" message="Cette page n'existe pas.">
+      <title>Page not found · HomeFlix</title>
+      <ErrorState title="Page not found" message="This page does not exist.">
         <ButtonLink to="/" variant="secondary">
-          Retour à l'accueil
+          Back to home
         </ButtonLink>
       </ErrorState>
     </>

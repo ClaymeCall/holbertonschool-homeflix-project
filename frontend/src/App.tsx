@@ -1,18 +1,46 @@
 import { Route, Routes } from 'react-router-dom'
+import { AuthProvider } from './auth/AuthProvider'
+import { RequireAuth, RequireSetup, RequireSignedOut } from './auth/guards'
 import { AppLayout } from './components/AppLayout'
 import { HomePage } from './pages/HomePage'
 import { MovieDetailsPage } from './pages/MovieDetailsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { SetupPage } from './pages/SetupPage'
+import { SignInPage } from './pages/SignInPage'
 
 function App() {
   return (
-    <Routes>
-      <Route element={<AppLayout />}>
-        <Route index element={<HomePage />} />
-        <Route path="movies/:id" element={<MovieDetailsPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Route>
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        <Route
+          path="setup"
+          element={
+            <RequireSetup>
+              <SetupPage />
+            </RequireSetup>
+          }
+        />
+        <Route
+          path="sign-in"
+          element={
+            <RequireSignedOut>
+              <SignInPage />
+            </RequireSignedOut>
+          }
+        />
+        <Route
+          element={
+            <RequireAuth>
+              <AppLayout />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<HomePage />} />
+          <Route path="movies/:id" element={<MovieDetailsPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
+    </AuthProvider>
   )
 }
 

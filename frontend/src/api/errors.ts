@@ -1,27 +1,22 @@
 import { ApiError } from './client'
 
-/** Plain-language message for an API failure, with no technical details (SEC-04, UX-05). */
+/**
+ * The text to show for an API failure (SEC-04, UX-05, ADR-0021). The server writes
+ * it, so it is shown as it is. The interface writes its own text only where the
+ * server cannot: no answer at all (status 0), and an answer that is not the
+ * common error body.
+ */
 export function describeError(error: unknown): string {
   if (!(error instanceof ApiError)) {
-    return 'Une erreur inattendue est survenue. Réessayez dans un instant.'
+    return 'Something unexpected went wrong. Please try again in a moment.'
   }
-  switch (error.status) {
-    case 0:
-      return 'Impossible de joindre HomeFlix. Vérifiez votre connexion puis réessayez.'
-    case 400:
-    case 422:
-      return 'Certaines informations sont invalides. Vérifiez-les puis réessayez.'
-    case 401:
-      return 'Votre session a expiré. Reconnectez-vous pour continuer.'
-    case 403:
-      return "Vous n'avez pas accès à cette page."
-    case 404:
-      return "Cet élément est introuvable. Il a peut-être été retiré."
-    case 503:
-      return 'Ce service est momentanément indisponible. Réessayez dans un instant.'
-    default:
-      return 'Une erreur est survenue de notre côté. Réessayez dans un instant.'
-  }
+  // A 5xx other than 503 is an unexpected failure, so its body cannot be trusted to follow the format.
+  // The server's text is shown for 4xx and for 503, which the contract defines (ADR-0021).
+  const trusted = error.status < 500 || error.status === 503
+  if (trusted && error.serverMessage) return error.serverMessage
+  if (error.status === 0) return 'HomeFlix cannot be reached. Check your connection, then try again.'
+  if (error.status === 503) return 'This service is temporarily unavailable. Please try again in a moment.'
+  return 'Something went wrong on our side. Please try again in a moment.'
 }
 
 export function isNotFound(error: unknown): boolean {
