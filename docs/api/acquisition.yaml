@@ -14,12 +14,15 @@ info:
 
     **Permissions** are written on each operation as `x-permission`. Every operation of this service is
     `admin` (ACQ-05). The identity comes from the signed token only, never from a parameter (ADR-0009).
+    The permission is checked before the path or the body is read, so a caller who is not an administrator
+    gets `401` or `403` whatever the request holds.
 
     **No arbitrary source.** Entries are added by a reviewed database migration, never through the API.
     No operation accepts a URL, a magnet link or a torrent file, and the download address of an entry is
     never returned (ACQ-09, ACQ-10, R-15).
 
-    **Errors** use the common body of `common.yaml` (ADR-0020).
+    **Errors** use the common body of `common.yaml` (ADR-0020). A method that a path does not list, such as
+    `POST /entries`, answers `405` with the code `request_rejected`.
 servers:
   - url: /api/acquisition
     description: Through the gateway
@@ -51,8 +54,6 @@ paths:
           $ref: './common.yaml#/components/responses/Unauthenticated'
         '403':
           $ref: './common.yaml#/components/responses/Forbidden'
-        '503':
-          $ref: './common.yaml#/components/responses/ServiceUnavailable'
 
   /entries/{entryId}:
     parameters:
@@ -75,8 +76,6 @@ paths:
           $ref: './common.yaml#/components/responses/Forbidden'
         '404':
           $ref: './common.yaml#/components/responses/NotFound'
-        '503':
-          $ref: './common.yaml#/components/responses/ServiceUnavailable'
 
 components:
   securitySchemes:

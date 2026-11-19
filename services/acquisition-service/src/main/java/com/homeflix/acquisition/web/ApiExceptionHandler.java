@@ -28,6 +28,8 @@ public class ApiExceptionHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
+	private static final ApiError NOT_FOUND = new ApiError("not_found", "This address does not exist.");
+
 	static final String SERVICE_UNAVAILABLE_MESSAGE =
 			"This part of HomeFlix is temporarily unavailable. Please try again in a moment.";
 
@@ -58,8 +60,7 @@ public class ApiExceptionHandler {
 
 	@ExceptionHandler(NotFoundException.class)
 	ResponseEntity<ApiError> notFound(NotFoundException ex) {
-		return ResponseEntity.status(HttpStatus.NOT_FOUND)
-				.body(new ApiError("not_found", "This address does not exist."));
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(NOT_FOUND);
 	}
 
 	/**
@@ -69,8 +70,7 @@ public class ApiExceptionHandler {
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
 	ResponseEntity<ApiError> badValue(MethodArgumentTypeMismatchException ex) {
 		if (ex.getParameter().hasParameterAnnotation(PathVariable.class)) {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND)
-					.body(new ApiError("not_found", "This address does not exist."));
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(NOT_FOUND);
 		}
 		return ResponseEntity.badRequest().body(new ApiError("validation_failed", "Some fields are invalid.",
 				Map.of(ex.getName(), "This value is not valid.")));
@@ -91,7 +91,7 @@ public class ApiExceptionHandler {
 		if (ex instanceof ErrorResponse errorResponse) {
 			HttpStatusCode status = errorResponse.getStatusCode();
 			ApiError body = status.value() == HttpStatus.NOT_FOUND.value()
-					? new ApiError("not_found", "This address does not exist.")
+					? NOT_FOUND
 					: new ApiError("request_rejected", "This request cannot be processed.");
 			return ResponseEntity.status(status).body(body);
 		}
