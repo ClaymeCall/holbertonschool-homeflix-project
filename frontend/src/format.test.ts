@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDuration } from './format'
+import { formatClock, formatDuration, formatSpokenTime } from './format'
 
 describe('formatDuration', () => {
   it('formats hours and minutes', () => {
@@ -16,5 +16,23 @@ describe('formatDuration', () => {
   it('returns null when the duration is unknown', () => {
     expect(formatDuration(null)).toBeNull()
     expect(formatDuration(0)).toBeNull()
+  })
+})
+
+describe('formatClock', () => {
+  it('formats player positions', () => {
+    expect(formatClock(0)).toBe('0:00')
+    expect(formatClock(245)).toBe('4:05')
+    expect(formatClock(3725)).toBe('1:02:05')
+    expect(formatClock(Number.NaN)).toBe('0:00')
+  })
+})
+
+describe('formatSpokenTime', () => {
+  it('formats positions for screen readers', () => {
+    expect(formatSpokenTime(1)).toBe('1 second')
+    expect(formatSpokenTime(5)).toBe('5 seconds')
+    expect(formatSpokenTime(605)).toBe('10 minutes 5 seconds')
+    expect(formatSpokenTime(3725)).toBe('1 hour 2 minutes 5 seconds')
   })
 })

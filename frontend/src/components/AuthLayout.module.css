@@ -1,0 +1,33 @@
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 2rem var(--gutter);
+  background: radial-gradient(ellipse at top, var(--bg-hero), var(--bg) 70%);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 26rem;
+  padding: 2rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.title {
+  font-size: 1.5rem;
+}
+
+.intro {
+  color: var(--text-muted);
+}
+
+@media (min-width: 30rem) {
+  .card {
+    padding: 2.5rem 2.25rem;
+  }
+}

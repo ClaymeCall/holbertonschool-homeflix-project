@@ -1,0 +1,38 @@
+.menu {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.account {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 16rem;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.email {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.role {
+  flex-shrink: 0;
+  padding: 0 0.5rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@media (max-width: 30rem) {
+  .account {
+    display: none;
+  }
+}

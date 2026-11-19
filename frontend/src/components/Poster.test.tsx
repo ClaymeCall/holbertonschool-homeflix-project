@@ -4,19 +4,19 @@ import { Poster } from './Poster'
 
 describe('Poster', () => {
   it('shows the image without sending a referrer', () => {
-    render(<Poster src="https://upload.wikimedia.org/a.jpg" title="Le Film" />)
-    const image = screen.getByRole('img', { name: 'Affiche de Le Film' })
+    render(<Poster src="https://upload.wikimedia.org/a.jpg" title="The Film" />)
+    const image = screen.getByRole('img', { name: 'Poster for The Film' })
     expect(image).toHaveAttribute('referrerpolicy', 'no-referrer')
   })
 
   it('shows the placeholder when there is no poster', () => {
-    render(<Poster src={null} title="Le Film" />)
-    expect(screen.getByRole('img', { name: 'Affiche indisponible pour Le Film' })).toBeInTheDocument()
+    render(<Poster src={null} title="The Film" />)
+    expect(screen.getByRole('img', { name: 'Poster unavailable for The Film' })).toBeInTheDocument()
   })
 
   it('falls back to the placeholder when the image fails to load', () => {
-    render(<Poster src="https://upload.wikimedia.org/broken.jpg" title="Le Film" />)
-    fireEvent.error(screen.getByRole('img', { name: 'Affiche de Le Film' }))
-    expect(screen.getByRole('img', { name: 'Affiche indisponible pour Le Film' })).toBeInTheDocument()
+    render(<Poster src="https://upload.wikimedia.org/broken.jpg" title="The Film" />)
+    fireEvent.error(screen.getByRole('img', { name: 'Poster for The Film' }))
+    expect(screen.getByRole('img', { name: 'Poster unavailable for The Film' })).toBeInTheDocument()
   })
 })

@@ -54,7 +54,7 @@ The pull request checklist asks whether the change needs an ADR, and reviewers c
 | [0011](0011-backend-testing-strategy.md) | JUnit 5, Spring Boot Test, MockMvc and Testcontainers | Accepted |
 | [0012](0012-github-actions-ci.md) | GitHub Actions for continuous integration | Accepted |
 | [0013](0013-nginx-gateway.md) | Nginx as the single gateway | Accepted |
-| [0014](0014-qbittorrent-p2p-client.md) | Headless qBittorrent as the peer-to-peer client | Accepted |
+| [0014](0014-qbittorrent-p2p-client.md) | Headless qBittorrent as the peer-to-peer client (port rule refined by ADR-0023) | Accepted |
 | [0015](0015-mp4-h264-aac-video-format.md) | MP4 with H.264 video and AAC audio as the supported format | Accepted |
 | [0016](0016-typescript-frontend.md) | TypeScript for the frontend | Accepted |
 | [0017](0017-gateway-api-routing-convention.md) | Gateway routes `/api/<service>/` and strips the prefix | Proposed |
@@ -63,6 +63,7 @@ The pull request checklist asks whether the change needs an ADR, and reviewers c
 | [0020](0020-common-error-format-and-outage-behavior.md) | Common error format, timeouts and retries for service calls | Proposed |
 | [0021](0021-english-only-interface.md) | English-only interface, server messages shown as written (supersedes part of ADR-0020) | Accepted |
 | [0022](0022-internal-service-calls.md) | Internal endpoints on `/internal`, blocked at the gateway, with one token per caller | Proposed |
+| [0023](0023-qbittorrent-peer-port-and-enforced-settings.md) | Publish only qBittorrent's peer port, and enforce its login and settings at every start (refines ADR-0014) | Proposed |
 
 ## Decisions still to make
 

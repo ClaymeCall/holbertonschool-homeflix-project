@@ -1,8 +1,13 @@
+.page {
+  padding-bottom: 3rem;
+}
+
 .welcome {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 3rem var(--gutter);
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 2.5rem var(--gutter) 2rem;
   background: linear-gradient(180deg, var(--bg-hero), var(--bg));
 }
 
@@ -11,8 +16,19 @@
   font-size: clamp(2.5rem, 7vw, 4rem);
   font-weight: 400;
   letter-spacing: 0.02em;
+  line-height: 1;
 }
 
 .text {
   color: var(--text-muted);
+}
+
+.searchLink {
+  margin-top: 0.5rem;
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
