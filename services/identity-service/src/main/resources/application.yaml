@@ -34,3 +34,12 @@ homeflix:
     token-lifetime: 15m
     # Set to true once HomeFlix is served over HTTPS (issue L8).
     cookie-secure: false
+  # The library service, called to delete a profile's data (consistency rules, ADR-0022).
+  library:
+    base-url: ${LIBRARY_SERVICE_URL:http://library-service:8082}
+    # Secret sent in X-Service-Token. The service refuses to start without it.
+    service-token: ${IDENTITY_TO_LIBRARY_TOKEN:}
+  # Service-to-service calls (ADR-0020).
+  http-client:
+    connect-timeout: 2s
+    read-timeout: 5s

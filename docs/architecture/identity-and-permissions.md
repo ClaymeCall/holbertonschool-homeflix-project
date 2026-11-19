@@ -141,12 +141,12 @@ The account and the profile always come from the token.
 
 1. Sign-in succeeds and sets a cookie with **no** `profileId`.
 2. The interface lists the account's profiles (`GET /profiles`) and shows the profile screen.
-3. The user picks one. `POST /profiles/{profileId}/select` checks that it belongs to the account, then **re-issues the cookie** with the `profileId` claim and a fresh 15 minutes.
+3. The user picks one. `POST /profiles/{profileId}/select` checks that it belongs to the account, then **re-issues the cookie** with the `profileId` claim and a fresh 15 minutes. Because it issues a new token, it reads the account again like a renewal: a disabled or deleted account gets a 401, so selecting a profile cannot extend a session that renewal would refuse.
 4. The interface goes to the catalogue. Switching profile repeats steps 2 and 3, and the old profile's data is no longer reachable (AS-05).
 
 The library service trusts the signed claim for favourites and progress and never asks the identity service. If an account has exactly one profile, the interface may select it automatically; the server rule does not change.
 
-If a profile is deleted while its id is still in a live token, the token stays valid for up to 15 minutes. The favourites and progress of that profile are removed by the cross-service rule (issue #13), so a leftover token can only create orphaned rows, which that rule must tolerate.
+If a profile is deleted while its id is still in a live token, the token stays valid for up to 15 minutes. The next renewal checks that the profile still belongs to the account and otherwise issues the token without a profile, so the interface goes back to the profile screen. The favourites and progress of that profile are removed by the cross-service rule (issue #13), so a leftover token can only create orphaned rows, which that rule must tolerate.
 
 ## Email address
 

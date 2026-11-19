@@ -148,7 +148,8 @@ paths:
       description: |
         Issues a fresh token for the same account and the same active profile. Fails for an expired,
         disabled or deleted account (R-10): there is no revocation list, so this is where a disabled
-        account stops working.
+        account stops working. If the active profile was deleted since, the new token has no profile
+        (`profileId` null), and the interface shows the profile screen again.
       x-permission: account
       security:
         - cookieAuth: []
@@ -433,14 +434,58 @@ paths:
   /profiles/{profileId}:
     parameters:
       - $ref: '#/components/parameters/ProfileId'
+    put:
+      tags: [Profiles]
+      operationId: renameProfile
+      summary: Rename a profile
+      description: |
+        Same name rules as creation. Renaming a profile to its current name changes nothing and succeeds.
+        A profile of another account answers 404, the same as a profile that does not exist (PRF-04).
+      x-permission: account
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileRequest'
+      responses:
+        '200':
+          description: The renamed profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '409':
+          description: Another profile of this account already has this name (`profile_name_taken`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                name:
+                  value:
+                    error: profile_name_taken
+                    message: A profile with this name already exists.
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
     delete:
       tags: [Profiles]
       operationId: deleteProfile
       summary: Delete a profile
       description: |
         Deletes the profile and, through the library service, its favourites and viewing progress
-        (consistency rules: issue #13). Source media is never deleted. A profile of another account
-        answers 404, the same as a profile that does not exist (PRF-04).
+        (consistency rules: issue #13). The library is called first: if it does not answer, or answers
+        with an error, the profile is **not** deleted and the answer is 503, so the user can try again.
+        Source media is never deleted. A profile of another account answers 404, the same as a profile
+        that does not exist (PRF-04).
       x-permission: account
       security:
         - cookieAuth: []
@@ -463,7 +508,8 @@ paths:
       summary: Choose the active profile
       description: |
         Checks that the profile belongs to the signed-in account, then re-issues the session cookie with a
-        `profileId` claim. The library service trusts that signed claim for favourites and progress, so it
+        `profileId` claim and a fresh 15 minutes. Since it issues a new token, it reads the account again like
+        `/auth/refresh`: a disabled or deleted account answers 401. The library service trusts that signed claim for favourites and progress, so it
         never has to ask the identity service and a user cannot act as another profile by changing an id (PRF-02, PRF-04).
       x-permission: account
       security:
@@ -612,6 +658,7 @@ components:
           type: string
           minLength: 1
           maxLength: 30
+          description: Trimmed by the server, then 1 to 30 characters. Unique within the account, case-sensitive.
 
     Profile:
       type: object

@@ -96,6 +96,7 @@ jobs:
             echo "ACQUISITION_DB_PASSWORD=ci-placeholder"
             echo "JWT_PRIVATE_KEY_PATH=./ci-placeholder.pem"
             echo "JWT_PUBLIC_KEY_PATH=./ci-placeholder.pem"
+            echo "IDENTITY_TO_LIBRARY_TOKEN=ci-placeholder"
             echo "QBITTORRENT_USERNAME=ci-placeholder"
             echo "QBITTORRENT_PASSWORD=$(openssl rand -hex 16)"
           } > "$RUNNER_TEMP/ci.env"
