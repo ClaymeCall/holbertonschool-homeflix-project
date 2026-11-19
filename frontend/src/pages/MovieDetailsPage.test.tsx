@@ -10,7 +10,7 @@ const movie: MediaDetails = {
   title: 'Night of the Stars',
   description: 'A family watches the sky.',
   posterUrl: 'https://upload.wikimedia.org/poster.jpg',
-  genre: 'Documentary',
+  genres: ['Documentary', 'Nature'],
   durationSeconds: 5520,
   availability: 'AVAILABLE',
 }
@@ -27,7 +27,7 @@ describe('MovieDetailsPage', () => {
     expect(await screen.findByRole('heading', { name: movie.title })).toBeInTheDocument()
     expect(callsTo(fetch, 'GET /api/library/media/m1')).toHaveLength(1)
     expect(screen.getByText('A family watches the sky.')).toBeInTheDocument()
-    expect(screen.getByText('Documentary')).toBeInTheDocument()
+    expect(screen.getByText('Documentary, Nature')).toBeInTheDocument()
     expect(screen.getByText('1 h 32 min')).toBeInTheDocument()
     expect(screen.getByText('Available')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: `Poster for ${movie.title}` })).toBeInTheDocument()
@@ -35,7 +35,7 @@ describe('MovieDetailsPage', () => {
   })
 
   it('shows placeholders when metadata is missing', async () => {
-    mockMovie(() => jsonResponse({ ...movie, description: null, posterUrl: null, genre: null, durationSeconds: null }))
+    mockMovie(() => jsonResponse({ ...movie, description: null, posterUrl: null, genres: [], durationSeconds: null }))
     renderApp('/movies/m1')
 
     expect(await screen.findByText('No description available for this film.')).toBeInTheDocument()

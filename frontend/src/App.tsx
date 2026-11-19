@@ -5,6 +5,7 @@ import { AppLayout } from './components/AppLayout'
 import { HomePage } from './pages/HomePage'
 import { MovieDetailsPage } from './pages/MovieDetailsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { SearchPage } from './pages/SearchPage'
 import { SetupPage } from './pages/SetupPage'
 import { SignInPage } from './pages/SignInPage'
 
@@ -36,6 +37,7 @@ function App() {
           }
         >
           <Route index element={<HomePage />} />
+          <Route path="search" element={<SearchPage />} />
           <Route path="movies/:id" element={<MovieDetailsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
