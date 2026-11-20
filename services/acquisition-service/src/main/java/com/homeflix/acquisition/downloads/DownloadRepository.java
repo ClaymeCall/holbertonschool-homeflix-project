@@ -1,7 +1,12 @@
 package com.homeflix.acquisition.downloads;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -15,6 +20,14 @@ class DownloadRepository {
 	record Job(UUID id, UUID entryId, String clientHash, DownloadState state) {
 	}
 
+	/** An active job, for the status check: {@code pastGrace} once it is older than the given grace period. */
+	record TrackedJob(UUID id, UUID entryId, String clientHash, boolean pastGrace) {
+	}
+
+	/** A failed job whose failure the library has not been told about yet. */
+	record UnsyncedFailure(UUID id, UUID entryId) {
+	}
+
 	private static final String COLUMNS =
 			"id, entry_id, state, progress_percent, error_code, created_at, finished_at";
 
@@ -24,6 +37,7 @@ class DownloadRepository {
 			DownloadState.valueOf(rs.getString("state")),
 			rs.getInt("progress_percent"),
 			rs.getString("error_code"),
+			FailureMessages.forCode(rs.getString("error_code")),
 			rs.getObject("created_at", OffsetDateTime.class),
 			rs.getObject("finished_at", OffsetDateTime.class));
 
@@ -35,6 +49,53 @@ class DownloadRepository {
 
 	Optional<Download> find(UUID id) {
 		return jdbc.query("select " + COLUMNS + " from download_job where id = ?", DOWNLOAD, id).stream().findFirst();
+	}
+
+	/** Every download, newest first. */
+	List<Download> findAll() {
+		return jdbc.query("select " + COLUMNS + " from download_job order by created_at desc, id", DOWNLOAD);
+	}
+
+	List<TrackedJob> activeJobs(Duration grace) {
+		return jdbc.query("""
+				select id, entry_id, client_hash, created_at < now() - make_interval(secs => ?) as past_grace
+				from download_job where state in ('QUEUED', 'DOWNLOADING')
+				""",
+				(rs, row) -> new TrackedJob(rs.getObject("id", UUID.class), rs.getObject("entry_id", UUID.class),
+						rs.getString("client_hash"), rs.getBoolean("past_grace")),
+				grace.toMillis() / 1000.0);
+	}
+
+	/**
+	 * The state and progress the torrent client reports, if the job is still active and they changed. A job
+	 * cancelled in the meantime is left as it is.
+	 */
+	void updateStatus(UUID id, DownloadState state, int progressPercent) {
+		jdbc.update("""
+				update download_job set state = ?, progress_percent = ?
+				where id = ? and state in ('QUEUED', 'DOWNLOADING') and (state <> ? or progress_percent <> ?)
+				""", state.name(), progressPercent, id, state.name(), progressPercent);
+	}
+
+	List<UnsyncedFailure> unsyncedFailures() {
+		return jdbc.query("select id, entry_id from download_job where state = 'FAILED' and library_synced_at is null",
+				(rs, row) -> new UnsyncedFailure(rs.getObject("id", UUID.class), rs.getObject("entry_id", UUID.class)));
+	}
+
+	/** Those of these jobs that are FAILED. */
+	Set<UUID> failedAmong(Collection<UUID> ids) {
+		if (ids.isEmpty()) {
+			return Set.of();
+		}
+		String placeholders = String.join(", ", Collections.nCopies(ids.size(), "?"));
+		return Set.copyOf(jdbc.queryForList("select id from download_job where state = 'FAILED' and id in (" + placeholders + ")",
+				UUID.class, ids.toArray()));
+	}
+
+	boolean hasActiveJobWithHash(String clientHash) {
+		return Boolean.TRUE.equals(jdbc.queryForObject(
+				"select exists (select 1 from download_job where client_hash = ? and state in ('QUEUED', 'DOWNLOADING'))",
+				Boolean.class, clientHash));
 	}
 
 	boolean hasActiveJob(UUID entryId) {

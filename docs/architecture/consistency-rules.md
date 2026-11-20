@@ -130,6 +130,8 @@ The call is idempotent: if the entry is already `AVAILABLE` with the same file, 
 - After **5 minutes** without success the job becomes `FAILED` with `error_code = 'handoff_failed'`. The administrator sees it in the download screen (ACQ-04), with a plain message. The detail goes to the log only (SEC-04).
 - The size and format check can also fail the job, with `error_code = 'verification_failed'`. Nothing is handed over.
 - A cancelled job is `FAILED` with `error_code = 'cancelled'` (data model).
+- A job whose torrent is no longer in the torrent client (removed by hand, or a crash between creating the job and adding the torrent) becomes `FAILED` with `error_code = 'torrent_missing'` after a grace period of 60 seconds (`homeflix.downloads.tracking.missing-grace`), which leaves time for a start that is still adding it. A torrent in error in the client makes the job `FAILED` with `client_error`, and the torrent is removed.
+- A torrent HomeFlix added for a job that has since failed or been cancelled, and that is still in the client, is removed at the next status check. The torrents of completed jobs and the torrents HomeFlix did not add are never touched.
 
 The limit is a setting (`ACQUISITION_HANDOFF_TIMEOUT`), so it can be tuned. A test covers a library that is down for longer than the limit (TST-05, R-22).
 

@@ -5,6 +5,7 @@ import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.homeflix.acquisition.client.ServiceClientFactory;
 import com.homeflix.acquisition.config.QbittorrentProperties;
 import com.homeflix.acquisition.web.ServiceUnavailableException;
@@ -77,6 +79,29 @@ public class QbittorrentClient {
 			log.error("The torrent client did not add the torrent {}", infoHash);
 			throw new ServiceUnavailableException("The torrent client did not add the torrent", null);
 		}
+	}
+
+	/**
+	 * A torrent as the client lists it: info hash, state, progress from 0 to 1, and its tags separated by
+	 * commas.
+	 */
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public record Torrent(String hash, String state, double progress, String tags) {
+	}
+
+	/**
+	 * Every torrent of the client, for the status check (J6).
+	 *
+	 * @throws ServiceUnavailableException when the client is down
+	 */
+	public List<Torrent> list() {
+		List<Torrent> torrents = call("list the torrents", sid -> rest.get()
+				.uri("/api/v2/torrents/info")
+				.header(HttpHeaders.COOKIE, sid)
+				.retrieve()
+				.body(new ParameterizedTypeReference<List<Torrent>>() {
+				}));
+		return torrents == null ? List.of() : torrents;
 	}
 
 	/** True when the client has a torrent with this info hash. */

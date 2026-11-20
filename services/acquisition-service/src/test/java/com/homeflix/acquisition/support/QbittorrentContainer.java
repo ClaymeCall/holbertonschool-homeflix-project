@@ -76,6 +76,16 @@ public final class QbittorrentContainer {
 		post("/api/v2/torrents/add", "urls=" + encode(magnetLink));
 	}
 
+	/** Adds a torrent directly with a tag, as HomeFlix tags the torrents it adds. */
+	public static void addTorrent(String magnetLink, String tag) {
+		post("/api/v2/torrents/add", "urls=" + encode(magnetLink) + "&tags=" + encode(tag));
+	}
+
+	/** Removes a torrent by hand, as an administrator could in qBittorrent's own interface. */
+	public static void removeTorrent(String hash) {
+		post("/api/v2/torrents/delete", "hashes=" + hash + "&deleteFiles=true");
+	}
+
 	/** The details of a torrent as qBittorrent lists them (JSON), for example its tags. */
 	public static String torrentInfo(String hash) {
 		return get("/api/v2/torrents/info?hashes=" + hash);
