@@ -5,6 +5,8 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -102,9 +104,13 @@ public class ApiExceptionHandler {
 		};
 	}
 
-	/** A called service is down, too slow, or answered with a 5xx: one answer for all of them. */
+	/**
+	 * A called service or this service's own database is down, too slow, or answered with a 5xx: one answer
+	 * for all of them (error model, "Database down").
+	 */
 	@ExceptionHandler({ ServiceUnavailableException.class, ResourceAccessException.class,
-			HttpServerErrorException.class })
+			HttpServerErrorException.class,
+			DataAccessResourceFailureException.class, QueryTimeoutException.class })
 	ResponseEntity<ApiError> serviceUnavailable(Exception ex) {
 		log.warn("A service this one depends on is unavailable", ex);
 		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)

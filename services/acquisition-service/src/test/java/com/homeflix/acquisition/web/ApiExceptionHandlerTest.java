@@ -12,6 +12,8 @@ import java.net.SocketTimeoutException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -50,6 +52,16 @@ class ApiExceptionHandlerTest {
 		String dependencyFailed() {
 			throw HttpServerErrorException.create(HttpStatus.INTERNAL_SERVER_ERROR, "boom at com.acme.Secret", null,
 					null, null);
+		}
+
+		@GetMapping("/database-down")
+		String databaseDown() {
+			throw new DataAccessResourceFailureException("Failed to obtain JDBC Connection to jdbc:postgresql://secret-db:5432/library");
+		}
+
+		@GetMapping("/database-slow")
+		String databaseSlow() {
+			throw new QueryTimeoutException("select * from media_file where path = '/secret/path'");
 		}
 
 		@GetMapping("/unavailable")
@@ -97,6 +109,19 @@ class ApiExceptionHandlerTest {
 				.andExpect(jsonPath("$.message").value(ApiExceptionHandler.SERVICE_UNAVAILABLE_MESSAGE))
 				.andExpect(content().string(not(containsString("secret-host"))))
 				.andExpect(content().string(not(containsString("identity-service"))));
+	}
+
+	@Test
+	void aDatabaseThatIsDownOrTooSlowIs503WithoutDetails() throws Exception {
+		for (String address : new String[] { "/database-down", "/database-slow" }) {
+			mvc.perform(get(address))
+					.andExpect(status().isServiceUnavailable())
+					.andExpect(jsonPath("$.error").value("service_unavailable"))
+					.andExpect(jsonPath("$.message").value(ApiExceptionHandler.SERVICE_UNAVAILABLE_MESSAGE))
+					.andExpect(content().string(not(containsString("secret"))))
+					.andExpect(content().string(not(containsString("jdbc"))))
+					.andExpect(content().string(not(containsString("select"))));
+		}
 	}
 
 	@Test

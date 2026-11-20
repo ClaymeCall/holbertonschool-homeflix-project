@@ -5,6 +5,8 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -67,8 +69,10 @@ public class ApiExceptionHandler {
 		return validationFailed(Map.of(ex.getName(), "This value is not valid."));
 	}
 
-	@ExceptionHandler(ServiceUnavailableException.class)
-	ResponseEntity<ApiError> serviceUnavailable(ServiceUnavailableException ex) {
+	/** A called service or this service's own database is down or too slow (error model, "Database down"). */
+	@ExceptionHandler({ ServiceUnavailableException.class, DataAccessResourceFailureException.class,
+			QueryTimeoutException.class })
+	ResponseEntity<ApiError> serviceUnavailable(Exception ex) {
 		log.warn("A service this one depends on is unavailable: {}", ex.getMessage(), ex.getCause());
 		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ApiError("service_unavailable",
 				"This part of HomeFlix is temporarily unavailable. Please try again in a moment."));
