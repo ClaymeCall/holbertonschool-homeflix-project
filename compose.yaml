@@ -84,6 +84,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${ACQUISITION_DB_PASSWORD:?Set ACQUISITION_DB_PASSWORD in .env}
       # Login to the torrent client's API, the same values qBittorrent is configured with (J5 uses them).
       QBITTORRENT_URL: http://qbittorrent:8080
+      # Time limit of the handoff of a completed download to the library (J7, R-22).
+      ACQUISITION_HANDOFF_TIMEOUT: ${ACQUISITION_HANDOFF_TIMEOUT:-5m}
       QBITTORRENT_USERNAME: ${QBITTORRENT_USERNAME:?Set QBITTORRENT_USERNAME in .env}
       QBITTORRENT_PASSWORD: ${QBITTORRENT_PASSWORD:?Set QBITTORRENT_PASSWORD in .env}
       # Verifies the session token with the identity service's PUBLIC key only (G5).
@@ -95,6 +97,10 @@ services:
         condition: service_healthy
     networks: [backend, p2p]
     restart: unless-stopped
+    volumes:
+      # Completed downloads, read-only, at the path qBittorrent saves to: the size and format of a finished
+      # file are checked before it is handed to the library (J7, R-19). Never written, never run.
+      - ${DOWNLOADS_PATH:-./data/downloads}:/downloads:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8083/actuator/health/liveness"]
       interval: 15s

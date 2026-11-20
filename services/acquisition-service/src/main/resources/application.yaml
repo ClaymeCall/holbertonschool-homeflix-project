@@ -34,6 +34,10 @@ homeflix:
   # Status check of downloads (J6; docs/architecture/consistency-rules.md, "Acquisition handoff").
   # A new job may have no torrent in the client for missing-grace before it fails with torrent_missing.
   downloads:
+    # Completed downloads, mounted read-only at the path qBittorrent saves to (J7, R-20).
+    folder: ${DOWNLOADS_FOLDER:/downloads}
+    # A verified file the library has not accepted after this time fails with handoff_failed.
+    handoff-timeout: ${ACQUISITION_HANDOFF_TIMEOUT:5m}
     tracking:
       enabled: true
       interval: 10s

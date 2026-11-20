@@ -70,7 +70,11 @@ class StateMappingTest {
 				.isEqualTo("The download service could not download this title. You can start it again.");
 		assertThat(FailureMessages.forCode("torrent_missing"))
 				.isEqualTo("This download is no longer in the download service. You can start it again.");
-		assertThat(FailureMessages.forCode("handoff_failed")).isEqualTo("This download failed. You can start it again.");
+		assertThat(FailureMessages.forCode("verification_failed"))
+				.isEqualTo("The downloaded file is not the expected video, so it was deleted. You can start it again.");
+		assertThat(FailureMessages.forCode("handoff_failed"))
+				.isEqualTo("The video was downloaded but could not be added to the library. You can start it again.");
+		assertThat(FailureMessages.forCode("a_later_code")).isEqualTo("This download failed. You can start it again.");
 	}
 
 	@Test

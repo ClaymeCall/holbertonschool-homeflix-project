@@ -7,7 +7,7 @@ Hand-written OpenAPI contracts, written **before** the implementation (ADR-0010,
 | [`common.yaml`](common.yaml) | Error body, session security scheme and responses shared by every service. |
 | [`identity.yaml`](identity.yaml) | First-run setup, sessions, account administration and viewing profiles. |
 | [`library.yaml`](library.yaml) | Folders, scans, catalogue, streaming with Range, favourites and progress. |
-| [`acquisition.yaml`](acquisition.yaml) | The verified acquisition catalogue, and listing, starting, tracking and cancelling downloads. The handoff to the library is added with its issue (J7). |
+| [`acquisition.yaml`](acquisition.yaml) | The verified acquisition catalogue, and listing, starting, tracking and cancelling downloads, up to the handoff of the completed file to the library. |
 
 Acquisition downloads and the handoff to the library, and the administration of catalogue metadata, are written in later pull requests, when their issues start.
 

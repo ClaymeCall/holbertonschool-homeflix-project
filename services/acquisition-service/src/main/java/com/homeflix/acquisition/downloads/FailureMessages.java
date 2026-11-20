@@ -8,6 +8,8 @@ package com.homeflix.acquisition.downloads;
 final class FailureMessages {
 
 	static final String TORRENT_MISSING = "torrent_missing";
+	static final String VERIFICATION_FAILED = "verification_failed";
+	static final String HANDOFF_FAILED = "handoff_failed";
 
 	private FailureMessages() {
 	}
@@ -22,6 +24,10 @@ final class FailureMessages {
 			case DownloadService.CLIENT_ERROR ->
 				"The download service could not download this title. You can start it again.";
 			case TORRENT_MISSING -> "This download is no longer in the download service. You can start it again.";
+			case VERIFICATION_FAILED ->
+				"The downloaded file is not the expected video, so it was deleted. You can start it again.";
+			case HANDOFF_FAILED ->
+				"The video was downloaded but could not be added to the library. You can start it again.";
 			default -> "This download failed. You can start it again.";
 		};
 	}

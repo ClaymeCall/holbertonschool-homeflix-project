@@ -95,14 +95,7 @@ class DownloadTrackingTests {
 		Map<String, Object> job = row(jobId);
 		assertThat(job.get("state")).isEqualTo("DOWNLOADING");
 		assertThat(job.get("progress_percent")).isEqualTo(42);
-
-		// Complete in the client: stays DOWNLOADING at 100 % until the handoff (J7).
-		reportTorrent("stalledUP", 1);
-		tracker.check();
-		job = row(jobId);
-		assertThat(job.get("state")).isEqualTo("DOWNLOADING");
-		assertThat(job.get("progress_percent")).isEqualTo(100);
-		assertThat(job.get("finished_at")).isNull();
+		// A complete torrent goes to the handoff: see DownloadHandoffTests.
 	}
 
 	@Test
@@ -247,7 +240,8 @@ class DownloadTrackingTests {
 	private void reportTorrent(String state, double progress) {
 		List<Torrent> real = torrents.list();
 		List<Torrent> reported = real.stream()
-				.map(t -> t.hash().equals(hash) ? new Torrent(t.hash(), state, progress, t.tags()) : t)
+				.map(t -> t.hash().equals(hash)
+						? new Torrent(t.hash(), state, progress, t.tags(), t.savePath(), t.contentPath()) : t)
 				.toList();
 		doReturn(reported).when(torrents).list();
 	}
@@ -272,10 +266,11 @@ class DownloadTrackingTests {
 	private UUID insertJob(String state, String clientHash) {
 		return jdbc.queryForObject("""
 				insert into download_job (entry_id, client_hash, state, started_by, error_code, finished_at,
-				    library_synced_at)
-				values (?, ?, ?, ?, case when ? = 'FAILED' then 'client_error' end, now(), now())
+				    library_synced_at, completed_relative_path, handoff_started_at)
+				values (?, ?, ?, ?, case when ? = 'FAILED' then 'client_error' end, now(), now(),
+				    case when ? = 'COMPLETED' then 'film.mp4' end, case when ? = 'COMPLETED' then now() end)
 				returning id
-				""", UUID.class, entryId, clientHash, state, UUID.randomUUID(), state);
+				""", UUID.class, entryId, clientHash, state, UUID.randomUUID(), state, state, state);
 	}
 
 	private UUID insertEntry(String infoHash) {
