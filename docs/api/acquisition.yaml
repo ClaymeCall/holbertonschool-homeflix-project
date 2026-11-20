@@ -30,8 +30,9 @@ info:
     **Status tracking** (J6): every 10 seconds the service reads the torrent client and gives each active
     download the state and progress of its torrent. Waiting, stopped, checking or fetching metadata is
     `QUEUED`; transferring or waiting for peers is `DOWNLOADING`; a torrent in error is `FAILED`. A torrent
-    the client has completed stays `DOWNLOADING` at 100 % until the checks and the handoff to the library
-    (J7). A failure the library could not be told about is told at the next check.
+    the client has completed stays `DOWNLOADING` at 100 % while its file is checked (one MP4 file, H.264 and
+    AAC, of the expected size) and handed to the library; it is `COMPLETED` once the library has it. A failure
+    the library could not be told about is told at the next check.
 
     **Errors** use the common body of `common.yaml` (ADR-0020). A method that a path does not list, such as
     `POST /entries`, answers `405` with the code `request_rejected`.
@@ -201,6 +202,9 @@ paths:
       operationId: cancelDownload
       summary: Cancel a download that is queued or downloading
       description: |
+        A download whose completed file is being handed to the library cannot be cancelled any more
+        (`409 download_not_cancellable`).
+
         Removes the torrent and the partial file from the torrent client, then records the download as
         `FAILED` with `cancelled`. The library is told; if it cannot be told now, it is told later, and the
         cancel still succeeds. If the torrent client does not answer, nothing changes and the answer is `503`.
@@ -330,8 +334,9 @@ components:
           description: |
             Why a `FAILED` download failed, null otherwise: `cancelled` (an administrator cancelled it),
             `client_error` (the torrent client refused, did not answer, or reported an error),
-            `torrent_missing` (the torrent is no longer in the client, for example removed by hand). J7 adds
-            `handoff_failed` and `verification_failed`.
+            `torrent_missing` (the torrent is no longer in the client, for example removed by hand),
+            `verification_failed` (the completed file is not the expected MP4: it was deleted),
+            `handoff_failed` (the library did not accept the file within the time limit: the file is kept).
           type: ['string', 'null']
           examples: [cancelled]
         errorMessage:

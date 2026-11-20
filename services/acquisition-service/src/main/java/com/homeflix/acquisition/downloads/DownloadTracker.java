@@ -13,10 +13,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import com.homeflix.acquisition.config.DownloadsProperties;
 import com.homeflix.acquisition.config.TrackingProperties;
 import com.homeflix.acquisition.library.LibraryClient;
 import com.homeflix.acquisition.torrent.QbittorrentClient;
 import com.homeflix.acquisition.torrent.QbittorrentClient.Torrent;
+import com.homeflix.acquisition.verification.DownloadedFileVerifier;
 import com.homeflix.acquisition.web.ServiceUnavailableException;
 
 /**
@@ -30,6 +32,11 @@ import com.homeflix.acquisition.web.ServiceUnavailableException;
  * <li>Gives each active job the state and progress of its torrent ({@link StateMapping}). A torrent in error
  * fails the job with {@code client_error} and is removed. A job whose torrent is not in the client after the
  * grace period fails with {@code torrent_missing}.</li>
+ * <li>Hands each completed torrent to the library (J7): the file is checked once
+ * ({@link DownloadedFileVerifier}); a file that fails the checks fails the job with
+ * {@code verification_failed} and is deleted with its torrent. A verified file is handed over at each check
+ * until the library accepts it, and the job is then COMPLETED. After the handoff time limit it fails with
+ * {@code handoff_failed}, and the file is kept.</li>
  * <li>Removes the torrents HomeFlix added for jobs that have failed or were cancelled, if one is still in the
  * client (a cancel that came while the start was adding it, and the client was down). Torrents of
  * completed jobs and torrents HomeFlix did not add are never touched.</li>
@@ -48,14 +55,18 @@ public class DownloadTracker {
 	private final DownloadRepository downloads;
 	private final QbittorrentClient torrents;
 	private final LibraryClient library;
+	private final DownloadedFileVerifier verifier;
 	private final TrackingProperties settings;
+	private final DownloadsProperties downloadSettings;
 
 	DownloadTracker(DownloadRepository downloads, QbittorrentClient torrents, LibraryClient library,
-			TrackingProperties settings) {
+			DownloadedFileVerifier verifier, TrackingProperties settings, DownloadsProperties downloadSettings) {
 		this.downloads = downloads;
 		this.torrents = torrents;
 		this.library = library;
+		this.verifier = verifier;
 		this.settings = settings;
+		this.downloadSettings = downloadSettings;
 	}
 
 	public void check() {
@@ -71,7 +82,8 @@ public class DownloadTracker {
 
 	private void checkTorrents() {
 		List<Torrent> listed = torrents.list();
-		List<DownloadRepository.TrackedJob> active = downloads.activeJobs(settings.missingGrace());
+		List<DownloadRepository.TrackedJob> active = downloads.activeJobs(settings.missingGrace(),
+				downloadSettings.handoffTimeout());
 
 		Map<String, Torrent> byHash = new HashMap<>();
 		for (Torrent torrent : listed) {
@@ -87,6 +99,11 @@ public class DownloadTracker {
 
 	private void track(DownloadRepository.TrackedJob job, Torrent torrent) {
 		if (torrent == null) {
+			if (job.completedRelativePath() != null) {
+				// Verified file, torrent gone from the client: the handoff only needs the file.
+				handOver(job, null);
+				return;
+			}
 			if (job.pastGrace()) {
 				log.warn("Download {} failed: its torrent {} is no longer in the torrent client", job.id(),
 						job.clientHash());
@@ -108,6 +125,39 @@ public class DownloadTracker {
 			return;
 		}
 		downloads.updateStatus(job.id(), status.get().state(), status.get().progressPercent());
+		if (status.get().progressPercent() == 100) {
+			handOver(job, torrent);
+		}
+	}
+
+	/** The torrent is complete: check the file once, then hand it to the library until it accepts it. */
+	private void handOver(DownloadRepository.TrackedJob job, Torrent torrent) {
+		String relativePath = job.completedRelativePath();
+		if (relativePath == null) {
+			DownloadedFileVerifier.Result result = verifier.verify(torrent.savePath(), torrent.contentPath(),
+					job.expectedSizeBytes());
+			if (result instanceof DownloadedFileVerifier.Refused refused) {
+				log.warn("Download {} failed the checks of the completed file: {}", job.id(), refused.reason());
+				if (fail(job.id(), FailureMessages.VERIFICATION_FAILED)) {
+					// Never kept where the library could index it (R-19).
+					removeQuietly(job.clientHash());
+				}
+				return;
+			}
+			relativePath = ((DownloadedFileVerifier.Accepted) result).relativePath();
+			downloads.markVerified(job.id(), relativePath);
+			log.info("Download {} passed the checks; handing {} to the library", job.id(), relativePath);
+		}
+		if (library.downloadCompleted(job.entryId(), relativePath)) {
+			if (downloads.markCompleted(job.id())) {
+				log.info("Download {} completed and handed to the library", job.id());
+			}
+		}
+		else if (job.handoffExpired()) {
+			log.warn("Download {} failed: the library did not accept the file within {}", job.id(),
+					downloadSettings.handoffTimeout());
+			fail(job.id(), FailureMessages.HANDOFF_FAILED);
+		}
 	}
 
 	/** FAILED if still active. The library is told at the end of the check. */

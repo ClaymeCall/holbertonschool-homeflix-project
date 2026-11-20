@@ -98,7 +98,9 @@ public class DownloadService {
 	public Download cancel(UUID jobId) {
 		UUID entryId = transaction.execute(status -> {
 			DownloadRepository.Job job = downloads.lock(jobId).orElseThrow(NotFoundException::new);
-			if (!job.state().active()) {
+			// A verified file is being handed to the library: removing it now could take a file away from the
+			// library after it was linked.
+			if (!job.state().active() || job.completedRelativePath() != null) {
 				throw new RejectedRequestException(HttpStatus.CONFLICT, "download_not_cancellable",
 						"This download has already finished and cannot be cancelled.");
 			}
