@@ -256,8 +256,8 @@ paths:
         required. Used to complete an entry that only has the title taken from its file name. Availability and the
         file are never changed here. A scan never writes these fields, so an edit survives a re-index.
 
-        The poster must be an `https` address with a host. Checking the host against the allowed list is added by
-        issue #58 (ADR-0018). Genres are matched without regard to case and created when new.
+        The poster must be an `https` address (default port, no credentials) on a host of the allowed list, set by
+        `POSTER_ALLOWED_HOSTS` (ADR-0018). The server never opens the address. Genres are matched without regard to case and created when new.
       x-permission: admin
       requestBody:
         required: true
