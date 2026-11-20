@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { describeError } from '../api/errors'
+import { ButtonLink } from '../components/Button'
 import { ErrorState, LoadingState } from '../components/StatusMessage'
 import { useAuth } from './AuthContext'
 
@@ -29,6 +30,27 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     case 'signedIn':
       return children
   }
+}
+
+/**
+ * Administrator screens, inside RequireAuth. Anyone else sees that the page is for administrators, and the
+ * page never calls its API. The server refuses those calls anyway (SEC-02, ACQ-05).
+ */
+export function RequireAdmin({ children }: { children: ReactNode }) {
+  const { session } = useAuth()
+  if (session.status === 'signedIn' && session.account.admin) {
+    return children
+  }
+  return (
+    <>
+      <title>Administrators only · HomeFlix</title>
+      <ErrorState title="Administrators only" message="Only an administrator of this HomeFlix can open this page.">
+        <ButtonLink to="/" variant="secondary">
+          Back to home
+        </ButtonLink>
+      </ErrorState>
+    </>
+  )
 }
 
 /** The first-run setup screen is only reachable while no administrator exists. */
