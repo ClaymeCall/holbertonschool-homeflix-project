@@ -247,6 +247,62 @@ paths:
         '503':
           $ref: './common.yaml#/components/responses/ServiceUnavailable'
 
+    put:
+      tags: [Catalogue]
+      operationId: updateMedia
+      summary: Edit a title's information
+      description: |
+        Replaces every editable field (CAT-09, CAT-10): a field left out or null is cleared, except `title`, which is
+        required. Used to complete an entry that only has the title taken from its file name. Availability and the
+        file are never changed here. A scan never writes these fields, so an edit survives a re-index.
+
+        The poster must be an `https` address with a host. Checking the host against the allowed list is added by
+        issue #58 (ADR-0018). Genres are matched without regard to case and created when new.
+      x-permission: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaUpdate'
+      responses:
+        '200':
+          description: The title as saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaDetails'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+    delete:
+      tags: [Catalogue]
+      operationId: removeMedia
+      summary: Remove a catalogue entry
+      description: |
+        Deletes only the catalogue row, with its genre links, favourites and progress (LIB-12). The video file on
+        disk is never deleted, and neither is its file record. The next scan therefore finds the file already known
+        and does not create the entry again: a removed entry stays removed.
+      x-permission: admin
+      responses:
+        '204':
+          description: Entry removed.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
   /categories:
     get:
       tags: [Catalogue]
@@ -656,6 +712,33 @@ components:
           properties:
             description:
               type: ['string', 'null']
+
+    MediaUpdate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        description:
+          type: ['string', 'null']
+          maxLength: 5000
+        genres:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+        durationSeconds:
+          type: ['integer', 'null']
+          minimum: 0
+        posterUrl:
+          type: ['string', 'null']
+          format: uri
+          maxLength: 2048
+          examples: [https://images.example.org/heat.jpg]
 
     Category:
       type: object
