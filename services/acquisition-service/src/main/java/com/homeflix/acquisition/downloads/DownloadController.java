@@ -1,5 +1,6 @@
 package com.homeflix.acquisition.downloads;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -18,7 +19,7 @@ import com.homeflix.acquisition.security.Caller;
 import jakarta.validation.Valid;
 
 /**
- * Starting and cancelling downloads (docs/api/acquisition.yaml, tag Downloads; ACQ-03). Administrator only
+ * Listing, starting and cancelling downloads (docs/api/acquisition.yaml, tag Downloads; ACQ-03, ACQ-04). Administrator only
  * (ACQ-05): {@link AdminOnly} checks the caller before Spring reads the path or the body, so a caller who is
  * not an administrator gets 401 or 403 whatever the request holds.
  */
@@ -31,6 +32,11 @@ class DownloadController {
 
 	DownloadController(DownloadService downloads) {
 		this.downloads = downloads;
+	}
+
+	@GetMapping
+	List<Download> list() {
+		return downloads.list();
 	}
 
 	@PostMapping

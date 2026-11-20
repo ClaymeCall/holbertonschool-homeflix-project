@@ -7,7 +7,7 @@ Hand-written OpenAPI contracts, written **before** the implementation (ADR-0010,
 | [`common.yaml`](common.yaml) | Error body, session security scheme and responses shared by every service. |
 | [`identity.yaml`](identity.yaml) | First-run setup, sessions, account administration and viewing profiles. |
 | [`library.yaml`](library.yaml) | Folders, scans, catalogue, streaming with Range, favourites and progress. |
-| [`acquisition.yaml`](acquisition.yaml) | The verified acquisition catalogue, and starting and cancelling downloads. Status tracking and the handoff to the library are added with their issues (J6, J7). |
+| [`acquisition.yaml`](acquisition.yaml) | The verified acquisition catalogue, and listing, starting, tracking and cancelling downloads. The handoff to the library is added with its issue (J7). |
 
 Acquisition downloads and the handoff to the library, and the administration of catalogue metadata, are written in later pull requests, when their issues start.
 
@@ -73,7 +73,7 @@ Every service verifies the token itself with the identity service's public key. 
 | Operation | Permission |
 |---|---|
 | `GET /entries`, `GET /entries/{entryId}` | admin |
-| `POST /downloads`, `GET /downloads/{downloadId}`, `POST /downloads/{downloadId}/cancel` | admin |
+| `GET /downloads`, `POST /downloads`, `GET /downloads/{downloadId}`, `POST /downloads/{downloadId}/cancel` | admin |
 
 Every acquisition operation is administrator only (ACQ-05). Entries are added by a reviewed migration, never through the API, and no operation accepts a URL, a magnet link or a torrent file (ACQ-09, ACQ-10, R-15).
 
