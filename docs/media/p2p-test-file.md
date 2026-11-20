@@ -147,7 +147,7 @@ The main seeder is in place. The backup seeder and the network test are **not do
 
 - **Main seeder**: Thomas's computer, seeding the demo torrent in qBittorrent 5.2.3 since 2026-11-18: `sintel.mp4`, 123.2 MiB, checked at 100 %, status *Seeding* ([screenshot](evidence/2026-11-18-qbittorrent-main-seeder.png)). The *General* tab shows info hash v1 `4e626263b96d72a36b1b963f44188bf937004d5f`, created by `HomeFlix team` ([screenshot](evidence/2026-11-18-qbittorrent-infohash.png)).
 - **Backup seeder**: a second team computer seeding the same torrent. Not set up yet.
-- **Network test**: download the demo torrent from another machine or another network (for example a mobile hotspot) and record the result. Rehearsal on the presentation network is in L10 (#106).
+- **Network test**: download the demo torrent from another machine or another network (for example a mobile hotspot) and record the result. Started on 2026-11-18 at 18:33 by a teammate on another machine and another network than the main seeder: the *General* tab shows info hash v1 `4e626263b96d72a36b1b963f44188bf937004d5f`, created by `HomeFlix team`, 1 seed connected and 30.7 KiB/s download speed ([screenshot](evidence/2026-11-18-qbittorrent-backup-downloading.png), save path blurred). The end of the download is not recorded yet. Rehearsal on the presentation network is in L10 (#106).
 
 ## Evidence still to collect
 
@@ -155,7 +155,7 @@ The main seeder is in place. The backup seeder and the network test are **not do
 - [x] Saved copy of <https://durian.blender.org/sharing/> and <https://durian.blender.org/about/>: screenshots of 2026-11-18 in [`evidence/`](evidence/)
 - [x] Demo torrent added to qBittorrent and seeding on the main seeder: [screenshot of 2026-11-18](evidence/2026-11-18-qbittorrent-main-seeder.png)
 - [ ] Download of the demo torrent from another machine and another network (for example a mobile hotspot), through the torrent and not by copying the file, with date, network and result:
-  - `…-backup-pairs.png`: *Pairs* tab during the download, at least one connected peer and a download speed above 0
+  - [x] during the download, at least one connected peer and a download speed above 0: [`2026-11-18-qbittorrent-backup-downloading.png`](evidence/2026-11-18-qbittorrent-backup-downloading.png) (*General* tab, 1 seed, 30.7 KiB/s)
   - `…-backup-infohash.png`: *General* tab after the download, info hash v1 `4e626263b96d72a36b1b963f44188bf937004d5f` and *Downloaded* 123.2 MiB (a copied file would show 0)
   - optional: `shasum -a 256 sintel.mp4` on that machine, giving `0abf1acde9c84a7a7225250fdc65dc744918ad114b1742f6e0dca81be6cbe6a4`
 - [ ] Backup seeder: the same machine keeps the torrent seeding afterwards, `…-backup-seeder.png` showing `sintel.mp4` at 100 % with status *Seeding*
