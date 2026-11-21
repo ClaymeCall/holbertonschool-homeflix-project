@@ -28,8 +28,8 @@ export function AppLayout() {
             Search
           </NavLink>
           {admin && (
-            <NavLink to="/downloads" className={navClass}>
-              Downloads
+            <NavLink to="/admin" className={navClass}>
+              Administration
             </NavLink>
           )}
         </nav>
