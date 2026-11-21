@@ -6,6 +6,8 @@ import { AppLayout } from './components/AppLayout'
 import { AccountsPage } from './pages/AccountsPage'
 import { DownloadsPage } from './pages/DownloadsPage'
 import { HomePage } from './pages/HomePage'
+import { LibraryPage } from './pages/LibraryPage'
+import { MediaEditPage } from './pages/MediaEditPage'
 import { MovieDetailsPage } from './pages/MovieDetailsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PlayerPage } from './pages/PlayerPage'
@@ -62,6 +64,8 @@ function App() {
           >
             <Route index element={<Navigate to="status" replace />} />
             <Route path="accounts" element={<AccountsPage />} />
+            <Route path="library" element={<LibraryPage />} />
+            <Route path="library/media/:id" element={<MediaEditPage />} />
             <Route path="downloads" element={<DownloadsPage />} />
             <Route path="status" element={<StatusPage />} />
           </Route>

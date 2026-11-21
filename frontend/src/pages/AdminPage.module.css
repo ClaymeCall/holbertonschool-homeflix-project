@@ -186,6 +186,24 @@
   color: var(--text);
 }
 
+/* A compact line of a long list (the titles of LibraryPage). */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.plainList {
+  margin: 0;
+  padding-left: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
 /* Several badges side by side (AccountsPage). */
 .tags {
   display: flex;
@@ -195,6 +213,11 @@
 
 .form {
   max-width: 32rem;
+}
+
+.textarea {
+  min-height: 8rem;
+  resize: vertical;
 }
 
 .checkbox {
@@ -233,6 +256,14 @@
 }
 
 @media (max-width: 36rem) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .row .meta {
+    grid-row: 2;
+  }
+
   .facts div {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.125rem;
