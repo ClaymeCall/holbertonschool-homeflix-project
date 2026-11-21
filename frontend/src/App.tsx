@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import { RequireAdmin, RequireAuth, RequireSetup, RequireSignedOut } from './auth/guards'
 import { AdminLayout } from './components/AdminLayout'
 import { AppLayout } from './components/AppLayout'
+import { AccountsPage } from './pages/AccountsPage'
 import { DownloadsPage } from './pages/DownloadsPage'
 import { HomePage } from './pages/HomePage'
 import { MovieDetailsPage } from './pages/MovieDetailsPage'
@@ -60,6 +61,7 @@ function App() {
             }
           >
             <Route index element={<Navigate to="status" replace />} />
+            <Route path="accounts" element={<AccountsPage />} />
             <Route path="downloads" element={<DownloadsPage />} />
             <Route path="status" element={<StatusPage />} />
           </Route>

@@ -186,7 +186,38 @@
   color: var(--text);
 }
 
-/* Service status (StatusPage). */
+/* Several badges side by side (AccountsPage). */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.form {
+  max-width: 32rem;
+}
+
+.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.checkbox input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.125rem 0 0;
+  accent-color: var(--accent);
+}
+
+.checkbox .hint {
+  display: block;
+  font-weight: 400;
+}
+
+/* Service status (StatusPage), also used for the role of an account. */
 .running {
   border-color: var(--accent);
   color: var(--accent);
