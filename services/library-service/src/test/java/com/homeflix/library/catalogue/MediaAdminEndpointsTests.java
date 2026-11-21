@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -97,7 +96,7 @@ class MediaAdminEndpointsTests {
 
 		edit(id, """
 				{"title": "  Heat  ", "description": "A thief and a cop.", "genres": ["Crime", "Drama"],
-				 "durationSeconds": 10200, "posterUrl": "https://images.example.org/heat.jpg"}
+				 "durationSeconds": 10200, "posterUrl": "https://upload.wikimedia.org/heat.jpg"}
 				""").andExpect(status().isOk())
 				.andExpect(jsonPath("$.id").value(id.toString()))
 				.andExpect(jsonPath("$.title").value("Heat"))
@@ -105,7 +104,7 @@ class MediaAdminEndpointsTests {
 				.andExpect(jsonPath("$.genres[0]").value("Crime"))
 				.andExpect(jsonPath("$.genres[1]").value("Drama"))
 				.andExpect(jsonPath("$.durationSeconds").value(10200))
-				.andExpect(jsonPath("$.posterUrl").value("https://images.example.org/heat.jpg"))
+				.andExpect(jsonPath("$.posterUrl").value("https://upload.wikimedia.org/heat.jpg"))
 				.andExpect(jsonPath("$.availability").value("AVAILABLE"));
 
 		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/media/" + id)
@@ -157,9 +156,10 @@ class MediaAdminEndpointsTests {
 		refused(id, "{\"title\": \"" + "x".repeat(501) + "\"}", "title");
 		refused(id, "{\"title\": \"T\", \"description\": \"" + "x".repeat(5001) + "\"}", "description");
 		refused(id, "{\"title\": \"T\", \"durationSeconds\": -1}", "durationSeconds");
-		refused(id, "{\"title\": \"T\", \"posterUrl\": \"http://images.example.org/a.jpg\"}", "posterUrl");
+		refused(id, "{\"title\": \"T\", \"posterUrl\": \"http://upload.wikimedia.org/a.jpg\"}", "posterUrl");
 		refused(id, "{\"title\": \"T\", \"posterUrl\": \"javascript:alert(1)\"}", "posterUrl");
-		refused(id, "{\"title\": \"T\", \"posterUrl\": \"https://user:pw@images.example.org/a.jpg\"}", "posterUrl");
+		refused(id, "{\"title\": \"T\", \"posterUrl\": \"https://evil.example.com/a.jpg\"}", "posterUrl");
+		refused(id, "{\"title\": \"T\", \"posterUrl\": \"https://user:pw@upload.wikimedia.org/a.jpg\"}", "posterUrl");
 		refused(id, "{\"title\": \"T\", \"posterUrl\": \"https://exa mple.org/a.jpg\"}", "posterUrl");
 		refused(id, "{\"title\": \"T\", \"genres\": [\"  \"]}", "genres");
 		refused(id, "{\"title\": \"T\", \"genres\": [\"" + "g".repeat(51) + "\"]}", "genres");

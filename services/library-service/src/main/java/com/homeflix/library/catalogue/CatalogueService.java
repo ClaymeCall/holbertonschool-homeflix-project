@@ -1,7 +1,5 @@
 package com.homeflix.library.catalogue;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -23,7 +21,6 @@ public class CatalogueService {
 
 	static final int MAX_TITLE_LENGTH = 500;
 	static final int MAX_DESCRIPTION_LENGTH = 5000;
-	static final int MAX_POSTER_LENGTH = 2048;
 	static final int MAX_GENRES = 10;
 	static final int MAX_TEXT_LENGTH = 100;
 	static final int MAX_GENRE_LENGTH = 50;
@@ -31,9 +28,11 @@ public class CatalogueService {
 	static final int MAX_LIMIT = 100;
 
 	private final CatalogueRepository catalogue;
+	private final PosterPolicy posters;
 
-	CatalogueService(CatalogueRepository catalogue) {
+	CatalogueService(CatalogueRepository catalogue, PosterPolicy posters) {
 		this.catalogue = catalogue;
+		this.posters = posters;
 	}
 
 	/**
@@ -159,24 +158,18 @@ public class CatalogueService {
 		return kept;
 	}
 
-	/** An https address with a host, or null when there is none. The server never fetches it (ADR-0018). */
-	private static String cleanPoster(String value, Map<String, String> errors) {
+	/** The poster address if the policy accepts it, null when there is none. The server never fetches it (ADR-0018). */
+	private String cleanPoster(String value, Map<String, String> errors) {
 		String poster = blankToNull(value);
 		if (poster == null) {
 			return null;
 		}
-		try {
-			URI uri = new URI(poster);
-			if (poster.length() <= MAX_POSTER_LENGTH && "https".equalsIgnoreCase(uri.getScheme())
-					&& uri.getHost() != null && uri.getUserInfo() == null) {
-				return poster;
-			}
+		var refusal = posters.refusal(poster);
+		if (refusal.isPresent()) {
+			errors.put("posterUrl", refusal.get());
+			return null;
 		}
-		catch (URISyntaxException e) {
-			// reported below
-		}
-		errors.put("posterUrl", "Enter an https address.");
-		return null;
+		return poster;
 	}
 
 	private static String blankToNull(String value) {
