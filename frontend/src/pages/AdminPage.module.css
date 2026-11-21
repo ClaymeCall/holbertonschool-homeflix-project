@@ -1,10 +1,8 @@
+/* Shared by the pages of the administration area. AdminLayout sets their width and padding. */
 .page {
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  max-width: 64rem;
-  margin: 0 auto;
-  padding: 2rem var(--gutter) 3rem;
 }
 
 .title {
@@ -186,6 +184,21 @@
 .FAILED {
   border-style: dotted;
   color: var(--text);
+}
+
+/* Service status (StatusPage). */
+.running {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.unavailable {
+  border-style: dotted;
+  color: var(--text);
+}
+
+.unknown {
+  color: var(--text-muted);
 }
 
 @media (max-width: 36rem) {
