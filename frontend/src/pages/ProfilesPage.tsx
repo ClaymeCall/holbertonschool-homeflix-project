@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ApiError } from '../api/client'
-import { describeError } from '../api/errors'
+import { describeError, isNotFound } from '../api/errors'
 import { createProfile, listProfiles, type Profile } from '../api/identity'
 import { useAuth } from '../auth/AuthContext'
 import { redirectTarget } from '../auth/redirect'
@@ -49,6 +49,8 @@ export function ProfilesPage() {
     } catch (error) {
       setNotice({ kind: 'error', text: describeError(error) })
       setChoosing(null)
+      // Deleted meanwhile, for example from another tab: the list is read again without it.
+      if (isNotFound(error)) profiles.reload()
     }
   }
 

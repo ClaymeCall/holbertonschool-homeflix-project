@@ -105,17 +105,49 @@ describe('ProfilesPage', () => {
     expect(await within(await screen.findByRole('banner')).findByText('Sam')).toBeInTheDocument()
   })
 
+  it('shows the profile screen again when a renewal after a refused call has lost the profile', async () => {
+    // A call answers 401, the session is renewed, and the new token has no profile any more.
+    household(
+      {
+        'GET /api/library/media': () => jsonResponse({ error: 'unauthenticated', message: 'Sign in to continue.' }, 401),
+        'POST /api/identity/auth/refresh': () => jsonResponse(noProfile),
+      },
+      testAccount,
+    )
+    renderApp('/')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Who is watching?' })).toBeInTheDocument()
+  })
+
+  it('reads the list again when the chosen profile was deleted meanwhile', async () => {
+    let profiles = [testProfile, sam]
+    household({
+      'GET /api/identity/profiles': () => jsonResponse(profiles),
+      'POST /api/identity/profiles/p2/select': () => {
+        profiles = [testProfile]
+        return jsonResponse({ error: 'not_found', message: 'This address does not exist.' }, 404)
+      },
+    })
+    renderApp('/')
+
+    await userEvent.click(await screen.findByRole('button', { name: /Sam/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('This address does not exist.')
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Sam/ })).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: /Camille/ })).toBeInTheDocument()
+  })
+
   it('shows the server message when a profile cannot be chosen', async () => {
     household({
       'POST /api/identity/profiles/p2/select': () =>
-        jsonResponse({ error: 'not_found', message: 'This address does not exist.' }, 404),
+        jsonResponse({ error: 'service_unavailable', message: 'This part of HomeFlix is temporarily unavailable.' }, 503),
     })
     renderApp('/')
 
     await userEvent.click(await screen.findByRole('button', { name: /Sam/ }))
 
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('This address does not exist.')
+    expect(alert).toHaveTextContent('This part of HomeFlix is temporarily unavailable.')
     expect(alert).toHaveFocus()
     expect(screen.getByRole('button', { name: /Sam/ })).toBeEnabled()
   })

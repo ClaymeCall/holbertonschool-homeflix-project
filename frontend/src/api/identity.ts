@@ -64,9 +64,12 @@ export function getCurrentAccount(signal?: AbortSignal): Promise<Account> {
   return apiRequest<Account>(`${BASE}/auth/me`, { signal, renewSession: false })
 }
 
-/** Asks the identity service for a fresh token. Fails for a disabled or deleted account (G3). */
-export function renewSession(): Promise<void> {
-  return apiRequest<void>(`${BASE}/auth/refresh`, { method: 'POST', renewSession: false })
+/**
+ * Asks the identity service for a fresh token. Fails for a disabled or deleted account (G3). Returns the
+ * account of the new token: its `profileId` is null if the active profile was deleted since.
+ */
+export function renewSession(): Promise<Account> {
+  return apiRequest<Account>(`${BASE}/auth/refresh`, { method: 'POST', renewSession: false })
 }
 
 /** The profiles of the signed-in account, oldest first. */
