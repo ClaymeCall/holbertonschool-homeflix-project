@@ -12,6 +12,8 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.homeflix.acquisition.config.DownloadsProperties;
 import com.homeflix.acquisition.config.TrackingProperties;
@@ -61,15 +63,18 @@ public class DownloadTracker {
 	private final DownloadedFileVerifier verifier;
 	private final TrackingProperties settings;
 	private final DownloadsProperties downloadSettings;
+	private final TransactionTemplate transaction;
 
 	DownloadTracker(DownloadRepository downloads, QbittorrentClient torrents, LibraryClient library,
-			DownloadedFileVerifier verifier, TrackingProperties settings, DownloadsProperties downloadSettings) {
+			DownloadedFileVerifier verifier, TrackingProperties settings, DownloadsProperties downloadSettings,
+			PlatformTransactionManager transactionManager) {
 		this.downloads = downloads;
 		this.torrents = torrents;
 		this.library = library;
 		this.verifier = verifier;
 		this.settings = settings;
 		this.downloadSettings = downloadSettings;
+		this.transaction = new TransactionTemplate(transactionManager);
 	}
 
 	public void check() {
@@ -197,12 +202,16 @@ public class DownloadTracker {
 			}
 		}
 		for (String hash : downloads.latestJobFailedAmong(ours)) {
-			// A new start may have taken this torrent over since the list was read: it is then kept.
-			if (downloads.hasActiveJobWithHash(hash)) {
-				continue;
-			}
-			log.info("Removing the torrent {} of a failed download", hash);
-			removeQuietly(hash);
+			// Checked again under the entry's lock, which a start holds until its job exists: a new start that
+			// takes this torrent over is either seen here, or adds the torrent after it is removed.
+			transaction.executeWithoutResult(status -> {
+				downloads.lockEntry(downloads.entryOfHash(hash));
+				if (downloads.latestJobFailedAmong(Set.of(hash)).isEmpty()) {
+					return;
+				}
+				log.info("Removing the torrent {} of a failed download", hash);
+				removeQuietly(hash);
+			});
 		}
 	}
 
@@ -234,12 +243,22 @@ public class DownloadTracker {
 		}
 	}
 
+	/**
+	 * Under the entry's lock, which a start holds while it tells the library: a failure of an earlier attempt
+	 * is never told after a new attempt told the library the title downloads (consistency rules).
+	 */
 	private void tellLibraryAboutFailures() {
-		downloads.markSupersededFailuresSynced();
 		for (DownloadRepository.UnsyncedFailure failure : downloads.unsyncedFailures()) {
-			if (library.downloadFailed(failure.entryId())) {
-				downloads.markLibrarySynced(failure.id());
-			}
+			transaction.executeWithoutResult(status -> {
+				downloads.lockEntry(failure.entryId());
+				if (downloads.hasNewerJob(failure.id(), failure.entryId())) {
+					// The library follows the newer job.
+					downloads.markLibrarySynced(failure.id());
+				}
+				else if (library.downloadFailed(failure.entryId())) {
+					downloads.markLibrarySynced(failure.id());
+				}
+			});
 		}
 	}
 
