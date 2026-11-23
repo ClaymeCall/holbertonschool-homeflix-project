@@ -132,6 +132,14 @@ class DownloadRepository {
 		jdbc.queryForList("select id from acquisition_entry where id = ? for update", entryId);
 	}
 
+	/** Whether the entry has a job created after this one: a later attempt, which the library follows. */
+	boolean hasNewerJob(UUID jobId, UUID entryId) {
+		return Boolean.TRUE.equals(jdbc.queryForObject("""
+				select exists (select 1 from download_job newer
+				    where newer.entry_id = ? and newer.created_at > (select created_at from download_job where id = ?))
+				""", Boolean.class, entryId, jobId));
+	}
+
 	/** Whether a job other than this one is active with this info hash: the torrent is then its own. */
 	boolean hasOtherActiveJob(String clientHash, UUID jobId) {
 		return Boolean.TRUE.equals(jdbc.queryForObject("""

@@ -42,6 +42,10 @@ import com.homeflix.acquisition.web.RejectedRequestException;
  * of the entry is active, under the entry's lock, which a start also takes to create its job: a late cleanup
  * never removes the torrent and the files of the start that followed.
  *
+ * <p>The library is told about a failure under the same lock, and not at all if the entry has a newer job: it
+ * then follows that job. A start holds the lock while it tells the library, so a late failure notice of an
+ * earlier attempt can no longer make the entry UNAVAILABLE after a new attempt told it the title downloads.
+ *
  * <p>A crash between the job's creation and the torrent's addition leaves a QUEUED job whose torrent is not
  * in the client. The status check fails it with {@code torrent_missing} after a grace period.
  *
@@ -72,23 +76,22 @@ public class DownloadService {
 
 	public Download start(UUID entryId, UUID startedBy) {
 		DownloadableEntry entry = entries.findDownloadable(entryId).orElseThrow(NotFoundException::new);
-		if (downloads.hasActiveJob(entryId)) {
-			throw inProgress();
-		}
-
-		// The library first, so the catalogue never misses a download that is running.
-		library.downloadStarting(entry.id(), entry.title());
-
 		UUID jobId;
 		try {
-			// Under the entry's lock, so a late cleanup of an earlier start sees this job (see below).
+			// Under the entry's lock, held while the library is told: a late cleanup or failure notice of an
+			// earlier attempt either comes first, or sees this job and leaves it alone (see below).
 			jobId = transaction.execute(status -> {
 				downloads.lockEntry(entry.id());
+				if (downloads.hasActiveJob(entryId)) {
+					throw inProgress();
+				}
+				// The library first, so the catalogue never misses a download that is running.
+				library.downloadStarting(entry.id(), entry.title());
 				return downloads.insertQueued(entry.id(), entry.infoHash(), startedBy);
 			});
 		}
 		catch (DuplicateKeyException ex) {
-			// Another start of the same entry won the race. The library call above changed nothing (idempotent).
+			// An active job already has this torrent. The library call changed nothing (idempotent).
 			throw inProgress();
 		}
 
@@ -189,9 +192,16 @@ public class DownloadService {
 	}
 
 	private void tellLibraryItFailed(UUID jobId, UUID entryId) {
-		if (library.downloadFailed(entryId)) {
-			downloads.markLibrarySynced(jobId);
-		}
+		transaction.executeWithoutResult(status -> {
+			downloads.lockEntry(entryId);
+			if (downloads.hasNewerJob(jobId, entryId)) {
+				// A new attempt has told the library since: its own outcome is what the library must show.
+				downloads.markLibrarySynced(jobId);
+			}
+			else if (library.downloadFailed(entryId)) {
+				downloads.markLibrarySynced(jobId);
+			}
+		});
 	}
 
 	private static RejectedRequestException inProgress() {

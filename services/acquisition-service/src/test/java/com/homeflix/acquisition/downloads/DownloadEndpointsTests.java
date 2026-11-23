@@ -16,7 +16,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -42,6 +45,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import com.homeflix.acquisition.HeaderCallers;
 import com.homeflix.acquisition.TestcontainersConfiguration;
+import com.homeflix.acquisition.library.LibraryClient;
 import com.homeflix.acquisition.support.LibraryStub;
 import com.homeflix.acquisition.support.QbittorrentContainer;
 import com.homeflix.acquisition.torrent.QbittorrentClient;
@@ -82,6 +86,9 @@ class DownloadEndpointsTests {
 	/** The real client, unless a test makes it fail or interleaves a cancel. */
 	@MockitoSpyBean
 	private QbittorrentClient torrents;
+	/** The real client, unless a test holds back a call. */
+	@MockitoSpyBean
+	private LibraryClient library;
 
 	private final ObjectMapper json = new ObjectMapper();
 	private MockMvc mvc;
@@ -358,6 +365,38 @@ class DownloadEndpointsTests {
 		});
 
 		assertTheSecondStartIsRunning(b);
+	}
+
+	@Test
+	void aLateFailureNoticeOfACancelledAttemptDoesNotUndoTheNextAttempt() throws Exception {
+		// A is cancelled. Just before its failure notice is sent, B of the same entry starts. The library must
+		// end with B's start: a late /failed would make the entry UNAVAILABLE while B downloads.
+		UUID first = startedJob();
+		CountDownLatch secondStarted = new CountDownLatch(1);
+		CompletableFuture<UUID> second = new CompletableFuture<>();
+		doAnswer(call -> {
+			CompletableFuture.runAsync(() -> {
+				try {
+					second.complete(downloads.start(entryId, UUID.randomUUID()).id());
+				}
+				catch (RuntimeException ex) {
+					second.completeExceptionally(ex);
+				}
+				secondStarted.countDown();
+			});
+			// Gives the second start the time to tell the library, if nothing holds it back.
+			secondStarted.await(500, TimeUnit.MILLISECONDS);
+			return call.callRealMethod();
+		}).when(library).downloadFailed(entryId);
+
+		as("admin", post("/downloads/" + first + "/cancel")).andExpect(status().isOk());
+
+		UUID secondId = second.get(5, TimeUnit.SECONDS);
+		assertThat(LIBRARY.calls()).extracting(LibraryStub.Call::method, LibraryStub.Call::path).endsWith(
+				tuple("POST", "/internal/downloads/" + entryId + "/failed"),
+				tuple("PUT", "/internal/downloads/" + entryId));
+		assertThat(jdbc.queryForObject("select state from download_job where id = ?", String.class, secondId))
+				.isEqualTo("QUEUED");
 	}
 
 	// ---- Cancel (consistency rules, "Failing and cancelling") ----
