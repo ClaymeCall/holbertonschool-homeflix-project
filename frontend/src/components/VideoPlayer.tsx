@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { probeStream, saveProgress, streamUrl } from '../api/library'
 import { useAuth } from '../auth/AuthContext'
 import { formatClock, formatSpokenTime } from '../format'
@@ -71,6 +71,42 @@ async function diagnose(mediaId: string, error: MediaError | null): Promise<Prob
 
 type WebkitVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void }
 
+interface Position {
+  position: number
+  duration: number
+}
+
+/**
+ * Sends one save at a time, and then only the latest position asked for meanwhile: the server keeps the last
+ * save it receives, so a slow save must never land after a newer one. A save while the page closes is sent at
+ * once with keepalive, since there is no time to wait.
+ */
+function oneSaveAtATime(send: (saved: Position, keepalive: boolean) => Promise<unknown>) {
+  let running = false
+  let next: Position | null = null
+  function run(saved: Position) {
+    running = true
+    send(saved, false)
+      .catch(() => undefined)
+      .finally(() => {
+        running = false
+        const queued = next
+        next = null
+        if (queued) run(queued)
+      })
+  }
+  return (saved: Position, keepalive: boolean) => {
+    if (keepalive) {
+      next = null
+      send(saved, true).catch(() => undefined)
+    } else if (running) {
+      next = saved
+    } else {
+      run(saved)
+    }
+  }
+}
+
 function fullscreenSupported(): boolean {
   return Boolean(document.fullscreenEnabled) || 'webkitEnterFullscreen' in HTMLVideoElement.prototype
 }
@@ -109,14 +145,18 @@ export function VideoPlayer({
   const [canFullscreen] = useState(fullscreenSupported)
 
   /** Saves where the viewer is, for this profile (PLY-07). A failed save never interrupts playback. */
+  const send = useMemo(
+    () => oneSaveAtATime((saved, keepalive) => saveProgress(mediaId, saved.position, saved.duration, { keepalive })),
+    [mediaId],
+  )
   const save = useCallback(
     (keepalive = false) => {
       const { played, position, duration } = watched.current
       const whole = Math.floor(duration)
       if (!played || !Number.isFinite(whole) || whole < 1) return
-      saveProgress(mediaId, Math.min(Math.floor(position), whole), whole, { keepalive }).catch(() => undefined)
+      send({ position: Math.min(Math.floor(position), whole), duration: whole }, keepalive)
     },
-    [mediaId],
+    [send],
   )
 
   useEffect(() => {
@@ -167,6 +207,8 @@ export function VideoPlayer({
     if (!video) return
     const target = Math.min(Math.max(seconds, 0), duration || 0)
     video.currentTime = target
+    // Kept at once: a pause right after the jump must save the new position, not the last one played.
+    watched.current.position = target
     setTime(target)
   }
 

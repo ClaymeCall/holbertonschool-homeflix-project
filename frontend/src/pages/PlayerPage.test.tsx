@@ -350,4 +350,40 @@ describe('PlayerPage', () => {
     expect(await screen.findByRole('heading', { level: 1, name: movie.title })).toBeInTheDocument()
     expect(savedBodies(fetch)).toHaveLength(0)
   })
+
+  it('saves the new position when paused right after a jump', async () => {
+    const fetch = playerWithProgress(saved(0, 'COMPLETED'))
+    const video = await openPlayer()
+    fireEvent.play(video)
+    watchUntil(video, 120)
+
+    fireEvent.change(screen.getByRole('slider', { name: 'Playback position' }), { target: { value: '600' } })
+    fireEvent.pause(video)
+
+    expect(savedBodies(fetch)).toEqual([{ positionSeconds: 600, durationSeconds: 5520 }])
+  })
+
+  it('sends one save at a time, so a slow save never overwrites a newer one', async () => {
+    let answerFirst: () => void = () => {}
+    const fetch = playerWithProgress(saved(0, 'COMPLETED'))
+    const fast = fetch.getMockImplementation()!
+    fetch.mockImplementation((input, init) =>
+      init?.method === 'PUT' && callsTo(fetch, 'PUT /api/library/progress/m1').length === 1
+        ? new Promise((resolve) => (answerFirst = () => resolve(jsonResponse({}))))
+        : fast(input, init),
+    )
+    const video = await openPlayer()
+    fireEvent.play(video)
+    watchUntil(video, 120)
+    fireEvent.pause(video)
+    fireEvent.play(video)
+    watchUntil(video, 150)
+    fireEvent.pause(video)
+
+    // The second save waits for the first one.
+    expect(savedBodies(fetch)).toEqual([{ positionSeconds: 120, durationSeconds: 5520 }])
+    answerFirst()
+    await waitFor(() => expect(savedBodies(fetch)).toHaveLength(2))
+    expect(savedBodies(fetch)[1]).toEqual({ positionSeconds: 150, durationSeconds: 5520 })
+  })
 })
