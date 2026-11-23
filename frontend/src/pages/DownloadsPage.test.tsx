@@ -138,9 +138,13 @@ describe('DownloadsPage', () => {
     expect(within(items[2]).queryByRole('button')).not.toBeInTheDocument()
     expect(within(items[3]).getByText('Failed')).toBeInTheDocument()
     expect(within(items[3]).getByText('This download was cancelled.')).toBeInTheDocument()
-    // An entry with an active download cannot be started again.
-    expect(screen.getByRole('button', { name: 'Download Sintel' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Download Tears of Steel' })).toBeDisabled()
+    // An entry with an active download cannot be started again, and says why.
+    const button = screen.getByRole('button', { name: 'Downloading Sintel' })
+    expect(button).toBeDisabled()
+    expect(button).toHaveTextContent('Downloading…')
+    expect(screen.getByRole('button', { name: 'Downloading Tears of Steel' })).toBeDisabled()
+    const entry = within(screen.getByRole('region', { name: 'Verified catalogue' }))
+    expect(entry.getAllByText('This title is already downloading. Follow it in All downloads.')).toHaveLength(2)
   })
 
   it('shows a download at 100 % as finishing, without cancel', async () => {
@@ -203,6 +207,8 @@ describe('DownloadsPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Download Sintel' }))
     const dialog = screen.getByRole('dialog', { name: 'Before you download' })
     expect(dialog).toHaveFocus()
+    // Announced with the dialog, so the reminder cannot be skipped.
+    expect(dialog).toHaveAccessibleDescription(/pieces of it are automatically shared with other people/)
     expect(within(dialog).getByText(/pieces of it are automatically shared with other people/)).toBeInTheDocument()
     expect(within(dialog).getByText(/Peer-to-peer gives you no rights over a work/)).toBeInTheDocument()
     expect(within(dialog).getByText('This reminder does not replace checking the rights.')).toBeInTheDocument()
@@ -215,6 +221,27 @@ describe('DownloadsPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('The download of Sintel has started.')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await waitFor(() => expect(callsTo(fetch, 'GET /api/acquisition/downloads')).toHaveLength(2))
+  })
+
+  it('moves focus to the outcome once the download has started and its button is disabled', async () => {
+    let started = false
+    acquisition({
+      'GET /api/acquisition/downloads': () =>
+        jsonResponse(started ? [download({ id: 'd1', entryId: 'e1' })] : []),
+      'POST /api/acquisition/downloads': () => {
+        started = true
+        return jsonResponse(download({ id: 'd1', entryId: 'e1' }), 201)
+      },
+    })
+    renderApp('/admin/downloads')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Download Sintel' }))
+    await user.click(screen.getByRole('button', { name: 'I understand' }))
+
+    expect(await screen.findByRole('button', { name: 'Downloading Sintel' })).toBeDisabled()
+    expect(screen.getByRole('status')).toHaveTextContent('The download of Sintel has started.')
+    expect(screen.getByRole('status')).toHaveFocus()
   })
 
   it('starts nothing when the reminder is dismissed, with its button or Escape', async () => {
@@ -286,6 +313,29 @@ describe('DownloadsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Cancel download' }))
     expect(callsTo(fetch, 'POST /api/acquisition/downloads/d1/cancel')).toHaveLength(1)
     expect(await screen.findByRole('status')).toHaveTextContent('The download of Sintel was cancelled.')
+  })
+
+  it('moves focus to the outcome once the download is cancelled and its button is gone', async () => {
+    let cancelled = false
+    acquisition({
+      'GET /api/acquisition/downloads': () =>
+        jsonResponse([
+          download({ id: 'd1', entryId: 'e1', ...(cancelled ? { state: 'FAILED', errorCode: 'cancelled' } : { state: 'DOWNLOADING' }) }),
+        ]),
+      'POST /api/acquisition/downloads/d1/cancel': () => {
+        cancelled = true
+        return jsonResponse(download({ id: 'd1', entryId: 'e1', state: 'FAILED', errorCode: 'cancelled' }))
+      },
+    })
+    renderApp('/admin/downloads')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Cancel the download of Sintel' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel download' }))
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Cancel the download of Sintel' })).not.toBeInTheDocument())
+    expect(screen.getByRole('status')).toHaveTextContent('The download of Sintel was cancelled.')
+    expect(screen.getByRole('status')).toHaveFocus()
   })
 
   it('shows the server message when a cancel is refused', async () => {

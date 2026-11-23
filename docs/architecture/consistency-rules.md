@@ -137,7 +137,7 @@ The call is idempotent: if the entry is already `AVAILABLE` with the same file, 
 - Between "the torrent client says complete" and "the library confirmed", the job stays `DOWNLOADING` at 100 %. The screen can show it as finishing.
 - If the library does not answer or refuses, acquisition **tries again at the next 10-second status check**. It does not rely on the automatic retry, which is for `GET` only.
 - After **5 minutes** without success the job becomes `FAILED` with `error_code = 'handoff_failed'`. The administrator sees it in the download screen (ACQ-04), with a plain message. The detail goes to the log only (SEC-04).
-- The size and format check can also fail the job, with `error_code = 'verification_failed'`. Nothing is handed over.
+- The size and format check can also fail the job, with `error_code = 'verification_failed'`. Nothing is handed over. A file that cannot be read (a permission or I/O problem) does not fail the check: it is kept and checked again at the next status check, since a refused file is deleted.
 - A cancelled job is `FAILED` with `error_code = 'cancelled'` (data model).
 - A job whose torrent is no longer in the torrent client (removed by hand, or a crash between creating the job and adding the torrent) becomes `FAILED` with `error_code = 'torrent_missing'` after a grace period of 60 seconds (`homeflix.downloads.tracking.missing-grace`), which leaves time for a start that is still adding it. A torrent in error in the client makes the job `FAILED` with `client_error`, and the torrent is removed.
 - A torrent HomeFlix added for a job that has since failed or been cancelled, and that is still in the client, is removed at the next status check. The torrents of completed jobs and the torrents HomeFlix did not add are never touched.
@@ -151,6 +151,8 @@ After `handoff_failed`, the verified file and its torrent are kept: starting the
 Whenever a job becomes `FAILED`, acquisition calls `POST /internal/downloads/{entryId}/failed`. The library makes a `DOWNLOADING` entry `UNAVAILABLE`, so the catalogue does not show a download that is no longer running. The entry keeps its title and can be downloaded again (see "Starting"), or removed by an administrator (H8).
 
 If the library does not answer, the job stays marked as not yet notified, and acquisition repeats the call at each status check until it works. Until then the title shows as downloading, which is the only visible inconsistency, and it ends by itself.
+
+A failure is no longer repeated once the entry has a newer job, since the library then follows that job: telling it about the older failure would make the entry `UNAVAILABLE` while the newer job downloads. A `404` means the library no longer has the entry (H8), so there is nothing left to tell.
 
 The job table needs one extra column for this, `library_synced_at` (null while a notification is pending). It is added to the data model with this document, and created by the acquisition migration (J3).
 

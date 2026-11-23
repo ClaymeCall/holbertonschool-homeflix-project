@@ -75,12 +75,17 @@ class DownloadRepository {
 				grace.toMillis() / 1000.0, handoffTimeout.toMillis() / 1000.0);
 	}
 
-	/** The file passed the checks: the handoff starts now, and its time limit runs from here. */
-	void markVerified(UUID id, String relativePath) {
-		jdbc.update("""
+	/**
+	 * The file passed the checks: the handoff starts now, and its time limit runs from here. The update waits
+	 * for a cancel that holds the job's lock, and then changes nothing.
+	 *
+	 * @return false when the job is no longer active (cancelled meanwhile): the file must not be handed over
+	 */
+	boolean markVerified(UUID id, String relativePath) {
+		return jdbc.update("""
 				update download_job set completed_relative_path = ?, handoff_started_at = now()
 				where id = ? and state in ('QUEUED', 'DOWNLOADING') and completed_relative_path is null
-				""", relativePath, id);
+				""", relativePath, id) == 1;
 	}
 
 	/** The library has the file: COMPLETED, and the library is in sync. */
@@ -103,23 +108,41 @@ class DownloadRepository {
 				""", state.name(), progressPercent, id, state.name(), progressPercent);
 	}
 
+	/**
+	 * Marks as told the failures of jobs whose entry has a newer job: the library follows the newer job, and
+	 * telling it about the older failure would make the entry UNAVAILABLE while the newer job downloads.
+	 */
+	void markSupersededFailuresSynced() {
+		jdbc.update("""
+				update download_job failed set library_synced_at = now()
+				where failed.state = 'FAILED' and failed.library_synced_at is null
+				  and exists (select 1 from download_job newer
+				      where newer.entry_id = failed.entry_id and newer.created_at > failed.created_at)
+				""");
+	}
+
 	List<UnsyncedFailure> unsyncedFailures() {
 		return jdbc.query("select id, entry_id from download_job where state = 'FAILED' and library_synced_at is null",
 				(rs, row) -> new UnsyncedFailure(rs.getObject("id", UUID.class), rs.getObject("entry_id", UUID.class)));
 	}
 
 	/**
-	 * Those of these jobs that are FAILED, except a failed handoff: its file passed the checks and is kept, so
-	 * starting the download again hands it over without downloading it again.
+	 * Those of these info hashes whose latest job is FAILED, except a failed handoff: its file passed the
+	 * checks and is kept, so starting the download again hands it over without downloading it again. A hash
+	 * whose latest job is active or completed is left out: a new start may have taken over a torrent left by a
+	 * failed job, keeping its tag.
 	 */
-	Set<UUID> failedAmong(Collection<UUID> ids) {
-		if (ids.isEmpty()) {
+	Set<String> latestJobFailedAmong(Collection<String> hashes) {
+		if (hashes.isEmpty()) {
 			return Set.of();
 		}
-		String placeholders = String.join(", ", Collections.nCopies(ids.size(), "?"));
-		return Set.copyOf(jdbc.queryForList("select id from download_job where state = 'FAILED' "
-				+ "and error_code <> 'handoff_failed' and id in (" + placeholders + ")",
-				UUID.class, ids.toArray()));
+		String placeholders = String.join(", ", Collections.nCopies(hashes.size(), "?"));
+		return Set.copyOf(jdbc.queryForList("""
+				select client_hash from (
+				    select distinct on (client_hash) client_hash, state, error_code from download_job
+				    where client_hash in (%s) order by client_hash, created_at desc) latest
+				where state = 'FAILED' and error_code <> 'handoff_failed'
+				""".formatted(placeholders), String.class, hashes.toArray()));
 	}
 
 	boolean hasActiveJobWithHash(String clientHash) {
@@ -132,6 +155,22 @@ class DownloadRepository {
 		return Boolean.TRUE.equals(jdbc.queryForObject(
 				"select exists (select 1 from download_job where entry_id = ? and state in ('QUEUED', 'DOWNLOADING'))",
 				Boolean.class, entryId));
+	}
+
+	/**
+	 * Locks the entry until the end of the transaction. A start takes it to create its job, and the cleanup
+	 * of a failed or cancelled start takes it to check that no other job uses the torrent.
+	 */
+	void lockEntry(UUID entryId) {
+		jdbc.queryForList("select id from acquisition_entry where id = ? for update", entryId);
+	}
+
+	/** Whether a job other than this one is active with this info hash: the torrent is then its own. */
+	boolean hasOtherActiveJob(String clientHash, UUID jobId) {
+		return Boolean.TRUE.equals(jdbc.queryForObject("""
+				select exists (select 1 from download_job
+				    where client_hash = ? and id <> ? and state in ('QUEUED', 'DOWNLOADING'))
+				""", Boolean.class, clientHash, jobId));
 	}
 
 	/**

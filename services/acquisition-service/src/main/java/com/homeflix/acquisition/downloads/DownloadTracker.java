@@ -34,16 +34,19 @@ import com.homeflix.acquisition.web.ServiceUnavailableException;
  * grace period fails with {@code torrent_missing}.</li>
  * <li>Hands each completed torrent to the library (J7): the file is checked once
  * ({@link DownloadedFileVerifier}); a file that fails the checks fails the job with
- * {@code verification_failed} and is deleted with its torrent. A verified file is handed over at each check
+ * {@code verification_failed} and is deleted with its torrent; a file that cannot be read is kept and
+ * checked again at the next check. A verified file is handed over at each check
  * until the library accepts it, and the job is then COMPLETED. After the handoff time limit it fails with
  * {@code handoff_failed}, and the file is kept.</li>
  * <li>Removes the torrents HomeFlix added for jobs that have failed or were cancelled, if one is still in the
  * client (a cancel that came while the start was adding it, and the client was down). Torrents of
  * completed jobs and torrents HomeFlix did not add are never touched.</li>
- * <li>Tells the library about every failure it has not been told about yet.</li>
+ * <li>Tells the library about every failure it has not been told about yet, unless the entry has a newer job
+ * since: the library then follows that job.</li>
  * </ol>
  *
- * A torrent client that does not answer changes no job: the check logs it and tries again next time.
+ * A torrent client that does not answer changes no job: the check logs it and tries again next time. Any
+ * other error on one job is logged and leaves the other jobs to be checked.
  */
 @Component
 public class DownloadTracker {
@@ -92,7 +95,16 @@ public class DownloadTracker {
 		Set<String> activeHashes = new HashSet<>();
 		for (DownloadRepository.TrackedJob job : active) {
 			activeHashes.add(job.clientHash());
-			track(job, byHash.get(job.clientHash()));
+			try {
+				track(job, byHash.get(job.clientHash()));
+			}
+			catch (ServiceUnavailableException ex) {
+				throw ex;
+			}
+			catch (RuntimeException ex) {
+				// One job that cannot be updated does not stop the check of the others.
+				log.error("Download {} could not be checked; it is checked again next time", job.id(), ex);
+			}
 		}
 		removeTorrentsOfFailedJobs(listed, activeHashes);
 	}
@@ -134,8 +146,13 @@ public class DownloadTracker {
 	private void handOver(DownloadRepository.TrackedJob job, Torrent torrent) {
 		String relativePath = job.completedRelativePath();
 		if (relativePath == null) {
-			DownloadedFileVerifier.Result result = verifier.verify(torrent.savePath(), torrent.contentPath(),
-					job.expectedSizeBytes());
+			DownloadedFileVerifier.Result result = verifier.verify(torrent.contentPath(), job.expectedSizeBytes());
+			if (result instanceof DownloadedFileVerifier.Unreadable unreadable) {
+				// Says nothing about the file (a permission or I/O problem): kept, and checked again next time.
+				log.warn("Download {}: the completed file cannot be read, checked again at the next check: {}",
+						job.id(), unreadable.reason());
+				return;
+			}
 			if (result instanceof DownloadedFileVerifier.Refused refused) {
 				log.warn("Download {} failed the checks of the completed file: {}", job.id(), refused.reason());
 				if (fail(job.id(), FailureMessages.VERIFICATION_FAILED)) {
@@ -145,7 +162,11 @@ public class DownloadTracker {
 				return;
 			}
 			relativePath = ((DownloadedFileVerifier.Accepted) result).relativePath();
-			downloads.markVerified(job.id(), relativePath);
+			if (!downloads.markVerified(job.id(), relativePath)) {
+				// Cancelled while the file was checked: the cancel removed it, so the library is not told.
+				log.info("Download {} was cancelled while its file was checked: not handed over", job.id());
+				return;
+			}
 			log.info("Download {} passed the checks; handing {} to the library", job.id(), relativePath);
 		}
 		if (library.downloadCompleted(job.entryId(), relativePath)) {
@@ -166,20 +187,21 @@ public class DownloadTracker {
 	}
 
 	private void removeTorrentsOfFailedJobs(List<Torrent> listed, Set<String> activeHashes) {
-		Map<UUID, String> hashByJob = new HashMap<>();
+		Set<String> ours = new HashSet<>();
 		for (Torrent torrent : listed) {
 			String hash = torrent.hash().toLowerCase(Locale.ROOT);
-			if (!activeHashes.contains(hash)) {
-				jobOf(torrent).ifPresent(jobId -> hashByJob.put(jobId, hash));
+			// The tag only says HomeFlix added the torrent. Which job owns it is found by its hash, since a
+			// new start of the same entry keeps a torrent left in the client, with the old job's tag.
+			if (!activeHashes.contains(hash) && jobOf(torrent).isPresent()) {
+				ours.add(hash);
 			}
 		}
-		for (UUID jobId : downloads.failedAmong(hashByJob.keySet())) {
-			String hash = hashByJob.get(jobId);
+		for (String hash : downloads.latestJobFailedAmong(ours)) {
 			// A new start may have taken this torrent over since the list was read: it is then kept.
 			if (downloads.hasActiveJobWithHash(hash)) {
 				continue;
 			}
-			log.info("Removing the torrent of failed download {}", jobId);
+			log.info("Removing the torrent {} of a failed download", hash);
 			removeQuietly(hash);
 		}
 	}
@@ -213,6 +235,7 @@ public class DownloadTracker {
 	}
 
 	private void tellLibraryAboutFailures() {
+		downloads.markSupersededFailuresSynced();
 		for (DownloadRepository.UnsyncedFailure failure : downloads.unsyncedFailures()) {
 			if (library.downloadFailed(failure.entryId())) {
 				downloads.markLibrarySynced(failure.id());
