@@ -273,6 +273,38 @@ class DownloadHandoffTests {
 	}
 
 	@Test
+	void aFileThatStaysUnreadableFailsVisiblyAndIsKept() throws Exception {
+		UUID jobId = start();
+		Path file = write(Mp4Files.valid(SIZE));
+		reportComplete();
+		Files.setPosixFilePermissions(file, Set.of());
+		try {
+			tracker.check();
+			assertThat(row(jobId).get("state")).isEqualTo("DOWNLOADING");
+
+			// Still unreadable after the time limit (the handoff's, 5 minutes by default).
+			jdbc.update("update download_job set unreadable_since = now() - interval '6 minutes' where id = ?", jobId);
+			tracker.check();
+
+			Download download = downloads.get(jobId);
+			assertThat(download.state()).isEqualTo(DownloadState.FAILED);
+			assertThat(download.errorCode()).isEqualTo("file_unreadable");
+			assertThat(download.errorMessage()).isEqualTo("HomeFlix cannot read the downloaded file, so it was kept. "
+					+ "Ask an administrator to check the permissions of the downloads folder, then start it again.");
+			assertThat(LIBRARY.calls()).extracting(LibraryStub.Call::method, LibraryStub.Call::path)
+					.containsExactly(tuple("POST", "/internal/downloads/" + entryId + "/failed"));
+
+			// Kept, at this check and the next ones, so a new start checks it again without downloading it.
+			tracker.check();
+			assertThat(Files.exists(file)).isTrue();
+			assertThat(QbittorrentContainer.hasTorrent(hash)).isTrue();
+		}
+		finally {
+			Files.setPosixFilePermissions(file, Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
+		}
+	}
+
+	@Test
 	void aDownloadCancelledWhileItsFileIsCheckedIsNotHandedOver() throws Exception {
 		UUID jobId = start();
 		write(Mp4Files.valid(SIZE));

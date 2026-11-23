@@ -336,7 +336,9 @@ components:
             `client_error` (the torrent client refused, did not answer, or reported an error),
             `torrent_missing` (the torrent is no longer in the client, for example removed by hand),
             `verification_failed` (the completed file is not the expected MP4: it was deleted),
-            `handoff_failed` (the library did not accept the file within the time limit: the file is kept).
+            `handoff_failed` (the library did not accept the file within the time limit: the file is kept),
+            `file_unreadable` (the completed file could not be read within the time limit, for example a
+            permission problem: the file is kept).
           type: ['string', 'null']
           examples: [cancelled]
         errorMessage:
