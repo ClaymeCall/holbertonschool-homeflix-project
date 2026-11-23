@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { probeStream, streamUrl } from '../api/library'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { probeStream, saveProgress, streamUrl } from '../api/library'
 import { useAuth } from '../auth/AuthContext'
 import { formatClock, formatSpokenTime } from '../format'
 import { Button, ButtonLink } from './Button'
@@ -16,6 +16,8 @@ import styles from './VideoPlayer.module.css'
 const SEEK_STEP = 10
 const VOLUME_STEP = 0.1
 const HIDE_CONTROLS_AFTER_MS = 3000
+/** How often the position is saved while playing (PLY-07). Also saved on pause, at the end and on leaving. */
+export const SAVE_EVERY_MS = 10_000
 /** MediaError.MEDIA_ERR_NETWORK */
 const MEDIA_ERR_NETWORK = 2
 
@@ -73,13 +75,26 @@ function fullscreenSupported(): boolean {
   return Boolean(document.fullscreenEnabled) || 'webkitEnterFullscreen' in HTMLVideoElement.prototype
 }
 
-export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title: string; backTo: string }) {
+export function VideoPlayer({
+  mediaId,
+  title,
+  backTo,
+  startAt = 0,
+}: {
+  mediaId: string
+  title: string
+  backTo: string
+  /** Where to start, in seconds: the saved position when resuming (I10). */
+  startAt?: number
+}) {
   const { expire } = useAuth()
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const playButtonRef = useRef<HTMLButtonElement>(null)
   const idleTimer = useRef<number | undefined>(undefined)
-  const resumeAt = useRef(0)
+  const resumeAt = useRef(startAt)
+  // The last position and duration seen, kept outside the element so they can still be saved on leaving.
+  const watched = useRef({ played: false, position: 0, duration: 0 })
 
   const [playing, setPlaying] = useState(false)
   const [time, setTime] = useState(0)
@@ -92,6 +107,33 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
   const [idle, setIdle] = useState(false)
   const [controlsFocused, setControlsFocused] = useState(false)
   const [canFullscreen] = useState(fullscreenSupported)
+
+  /** Saves where the viewer is, for this profile (PLY-07). A failed save never interrupts playback. */
+  const save = useCallback(
+    (keepalive = false) => {
+      const { played, position, duration } = watched.current
+      const whole = Math.floor(duration)
+      if (!played || !Number.isFinite(whole) || whole < 1) return
+      saveProgress(mediaId, Math.min(Math.floor(position), whole), whole, { keepalive }).catch(() => undefined)
+    },
+    [mediaId],
+  )
+
+  useEffect(() => {
+    if (!playing) return
+    const timer = window.setInterval(() => save(), SAVE_EVERY_MS)
+    return () => window.clearInterval(timer)
+  }, [playing, save])
+
+  // On leaving the player, and when the tab is closed (keepalive lets that last request finish).
+  useEffect(() => {
+    const onPageHide = () => save(true)
+    window.addEventListener('pagehide', onPageHide)
+    return () => {
+      window.removeEventListener('pagehide', onPageHide)
+      save()
+    }
+  }, [save])
 
   useEffect(() => {
     playButtonRef.current?.focus()
@@ -248,20 +290,34 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
         preload="metadata"
         onClick={togglePlay}
         onPlay={() => {
+          watched.current.played = true
           setPlaying(true)
           wake()
         }}
-        onPause={() => setPlaying(false)}
-        onEnded={() => setPlaying(false)}
-        onTimeUpdate={(event) => setTime(event.currentTarget.currentTime)}
+        onPause={() => {
+          setPlaying(false)
+          save()
+        }}
+        onEnded={() => {
+          setPlaying(false)
+          save()
+        }}
+        onTimeUpdate={(event) => {
+          watched.current.position = event.currentTarget.currentTime
+          setTime(event.currentTarget.currentTime)
+        }}
         onLoadedMetadata={(event) => {
+          watched.current.duration = event.currentTarget.duration
           setDuration(event.currentTarget.duration)
           if (resumeAt.current > 0) {
             event.currentTarget.currentTime = resumeAt.current
             resumeAt.current = 0
           }
         }}
-        onDurationChange={(event) => setDuration(event.currentTarget.duration)}
+        onDurationChange={(event) => {
+          watched.current.duration = event.currentTarget.duration
+          setDuration(event.currentTarget.duration)
+        }}
         onWaiting={() => setLoading(true)}
         onCanPlay={() => setLoading(false)}
         onPlaying={() => setLoading(false)}

@@ -1,8 +1,9 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MediaDetails } from '../api/library'
-import { jsonResponse, mockApi, signedInRoutes, type Route } from '../test/http'
+import { callsTo, jsonResponse, mockApi, signedInRoutes, type Route } from '../test/http'
+import { SAVE_EVERY_MS } from '../components/VideoPlayer'
 import { renderApp } from '../test/render'
 
 const movie: MediaDetails = {
@@ -244,5 +245,109 @@ describe('PlayerPage', () => {
     renderApp('/movies/m1')
     await userEvent.click(await screen.findByRole('link', { name: 'Play' }))
     expect(await screen.findByLabelText(movie.title)).toHaveAttribute('src', '/api/library/media/m1/stream')
+  })
+
+  // ---- Resume and saving the position (I10; PLY-07, PLY-08) ----
+
+  function playerWithProgress(progress: Route) {
+    return mockApi({
+      ...signedInRoutes(),
+      'GET /api/library/media/m1': () => jsonResponse(movie),
+      'GET /api/library/media/m1/stream': () => new Response(null, { status: 206 }),
+      'GET /api/library/progress/m1': progress,
+      'PUT /api/library/progress/m1': ({ init }) =>
+        jsonResponse({ mediaId: 'm1', ...JSON.parse(String(init?.body)), state: 'STARTED', updatedAt: '2026-11-23T20:00:00Z' }),
+    })
+  }
+
+  const saved = (positionSeconds: number, state: 'STARTED' | 'COMPLETED' = 'STARTED') => () =>
+    jsonResponse({ mediaId: 'm1', positionSeconds, durationSeconds: 5520, state, updatedAt: '2026-11-22T20:00:00Z' })
+
+  function savedBodies(fetch: ReturnType<typeof mockApi>) {
+    return callsTo(fetch, 'PUT /api/library/progress/m1').map(([, init]) => JSON.parse(String(init?.body)))
+  }
+
+  function watchUntil(video: HTMLVideoElement, seconds: number) {
+    video.currentTime = seconds
+    fireEvent.timeUpdate(video)
+  }
+
+  it('starts a started film where the profile stopped', async () => {
+    playerWithProgress(saved(600))
+    const video = await openPlayer()
+    expect(video.currentTime).toBe(600)
+  })
+
+  it('starts from the beginning when asked, without reading the progress', async () => {
+    const fetch = playerWithProgress(saved(600))
+    renderApp('/watch/m1?from=start')
+    const video = (await screen.findByLabelText(movie.title)) as HTMLVideoElement
+    fireEvent.loadedMetadata(video)
+
+    expect(video.currentTime).toBe(0)
+    expect(callsTo(fetch, 'GET /api/library/progress/m1')).toHaveLength(0)
+  })
+
+  it('starts a completed film from the beginning', async () => {
+    playerWithProgress(saved(5400, 'COMPLETED'))
+    const video = await openPlayer()
+    expect(video.currentTime).toBe(0)
+  })
+
+  it('still plays when the progress cannot be read', async () => {
+    playerWithProgress(() => jsonResponse({ error: 'service_unavailable', message: 'Unavailable.' }, 503))
+    const video = await openPlayer()
+    expect(video.currentTime).toBe(0)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('saves the position every 10 seconds while playing', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const fetch = playerWithProgress(saved(0, 'COMPLETED'))
+      const video = await openPlayer()
+      fireEvent.play(video)
+      watchUntil(video, 125.7)
+
+      await act(() => vi.advanceTimersByTimeAsync(SAVE_EVERY_MS))
+
+      expect(savedBodies(fetch)).toEqual([{ positionSeconds: 125, durationSeconds: 5520 }])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('saves the position on pause and when leaving the player', async () => {
+    const fetch = playerWithProgress(saved(0, 'COMPLETED'))
+    const video = await openPlayer()
+    fireEvent.play(video)
+    watchUntil(video, 300)
+    fireEvent.pause(video)
+    expect(savedBodies(fetch)).toEqual([{ positionSeconds: 300, durationSeconds: 5520 }])
+
+    watchUntil(video, 320)
+    await userEvent.click(screen.getByRole('link', { name: 'Back' }))
+
+    await waitFor(() => expect(savedBodies(fetch)).toHaveLength(2))
+    expect(savedBodies(fetch)[1]).toEqual({ positionSeconds: 320, durationSeconds: 5520 })
+  })
+
+  it('saves the end of the film, so it counts as completed', async () => {
+    const fetch = playerWithProgress(saved(0, 'COMPLETED'))
+    const video = await openPlayer()
+    fireEvent.play(video)
+    watchUntil(video, 5520)
+    fireEvent.ended(video)
+
+    expect(savedBodies(fetch)).toEqual([{ positionSeconds: 5520, durationSeconds: 5520 }])
+  })
+
+  it('saves nothing when the film was never played', async () => {
+    const fetch = playerWithProgress(saved(0, 'COMPLETED'))
+    await openPlayer()
+    await userEvent.click(screen.getByRole('link', { name: 'Back' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: movie.title })).toBeInTheDocument()
+    expect(savedBodies(fetch)).toHaveLength(0)
   })
 })

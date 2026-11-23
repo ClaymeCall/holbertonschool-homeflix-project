@@ -25,6 +25,9 @@ export function signedInRoutes(account: Account = testAccount): Record<string, R
     'GET /api/identity/setup/status': () => jsonResponse({ setupRequired: false }),
     'GET /api/identity/auth/me': () => jsonResponse(account),
     'GET /api/identity/profiles': () => jsonResponse([testProfile]),
+    // The active profile has an empty list and has not started anything yet.
+    'GET /api/library/favourites': () => jsonResponse([]),
+    'GET /api/library/progress': () => jsonResponse([]),
     'POST /api/identity/auth/refresh': () => emptyResponse(),
     'POST /api/identity/auth/sign-out': () => emptyResponse(),
   }
