@@ -106,6 +106,21 @@ class MediaPathGuardTest {
 	}
 
 	@Test
+	void aFolderThatCannotBeSearchedIsUnreadableNotMissing() throws IOException {
+		Path locked = Files.createDirectory(root.resolve("locked"));
+		Files.writeString(locked.resolve("movie.mp4"), "video");
+		Files.setPosixFilePermissions(locked, java.nio.file.attribute.PosixFilePermissions.fromString("---------"));
+		try {
+			org.junit.jupiter.api.Assumptions.assumeFalse(Files.isReadable(locked.resolve("movie.mp4")),
+					"running as a user that ignores permissions");
+			assertDenied(locked.resolve("movie.mp4"), Reason.UNREADABLE);
+		}
+		finally {
+			Files.setPosixFilePermissions(locked, java.nio.file.attribute.PosixFilePermissions.fromString("rwxr-xr-x"));
+		}
+	}
+
+	@Test
 	void userMessageNeverContainsAPath() {
 		assertThatThrownBy(() -> guard.resolve(outside.resolve("passwd")))
 				.isInstanceOf(MediaAccessDeniedException.class)

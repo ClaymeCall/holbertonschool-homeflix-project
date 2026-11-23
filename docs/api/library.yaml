@@ -411,15 +411,23 @@ paths:
         '401':
           $ref: './common.yaml#/components/responses/Unauthenticated'
         '403':
-          description: The file's real path is outside the authorized folders (`access_denied`). The message never contains a path.
+          description: |
+            Two cases, told apart by the code. `access_denied`: the file's real path is outside the title's folder.
+            `file_not_readable`: the file exists but HomeFlix is not allowed to read it, or the disk failed (a
+            permission problem on the host, not the viewer's). The message never contains a path.
           content:
             application/json:
               schema:
                 $ref: './common.yaml#/components/schemas/Error'
               examples:
-                default:
+                outsideFolder:
                   value:
                     error: access_denied
+                    message: You do not have access to this video.
+                notReadable:
+                  value:
+                    error: file_not_readable
+                    message: HomeFlix cannot read the file for this title. Ask an administrator to check the permissions of the folder.
                     message: You do not have access to this video.
         '404':
           description: The title does not exist (`not_found`), or its file is missing from disk (`file_not_found`).
@@ -443,6 +451,19 @@ paths:
                   value:
                     error: media_not_available
                     message: This title is still downloading and cannot be played yet.
+        '415':
+          description: |
+            The title's file is not a supported video (`format_not_supported`). Only MP4 files are indexed, so this
+            is a database row that no longer matches its file. No byte of the file is sent.
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                default:
+                  value:
+                    error: format_not_supported
+                    message: This video format is not supported. Convert it to MP4 (H.264 video, AAC audio).
         '416':
           description: The range cannot be satisfied (`range_not_satisfiable`).
           headers:

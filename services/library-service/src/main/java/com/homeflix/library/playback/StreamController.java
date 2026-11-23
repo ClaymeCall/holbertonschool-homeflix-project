@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.homeflix.library.indexing.MediaFileClassifier;
+import com.homeflix.library.indexing.MediaFileKind;
 import com.homeflix.library.security.AccessGuard;
 import com.homeflix.library.storage.MediaAccessDeniedException;
 import com.homeflix.library.storage.MediaAccessDeniedException.Reason;
@@ -58,7 +60,16 @@ class StreamController {
 			throws IOException {
 		access.requireAccount(request);
 		Path file = locate(mediaId);
-		long size = Files.size(file);
+		// Opened before anything is written, so a file that vanished or became unreadable since it was located
+		// still gets a clean error and not a half answer (PLY-05, AS-09.1). The size comes from the same handle.
+		try (FileChannel channel = open(file)) {
+			stream(request, response, channel);
+		}
+	}
+
+	private void stream(HttpServletRequest request, HttpServletResponse response, FileChannel channel)
+			throws IOException {
+		long size = channel.size();
 
 		RangeRequest range = RangeRequest.parse(request.getHeader(HttpHeaders.RANGE), size);
 		response.setHeader(HttpHeaders.ACCEPT_RANGES, "bytes");
@@ -74,14 +85,14 @@ class StreamController {
 				response.setStatus(HttpStatus.OK.value());
 				response.setContentType(VIDEO_TYPE);
 				response.setContentLengthLong(size);
-				send(file, 0, size, response);
+				send(channel, 0, size, response);
 			}
 			case RangeRequest.Partial p -> {
 				response.setStatus(HttpStatus.PARTIAL_CONTENT.value());
 				response.setContentType(VIDEO_TYPE);
 				response.setHeader(HttpHeaders.CONTENT_RANGE, "bytes " + p.start() + "-" + p.end() + "/" + size);
 				response.setContentLengthLong(p.length());
-				send(file, p.start(), p.length(), response);
+				send(channel, p.start(), p.length(), response);
 			}
 		}
 	}
@@ -106,12 +117,35 @@ class StreamController {
 			log.warn("Title {} points to something that is not a file: {}", mediaId, real);
 			throw new MediaAccessDeniedException(Reason.NOT_FOUND, new NoSuchFileException(real.toString()));
 		}
+		if (MediaFileClassifier.classify(real.getFileName().toString()) != MediaFileKind.SUPPORTED_VIDEO) {
+			// Only supported videos are indexed, so this is a row that no longer matches its file (AS-09.8).
+			log.warn("Title {} points to a file that is not a supported video: {}", mediaId, real);
+			throw new RejectedRequestException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "format_not_supported",
+					"This video format is not supported. Convert it to MP4 (H.264 video, AAC audio).");
+		}
 		return real;
 	}
 
+	/** Opens the file, turning the reasons it can fail into the answers of docs/library/file-access.md. */
+	private static FileChannel open(Path file) {
+		try {
+			return FileChannel.open(file, StandardOpenOption.READ);
+		}
+		catch (NoSuchFileException e) {
+			log.warn("The file of a title disappeared before it could be opened: {}", file);
+			throw new MediaAccessDeniedException(Reason.NOT_FOUND, e);
+		}
+		catch (IOException e) {
+			// Permission denied, or the disk or share failed: the host cannot read it (PLY-05).
+			log.warn("The file of a title cannot be opened: {}", file, e);
+			throw new MediaAccessDeniedException(Reason.UNREADABLE, e);
+		}
+	}
+
 	/** Copies {@code length} bytes from {@code start}. A viewer who closes the page mid-way is not an error. */
-	private static void send(Path file, long start, long length, HttpServletResponse response) throws IOException {
-		try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
+	private static void send(FileChannel channel, long start, long length, HttpServletResponse response)
+			throws IOException {
+		try {
 			channel.position(start);
 			OutputStream out = response.getOutputStream();
 			long remaining = length;
