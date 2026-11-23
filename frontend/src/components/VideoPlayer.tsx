@@ -60,6 +60,7 @@ async function diagnose(mediaId: string, error: MediaError | null): Promise<Prob
   if (status === 401) return 'expired'
   if (status === 403) return 'denied'
   if (status === 404 || status === 410) return 'missing'
+  if (status === 415) return 'unsupported'
   if (status === 0) return 'network'
   if (status === 502 || status === 503 || status === 504) return 'unavailable'
   if (status === 200 || status === 206) return error?.code === MEDIA_ERR_NETWORK ? 'network' : 'unsupported'

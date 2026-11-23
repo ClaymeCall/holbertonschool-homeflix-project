@@ -58,6 +58,8 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 |---|---|---|---|
 | `file_not_found` | 404 | The file for this title could not be found. It may have been moved or deleted from the library. | The media file is missing from disk. |
 | `access_denied` | 403 | You do not have access to this video. | The real path is outside the authorized folders (see [file access rules](../library/file-access.md)). |
+| `file_not_readable` | 403 | HomeFlix cannot read the file for this title. Ask an administrator to check the permissions of the folder. | The file exists but is not readable (permission denied, or the disk or share failed). |
+| `format_not_supported` | 415 | This video format is not supported. Convert it to MP4 (H.264 video, AAC audio). | Streaming a title whose file is not a supported video. |
 | `directory_not_found` | 400 | This folder does not exist. | Administrator adds a root that does not exist. |
 | `directory_not_readable` | 400 | HomeFlix cannot read this folder. | The root exists but is not readable. |
 | `not_a_directory` | 400 | This path is a file, not a folder. | The root is not a directory. |
@@ -69,7 +71,7 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 | `range_not_satisfiable` | 416 | This part of the video is not available. | A byte range outside the file, or several ranges. |
 | `already_in_library` | 409 | This title is already in the library. | Internal call: a download is started for a title that is already available. Shown to an administrator as a failed download. |
 
-`file_not_found` and `access_denied` have different messages, so the user can tell a missing file from a permission problem (PLY-05), but neither ever says where the file is. `format_not_supported` is **not** an HTTP error. It is the outcome reported for a video found during indexing in an unsupported format (see [media identification rules](../library/media-identification.md)), so such a file never gets a play endpoint.
+`file_not_found`, `file_not_readable` and `access_denied` have different codes and messages, so the user can tell a missing file from a permission problem (PLY-05), but none ever says where the file is. `format_not_supported` is also the outcome reported for a video found during indexing in an unsupported format (see [media identification rules](../library/media-identification.md)). Such a file is not indexed, so it normally never reaches the play endpoint, which answers 415 if one ever does.
 
 ## Timeouts and retries
 
@@ -120,6 +122,6 @@ Issue #36 covers a slow dependency (timeout gives 503), a failing one (one retry
 | Dependency failure to 503 | `web/ServiceUnavailableException` and the handler | same | to do |
 | Timeouts and GET retry for outgoing calls | `client/ServiceClientFactory`, `client/RetryingGetInterceptor` | added with its first outgoing call (handoff to the library, qBittorrent) | no outgoing calls yet |
 
-The timeouts and the retry are configuration under `homeflix.http-client` (`connect-timeout`, `read-timeout`, `retries`, `retry-pause`), with the values of the table above as defaults. The library handler also maps the media file errors (`file_not_found`, `access_denied`).
+The timeouts and the retry are configuration under `homeflix.http-client` (`connect-timeout`, `read-timeout`, `retries`, `retry-pause`), with the values of the table above as defaults. The library handler also maps the media file errors (`file_not_found`, `file_not_readable`, `access_denied`).
 
 A call to a service that is stopped can take a few seconds to fail, because the name of a stopped container does not resolve and each of the two attempts waits for that.

@@ -11,9 +11,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Comparator;
 import java.util.UUID;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -273,6 +275,58 @@ class StreamEndpointTests {
 		Files.delete(films.resolve("movie.mp4"));
 		String body = stream(title).andReturn().getResponse().getContentAsString();
 		assertThat(body).doesNotContain(mounted.toString()).doesNotContain("movie.mp4").doesNotContain("Exception");
+	}
+
+	@Test
+	void aFileThatCannotBeReadIsAPermissionProblemNotAMissingFile() throws Exception {
+		Path movie = films.resolve("movie.mp4");
+		Files.setPosixFilePermissions(movie, PosixFilePermissions.fromString("---------"));
+		try {
+			Assumptions.assumeFalse(Files.isReadable(movie), "running as a user that ignores permissions");
+			String body = stream(title).andExpect(status().isForbidden()).andExpect(jsonPath("$.error").value("file_not_readable"))
+					.andExpect(jsonPath("$.message").value(
+							"HomeFlix cannot read the file for this title. Ask an administrator to check the permissions of the folder."))
+					.andReturn().getResponse().getContentAsString();
+			assertThat(body).doesNotContain(mounted.toString()).doesNotContain("movie.mp4").doesNotContain("Exception");
+		}
+		finally {
+			Files.setPosixFilePermissions(movie, PosixFilePermissions.fromString("rw-r--r--"));
+		}
+	}
+
+	@Test
+	void aFolderThatCannotBeSearchedIsAPermissionProblemNotAMissingFile() throws Exception {
+		Path folder = Files.createDirectory(films.resolve("locked"));
+		Files.write(folder.resolve("clip.mp4"), CONTENT);
+		UUID clip = indexed("locked/clip.mp4");
+		Files.setPosixFilePermissions(folder, PosixFilePermissions.fromString("---------"));
+		try {
+			Assumptions.assumeFalse(Files.isReadable(folder.resolve("clip.mp4")), "running as a user that ignores permissions");
+			stream(clip).andExpect(status().isForbidden()).andExpect(jsonPath("$.error").value("file_not_readable"));
+		}
+		finally {
+			Files.setPosixFilePermissions(folder, PosixFilePermissions.fromString("rwxr-xr-x"));
+		}
+	}
+
+	@Test
+	void aFileThatIsNotASupportedVideoIsNotPlayed() throws Exception {
+		Files.write(films.resolve("clip.mkv"), CONTENT);
+		UUID mkv = indexed("clip.mkv");
+		String body = stream(mkv).andExpect(status().isUnsupportedMediaType())
+				.andExpect(jsonPath("$.error").value("format_not_supported"))
+				.andExpect(jsonPath("$.message").value("This video format is not supported. Convert it to MP4 (H.264 video, AAC audio)."))
+				.andReturn().getResponse().getContentAsString();
+		assertThat(body).doesNotContain(mounted.toString()).doesNotContain("clip.mkv");
+		// No byte of it is sent, not even for a range.
+		stream(mkv, "bytes=0-9").andExpect(status().isUnsupportedMediaType());
+	}
+
+	@Test
+	void everyPlaybackFailureIsInTheCommonErrorFormat() throws Exception {
+		Files.delete(films.resolve("movie.mp4"));
+		stream(title).andExpect(status().isNotFound()).andExpect(jsonPath("$.error").exists())
+				.andExpect(jsonPath("$.message").exists()).andExpect(jsonPath("$.length()").value(2));
 	}
 
 	// ---- Helpers ----

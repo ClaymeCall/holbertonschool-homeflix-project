@@ -199,6 +199,7 @@ describe('PlayerPage', () => {
     [404, 'File not found', /moved or deleted/],
     [403, 'Access denied', /do not have access to this video/],
     [206, 'Format not supported', /MP4/],
+    [415, 'Format not supported', /MP4/],
     [503, 'Service unavailable', /temporarily unavailable/],
   ])('explains a stream answering %i', async (status, title, text) => {
     player(() => new Response(null, { status }))
