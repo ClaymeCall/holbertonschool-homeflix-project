@@ -315,7 +315,7 @@ class DownloadTrackingTests {
 		List<Torrent> real = torrents.list();
 		List<Torrent> reported = real.stream()
 				.map(t -> t.hash().equals(hash)
-						? new Torrent(t.hash(), state, progress, t.tags(), t.savePath(), t.contentPath()) : t)
+						? new Torrent(t.hash(), state, progress, t.tags(), t.contentPath()) : t)
 				.toList();
 		doReturn(reported).when(torrents).list();
 	}

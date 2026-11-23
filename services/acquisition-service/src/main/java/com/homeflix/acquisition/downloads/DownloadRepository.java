@@ -75,12 +75,17 @@ class DownloadRepository {
 				grace.toMillis() / 1000.0, handoffTimeout.toMillis() / 1000.0);
 	}
 
-	/** The file passed the checks: the handoff starts now, and its time limit runs from here. */
-	void markVerified(UUID id, String relativePath) {
-		jdbc.update("""
+	/**
+	 * The file passed the checks: the handoff starts now, and its time limit runs from here. The update waits
+	 * for a cancel that holds the job's lock, and then changes nothing.
+	 *
+	 * @return false when the job is no longer active (cancelled meanwhile): the file must not be handed over
+	 */
+	boolean markVerified(UUID id, String relativePath) {
+		return jdbc.update("""
 				update download_job set completed_relative_path = ?, handoff_started_at = now()
 				where id = ? and state in ('QUEUED', 'DOWNLOADING') and completed_relative_path is null
-				""", relativePath, id);
+				""", relativePath, id) == 1;
 	}
 
 	/** The library has the file: COMPLETED, and the library is in sync. */

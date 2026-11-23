@@ -84,14 +84,14 @@ public class QbittorrentClient {
 
 	/**
 	 * A torrent as the client lists it: info hash, state, progress from 0 to 1, its tags separated by commas,
-	 * and where its content is, as the client sees it (the save path, and the file or folder of the content).
+	 * and where its content is, as the client sees it (the file or folder of the content).
 	 */
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	public record Torrent(String hash, String state, double progress, String tags,
-			@JsonProperty("save_path") String savePath, @JsonProperty("content_path") String contentPath) {
+			@JsonProperty("content_path") String contentPath) {
 
 		public Torrent(String hash, String state, double progress, String tags) {
-			this(hash, state, progress, tags, null, null);
+			this(hash, state, progress, tags, null);
 		}
 
 	}

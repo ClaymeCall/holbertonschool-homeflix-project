@@ -34,7 +34,8 @@ import com.homeflix.acquisition.web.ServiceUnavailableException;
  * grace period fails with {@code torrent_missing}.</li>
  * <li>Hands each completed torrent to the library (J7): the file is checked once
  * ({@link DownloadedFileVerifier}); a file that fails the checks fails the job with
- * {@code verification_failed} and is deleted with its torrent. A verified file is handed over at each check
+ * {@code verification_failed} and is deleted with its torrent; a file that cannot be read is kept and
+ * checked again at the next check. A verified file is handed over at each check
  * until the library accepts it, and the job is then COMPLETED. After the handoff time limit it fails with
  * {@code handoff_failed}, and the file is kept.</li>
  * <li>Removes the torrents HomeFlix added for jobs that have failed or were cancelled, if one is still in the
@@ -145,8 +146,13 @@ public class DownloadTracker {
 	private void handOver(DownloadRepository.TrackedJob job, Torrent torrent) {
 		String relativePath = job.completedRelativePath();
 		if (relativePath == null) {
-			DownloadedFileVerifier.Result result = verifier.verify(torrent.savePath(), torrent.contentPath(),
-					job.expectedSizeBytes());
+			DownloadedFileVerifier.Result result = verifier.verify(torrent.contentPath(), job.expectedSizeBytes());
+			if (result instanceof DownloadedFileVerifier.Unreadable unreadable) {
+				// Says nothing about the file (a permission or I/O problem): kept, and checked again next time.
+				log.warn("Download {}: the completed file cannot be read, checked again at the next check: {}",
+						job.id(), unreadable.reason());
+				return;
+			}
 			if (result instanceof DownloadedFileVerifier.Refused refused) {
 				log.warn("Download {} failed the checks of the completed file: {}", job.id(), refused.reason());
 				if (fail(job.id(), FailureMessages.VERIFICATION_FAILED)) {
@@ -156,7 +162,11 @@ public class DownloadTracker {
 				return;
 			}
 			relativePath = ((DownloadedFileVerifier.Accepted) result).relativePath();
-			downloads.markVerified(job.id(), relativePath);
+			if (!downloads.markVerified(job.id(), relativePath)) {
+				// Cancelled while the file was checked: the cancel removed it, so the library is not told.
+				log.info("Download {} was cancelled while its file was checked: not handed over", job.id());
+				return;
+			}
 			log.info("Download {} passed the checks; handing {} to the library", job.id(), relativePath);
 		}
 		if (library.downloadCompleted(job.entryId(), relativePath)) {
