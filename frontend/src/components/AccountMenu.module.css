@@ -31,6 +31,24 @@
   font-weight: 600;
 }
 
+.profile {
+  max-width: 10rem;
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.switch {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.switch:hover {
+  color: var(--text);
+}
+
 @media (max-width: 30rem) {
   .account {
     display: none;
