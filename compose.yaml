@@ -11,6 +11,10 @@ services:
       dockerfile: gateway/Dockerfile
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
+    environment:
+      # The same list the library service validates posters against (ADR-0018). The gateway builds the
+      # img-src of its Content-Security-Policy from it at start.
+      POSTER_ALLOWED_HOSTS: ${POSTER_ALLOWED_HOSTS:-upload.wikimedia.org}
     networks: [backend]
     restart: unless-stopped
     healthcheck:

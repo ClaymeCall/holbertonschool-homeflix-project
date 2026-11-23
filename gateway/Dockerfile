@@ -19,6 +19,7 @@ RUN npm run build
 FROM nginxinc/nginx-unprivileged:1.30.6-alpine3.24
 COPY gateway/nginx.conf /etc/nginx/conf.d/default.conf
 COPY gateway/proxy-common.inc /etc/nginx/conf.d/proxy-common.inc
+COPY --chmod=755 gateway/docker-entrypoint.d/40-poster-csp.sh /docker-entrypoint.d/40-poster-csp.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Unprivileged Nginx listens on 8080.
