@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react'
 import { ApiError } from '../api/client'
 import { describeError } from '../api/errors'
 import {
@@ -42,6 +42,17 @@ export function LibraryPage() {
   const [busy, setBusy] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [report, setReport] = useState<ScanReport | null>(null)
+  const noticeRef = useRef<HTMLParagraphElement>(null)
+  const reportRef = useRef<HTMLDivElement>(null)
+
+  // An action disables or removes its button and reloads the lists, which loses the focus: it goes to the
+  // outcome.
+  useEffect(() => {
+    if (notice) noticeRef.current?.focus()
+  }, [notice])
+  useEffect(() => {
+    if (report) reportRef.current?.focus()
+  }, [report])
 
   const rootList = roots.state.status === 'success' ? roots.state.data : []
   const pathOf = (rootId: string) => rootList.find((root) => root.id === rootId)?.path ?? 'A removed folder'
@@ -83,7 +94,12 @@ export function LibraryPage() {
       <h1 className={styles.title}>Library</h1>
 
       {notice && (
-        <p className={notice.kind === 'error' ? styles.noticeError : styles.notice} role={notice.kind === 'error' ? 'alert' : 'status'}>
+        <p
+          ref={noticeRef}
+          tabIndex={-1}
+          className={notice.kind === 'error' ? styles.noticeError : styles.notice}
+          role={notice.kind === 'error' ? 'alert' : 'status'}
+        >
           {notice.text}
         </p>
       )}
@@ -145,7 +161,7 @@ export function LibraryPage() {
           </Button>
         </div>
         {scanning && <LoadingState label="Scanning the folders…" />}
-        {report && <ScanResult report={report} pathOf={pathOf} />}
+        {report && <ScanResult ref={reportRef} report={report} pathOf={pathOf} />}
       </section>
 
       <section className={styles.section} aria-labelledby="titles-heading">
@@ -204,9 +220,17 @@ export function LibraryPage() {
   )
 }
 
-function ScanResult({ report, pathOf }: { report: ScanReport; pathOf: (rootId: string) => string }) {
+function ScanResult({
+  ref,
+  report,
+  pathOf,
+}: {
+  ref: Ref<HTMLDivElement>
+  report: ScanReport
+  pathOf: (rootId: string) => string
+}) {
   return (
-    <div className={styles.item}>
+    <div ref={ref} tabIndex={-1} className={styles.item}>
       <p role="status">
         Scan finished: {count(report.added, 'title')} added, {count(report.updated, 'title')} seen again,{' '}
         {count(report.markedUnavailable, 'title')} marked unavailable.

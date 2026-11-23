@@ -79,6 +79,8 @@ describe('AccountsPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('sam@home.example is now an administrator.')
     expect(bodyOf(fetch, 'PUT /api/identity/accounts/a2/role')).toEqual({ admin: true })
     expect(await within(await accountItem('sam@home.example')).findByText('Administrator')).toBeInTheDocument()
+    // The button was disabled and the list loaded again: focus is on the outcome, not lost.
+    expect(screen.getByRole('status')).toHaveFocus()
   })
 
   it('disables an account', async () => {
@@ -163,6 +165,14 @@ describe('AccountsPage', () => {
 
     expect(await within(form).findByText('This email address is already used by another account.')).toBeInTheDocument()
     expect(within(form).getByLabelText('Email address')).toHaveFocus()
+  })
+
+  it('is for administrators only', async () => {
+    const fetch = mockApi({ ...signedInRoutes({ ...testAccount, admin: false }) })
+    renderApp('/admin/accounts')
+
+    expect(await screen.findByRole('heading', { name: 'Administrators only' })).toBeInTheDocument()
+    expect(callsTo(fetch, 'GET /api/identity/accounts')).toHaveLength(0)
   })
 
   it('offers to try again when the accounts cannot be loaded', async () => {

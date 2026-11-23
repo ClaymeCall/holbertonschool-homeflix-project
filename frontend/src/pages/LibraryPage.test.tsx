@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { Root, ScanReport } from '../api/library'
-import { callsTo, emptyResponse, jsonResponse, mockApi, signedInRoutes, type Route } from '../test/http'
+import { callsTo, emptyResponse, jsonResponse, mockApi, signedInRoutes, testAccount, type Route } from '../test/http'
 import { media } from '../test/fixtures'
 import { renderApp } from '../test/render'
 
@@ -75,6 +75,7 @@ describe('LibraryPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('/media/downloads was added.')
     expect(bodyOf(fetch, 'POST /api/library/roots')).toEqual({ path: '/media/downloads' })
     expect(await screen.findByRole('heading', { name: '/media/downloads' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveFocus()
   })
 
   it('shows on the field why the server refused a folder', async () => {
@@ -108,6 +109,8 @@ describe('LibraryPage', () => {
 
     expect(await screen.findByRole('status')).toHaveTextContent('/media/library/films was removed.')
     expect(callsTo(fetch, 'DELETE /api/library/roots/r1')).toHaveLength(1)
+    // Its button is gone with the folder: focus is on the outcome, not lost.
+    expect(screen.getByRole('status')).toHaveFocus()
   })
 
   it('scans the folders and shows the report, then the titles again', async () => {
@@ -120,6 +123,8 @@ describe('LibraryPage', () => {
     expect(screen.getByText('/media/library/films: HomeFlix is not allowed to read this folder.')).toBeInTheDocument()
     expect(screen.getByText('/media/library/films/old/clip.avi')).toBeInTheDocument()
     expect(callsTo(fetch, 'GET /api/library/media')).toHaveLength(2)
+    // The scan button was disabled while scanning: focus is on the report.
+    expect(screen.getByText(/Scan finished/).parentElement).toHaveFocus()
   })
 
   it('shows the server message when a scan is already running', async () => {
@@ -132,6 +137,15 @@ describe('LibraryPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Scan the folders' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('A scan is already running.')
+  })
+
+  it('is for administrators only', async () => {
+    const fetch = mockApi({ ...signedInRoutes({ ...testAccount, admin: false }) })
+    renderApp('/admin/library')
+
+    expect(await screen.findByRole('heading', { name: 'Administrators only' })).toBeInTheDocument()
+    expect(callsTo(fetch, 'GET /api/library/roots')).toHaveLength(0)
+    expect(callsTo(fetch, 'GET /api/library/media')).toHaveLength(0)
   })
 
   it('offers to try again when the folders cannot be loaded', async () => {

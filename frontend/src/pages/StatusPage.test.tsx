@@ -98,16 +98,23 @@ describe('StatusPage', () => {
     expect(within(downloads).getByText('Only an administrator can do this.')).toBeInTheDocument()
   })
 
-  it('checks again on request', async () => {
-    let up = false
-    const fetch = services({ 'GET /api/library/roots': () => (up ? jsonResponse([]) : unavailable()) })
+  it('checks again on request, keeping the focus on its button', async () => {
+    let answer: () => Promise<Response> = async () => unavailable()
+    const fetch = services({ 'GET /api/library/roots': () => answer() })
     renderApp('/admin/status')
     expect(within(await serviceItem('Library and playback')).getByText('Unavailable')).toBeInTheDocument()
 
-    up = true
-    await userEvent.click(screen.getByRole('button', { name: 'Check again' }))
+    let answerNow: () => void = () => {}
+    answer = () => new Promise((resolve) => (answerNow = () => resolve(jsonResponse([]))))
+    const button = screen.getByRole('button', { name: 'Check again' })
+    await userEvent.click(button)
+    // Still enabled while checking: a disabled button would lose the focus.
+    expect(await screen.findByText('Checking the services…')).toBeInTheDocument()
+    expect(button).toBeEnabled()
+    answerNow()
 
     expect(within(await serviceItem('Library and playback')).getByText('Working')).toBeInTheDocument()
     expect(callsTo(fetch, 'GET /api/library/roots')).toHaveLength(2)
+    expect(button).toHaveFocus()
   })
 })

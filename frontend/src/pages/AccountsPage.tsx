@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ApiError } from '../api/client'
 import { describeError } from '../api/errors'
 import {
@@ -32,6 +32,12 @@ export function AccountsPage() {
   const accounts = useAsync(listAccounts)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
+  const noticeRef = useRef<HTMLParagraphElement>(null)
+
+  // An action disables its button and reloads the list, which loses the focus: it goes to the outcome.
+  useEffect(() => {
+    if (notice) noticeRef.current?.focus()
+  }, [notice])
 
   async function apply(account: ManagedAccount, change: () => Promise<ManagedAccount>, done: string) {
     setBusyId(account.id)
@@ -53,7 +59,12 @@ export function AccountsPage() {
       <h1 className={styles.title}>Accounts</h1>
 
       {notice && (
-        <p className={notice.kind === 'error' ? styles.noticeError : styles.notice} role={notice.kind === 'error' ? 'alert' : 'status'}>
+        <p
+          ref={noticeRef}
+          tabIndex={-1}
+          className={notice.kind === 'error' ? styles.noticeError : styles.notice}
+          role={notice.kind === 'error' ? 'alert' : 'status'}
+        >
           {notice.text}
         </p>
       )}

@@ -54,7 +54,8 @@ export function StatusPage() {
       )}
 
       <div className={styles.actions}>
-        <Button variant="secondary" onClick={checks.reload} disabled={checking}>
+        {/* Not disabled while checking: a disabled button would lose the focus. */}
+        <Button variant="secondary" onClick={checks.reload}>
           Check again
         </Button>
       </div>
