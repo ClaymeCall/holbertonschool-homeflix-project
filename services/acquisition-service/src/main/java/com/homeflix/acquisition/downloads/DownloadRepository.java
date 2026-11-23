@@ -77,17 +77,12 @@ class DownloadRepository {
 				""", state.name(), progressPercent, id, state.name(), progressPercent);
 	}
 
-	/**
-	 * Marks as told the failures of jobs whose entry has a newer job: the library follows the newer job, and
-	 * telling it about the older failure would make the entry UNAVAILABLE while the newer job downloads.
-	 */
-	void markSupersededFailuresSynced() {
-		jdbc.update("""
-				update download_job failed set library_synced_at = now()
-				where failed.state = 'FAILED' and failed.library_synced_at is null
-				  and exists (select 1 from download_job newer
-				      where newer.entry_id = failed.entry_id and newer.created_at > failed.created_at)
-				""");
+
+	/** The entry of the latest job with this info hash. */
+	UUID entryOfHash(String clientHash) {
+		return jdbc.queryForObject(
+				"select entry_id from download_job where client_hash = ? order by created_at desc limit 1",
+				UUID.class, clientHash);
 	}
 
 	List<UnsyncedFailure> unsyncedFailures() {
@@ -112,11 +107,6 @@ class DownloadRepository {
 				""".formatted(placeholders), String.class, hashes.toArray()));
 	}
 
-	boolean hasActiveJobWithHash(String clientHash) {
-		return Boolean.TRUE.equals(jdbc.queryForObject(
-				"select exists (select 1 from download_job where client_hash = ? and state in ('QUEUED', 'DOWNLOADING'))",
-				Boolean.class, clientHash));
-	}
 
 	boolean hasActiveJob(UUID entryId) {
 		return Boolean.TRUE.equals(jdbc.queryForObject(

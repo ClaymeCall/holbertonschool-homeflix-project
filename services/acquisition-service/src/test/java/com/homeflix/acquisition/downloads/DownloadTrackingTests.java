@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 
@@ -12,7 +13,10 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -270,6 +274,35 @@ class DownloadTrackingTests {
 
 		tracker.check();
 
+		assertThat(QbittorrentContainer.hasTorrent(hash)).isTrue();
+	}
+
+	@Test
+	void aStartBetweenTheCheckAndTheRemovalKeepsItsTorrent() throws Exception {
+		// The torrent of a failed job is about to be removed when a new start of the same entry takes it over.
+		UUID failedJob = insertJob("FAILED", hash);
+		QbittorrentContainer.addTorrent("magnet:?xt=urn:btih:" + hash, "homeflix-job-" + failedJob);
+		CountDownLatch secondStarted = new CountDownLatch(1);
+		CompletableFuture<UUID> second = new CompletableFuture<>();
+		doAnswer(call -> {
+			CompletableFuture.runAsync(() -> {
+				try {
+					second.complete(downloads.start(entryId, UUID.randomUUID()).id());
+				}
+				catch (RuntimeException ex) {
+					second.completeExceptionally(ex);
+				}
+				secondStarted.countDown();
+			});
+			// Gives the new start the time to take the torrent over, if nothing holds it back.
+			secondStarted.await(500, TimeUnit.MILLISECONDS);
+			return call.callRealMethod();
+		}).when(torrents).delete(hash);
+
+		tracker.check();
+
+		UUID newJob = second.get(5, TimeUnit.SECONDS);
+		assertThat(stateOf(newJob)).isEqualTo("QUEUED");
 		assertThat(QbittorrentContainer.hasTorrent(hash)).isTrue();
 	}
 
