@@ -154,8 +154,16 @@ public class DownloadTracker {
 			DownloadedFileVerifier.Result result = verifier.verify(torrent.contentPath(), job.expectedSizeBytes());
 			if (result instanceof DownloadedFileVerifier.Unreadable unreadable) {
 				// Says nothing about the file (a permission or I/O problem): kept, and checked again next time.
-				log.warn("Download {}: the completed file cannot be read, checked again at the next check: {}",
-						job.id(), unreadable.reason());
+				// Past the handoff time limit the failure is made visible, still without deleting it.
+				if (downloads.markUnreadable(job.id(), downloadSettings.handoffTimeout())) {
+					log.warn("Download {} failed: the completed file could not be read for {}: {}", job.id(),
+							downloadSettings.handoffTimeout(), unreadable.reason());
+					fail(job.id(), FailureMessages.FILE_UNREADABLE);
+				}
+				else {
+					log.warn("Download {}: the completed file cannot be read, checked again at the next check: {}",
+							job.id(), unreadable.reason());
+				}
 				return;
 			}
 			if (result instanceof DownloadedFileVerifier.Refused refused) {

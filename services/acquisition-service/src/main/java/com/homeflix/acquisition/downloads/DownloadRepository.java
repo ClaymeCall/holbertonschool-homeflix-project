@@ -81,6 +81,19 @@ class DownloadRepository {
 	 *
 	 * @return false when the job is no longer active (cancelled meanwhile): the file must not be handed over
 	 */
+	/**
+	 * The completed file of this active job cannot be read: notes since when, at the first time.
+	 *
+	 * @return true when it has not been readable for longer than {@code limit}: the job must fail
+	 */
+	boolean markUnreadable(UUID id, Duration limit) {
+		return jdbc.query("""
+				update download_job set unreadable_since = coalesce(unreadable_since, now())
+				where id = ? and state in ('QUEUED', 'DOWNLOADING')
+				returning unreadable_since < now() - make_interval(secs => ?)
+				""", (rs, row) -> rs.getBoolean(1), id, limit.toMillis() / 1000.0).stream().findFirst().orElse(false);
+	}
+
 	boolean markVerified(UUID id, String relativePath) {
 		return jdbc.update("""
 				update download_job set completed_relative_path = ?, handoff_started_at = now()
@@ -122,8 +135,8 @@ class DownloadRepository {
 	}
 
 	/**
-	 * Those of these info hashes whose latest job is FAILED, except a failed handoff: its file passed the
-	 * checks and is kept, so starting the download again hands it over without downloading it again. A hash
+	 * Those of these info hashes whose latest job is FAILED, except a failed handoff or an unreadable file: the
+	 * file is kept, so starting the download again checks it and hands it over without downloading it again. A hash
 	 * whose latest job is active or completed is left out: a new start may have taken over a torrent left by a
 	 * failed job, keeping its tag.
 	 */
@@ -136,7 +149,7 @@ class DownloadRepository {
 				select client_hash from (
 				    select distinct on (client_hash) client_hash, state, error_code from download_job
 				    where client_hash in (%s) order by client_hash, created_at desc) latest
-				where state = 'FAILED' and error_code <> 'handoff_failed'
+				where state = 'FAILED' and error_code not in ('handoff_failed', 'file_unreadable')
 				""".formatted(placeholders), String.class, hashes.toArray()));
 	}
 
