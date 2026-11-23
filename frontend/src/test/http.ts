@@ -1,5 +1,5 @@
 import { vi } from 'vitest'
-import type { Account } from '../api/identity'
+import type { Account, Profile } from '../api/identity'
 
 export function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -14,13 +14,17 @@ export function emptyResponse(status = 204): Response {
 
 export type Route = (request: { url: URL; init: RequestInit | undefined }) => Response | Promise<Response>
 
-export const testAccount: Account = { id: 'a1', email: 'camille@home.example', admin: true }
+export const testProfile: Profile = { id: 'p1', name: 'Camille', createdAt: '2026-11-01T09:00:00Z' }
+
+/** A signed-in administrator with an active profile, so the viewing screens open directly. */
+export const testAccount: Account = { id: 'a1', email: 'camille@home.example', admin: true, profileId: testProfile.id }
 
 /** Routes for a signed-in household where setup is already done. */
 export function signedInRoutes(account: Account = testAccount): Record<string, Route> {
   return {
     'GET /api/identity/setup/status': () => jsonResponse({ setupRequired: false }),
     'GET /api/identity/auth/me': () => jsonResponse(account),
+    'GET /api/identity/profiles': () => jsonResponse([testProfile]),
     'POST /api/identity/auth/refresh': () => emptyResponse(),
     'POST /api/identity/auth/sign-out': () => emptyResponse(),
   }

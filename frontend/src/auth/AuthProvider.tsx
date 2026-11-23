@@ -94,6 +94,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await identity.createFirstAdministrator(credentials)
         setSession({ status: 'signedOut', reason: 'setupDone' })
       },
+      selectProfile: async (profileId) => {
+        const account = await identity.selectProfile(profileId)
+        setSession({ status: 'signedIn', account })
+      },
       expire,
       retry: () => {
         setSession({ status: 'checking' })
