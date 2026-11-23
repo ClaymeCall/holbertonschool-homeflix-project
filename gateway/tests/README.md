@@ -21,6 +21,7 @@ It starts the real `gateway/nginx.conf` in the same Nginx image as `gateway/Dock
 | | A start past the end: `416` with `Content-Range: bytes */SIZE`. |
 | | Buffering is off on `/api/library/`, and the answer is not chunked. |
 | Paths | `/api/<service>/actuator...` answers a JSON `404`, in any letter case. |
+| | `/api/<service>/internal...` answers the same JSON `404`, in any letter case and in the `//`, `/./`, `/../` and `%69` spellings ([ADR-0022](../../docs/adr/0022-internal-service-calls.md)). |
 | | `/api`, an unknown service, and the names of qBittorrent and the database answer the same JSON `404`. |
 | | The frontend is served at `/`, and a frontend route falls back to the app. |
 | A service down | With the library service stopped: `503` and the plain JSON message, for a normal and for a ranged request. |
@@ -30,5 +31,4 @@ It starts the real `gateway/nginx.conf` in the same Nginx image as `gateway/Dock
 ## What it does not check
 
 - **The real library service behind the gateway.** Its stream endpoint needs a signed-in user, and the token check (issue G5, #43) is not built yet. Once it is, add a check that signs in and streams a real title through the gateway.
-- **Blocking `/api/<service>/internal/...`.** That rule comes with the first internal endpoint ([ADR-0022](../../docs/adr/0022-internal-service-calls.md)). Add its check then.
 - **Slow clients and very large files.** Buffering is checked in the configuration, not by timing a transfer.

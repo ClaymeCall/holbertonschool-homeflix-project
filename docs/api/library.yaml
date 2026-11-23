@@ -27,6 +27,8 @@ tags:
   - name: Playback
   - name: Favourites
   - name: Progress
+  - name: Internal
+    description: Calls from other services (ADR-0022). Not reachable through the gateway.
 security:
   - cookieAuth: []
 paths:
@@ -628,8 +630,158 @@ paths:
         '503':
           $ref: './common.yaml#/components/responses/ServiceUnavailable'
 
+  /internal/downloads/{entryId}:
+    put:
+      tags: [Internal]
+      operationId: downloadStarting
+      summary: A download of an acquisition entry starts
+      description: |
+        Called by the acquisition service before it adds the torrent, so the catalogue never lacks a download that
+        is in progress (docs/architecture/consistency-rules.md, "Starting"). Repeating it changes nothing.
+
+        - No entry yet: created as `DOWNLOADING`, with the title.
+        - Already `DOWNLOADING`: nothing changes.
+        - `UNAVAILABLE` without a file (a previous attempt failed): `DOWNLOADING` again, keeping what an
+          administrator edited.
+        - It already has a file (`AVAILABLE`, or `UNAVAILABLE` because the file is gone): `409 already_in_library`.
+
+        Not reachable through the gateway (ADR-0022).
+      x-permission: service (acquisition)
+      security:
+        - serviceToken: []
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+      responses:
+        '200':
+          description: The entry is `DOWNLOADING`.
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '409':
+          description: The title is already in the library (`already_in_library`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /internal/downloads/{entryId}/completed:
+    post:
+      tags: [Internal]
+      operationId: downloadCompleted
+      summary: The file of a download is complete
+      description: |
+        Called by the acquisition service once it has checked the file's size and format. The library, in one
+        transaction, checks the path with the same rules as a stream (no `..`, no link leading outside the
+        downloads folder, LIB-08), checks that the downloads folder is an authorized root and that the file is a
+        readable supported video, links the file to the entry and makes it `AVAILABLE`.
+
+        `relativePath` is relative to the downloads folder. The call is idempotent: the same file for an entry
+        that is already `AVAILABLE` answers `200` and changes nothing. If a scan found the file first, the entry
+        the scan created is removed and the download entry wins ("A scan may find the file first").
+
+        Not reachable through the gateway (ADR-0022).
+      x-permission: service (acquisition)
+      security:
+        - serviceToken: []
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [relativePath]
+              properties:
+                relativePath:
+                  type: string
+                  maxLength: 4096
+                  examples: ["sintel/Sintel.mp4"]
+      responses:
+        '200':
+          description: The file is linked and the entry is `AVAILABLE`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mediaId]
+                properties:
+                  mediaId:
+                    $ref: './common.yaml#/components/schemas/Uuid'
+        '400':
+          description: The path is not valid (`invalid_path`), or the body is invalid (`validation_failed`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '404':
+          description: No entry exists for this download (`not_found`).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+        '409':
+          description: |
+            The file cannot be linked: `downloads_folder_not_authorized`, `file_not_available` (missing, not a
+            readable regular file, or not a supported video), `not_downloading` (the download already failed or
+            was cancelled), or `already_in_library` (the entry already has another file).
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /internal/downloads/{entryId}/failed:
+    post:
+      tags: [Internal]
+      operationId: downloadFailed
+      summary: A download failed or was cancelled
+      description: |
+        A `DOWNLOADING` entry becomes `UNAVAILABLE`, keeping its title. It can be downloaded again, or removed by
+        an administrator. Any other entry is left alone, including one that is already `AVAILABLE`, and an unknown
+        entry answers `204` too: acquisition repeats this call until it works, so it must be harmless to repeat.
+
+        Not reachable through the gateway (ADR-0022).
+      x-permission: service (acquisition)
+      security:
+        - serviceToken: []
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      responses:
+        '204':
+          description: Done, or nothing to do.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
 components:
   parameters:
+    EntryId:
+      name: entryId
+      in: path
+      required: true
+      description: The id of the acquisition catalogue entry, which the download is of.
+      schema:
+        $ref: './common.yaml#/components/schemas/Uuid'
     MediaId:
       name: mediaId
       in: path
@@ -670,6 +822,15 @@ components:
       description: Number of bytes in the body.
       schema:
         type: integer
+
+  securitySchemes:
+    serviceToken:
+      type: apiKey
+      in: header
+      name: X-Service-Token
+      description: >
+        The secret of the calling service (ADR-0022). The library holds one per caller and allows each only its
+        own endpoints. Compared in constant time. Never a user token.
 
   schemas:
     Availability:
