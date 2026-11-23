@@ -37,6 +37,11 @@ import com.homeflix.acquisition.web.RejectedRequestException;
  * job was cancelled meanwhile, the start removes the torrent itself. Either way no torrent is left running
  * for a finished job.
  *
+ * <p>Every job of an entry has the same info hash. A cancelled start can therefore be followed by a new
+ * start of the same entry before its own cleanup runs. That cleanup removes the torrent only if no other job
+ * of the entry is active, under the entry's lock, which a start also takes to create its job: a late cleanup
+ * never removes the torrent and the files of the start that followed.
+ *
  * <p>A crash between the job's creation and the torrent's addition leaves a QUEUED job whose torrent is not
  * in the client. The status check fails it with {@code torrent_missing} after a grace period.
  *
@@ -76,7 +81,11 @@ public class DownloadService {
 
 		UUID jobId;
 		try {
-			jobId = downloads.insertQueued(entry.id(), entry.infoHash(), startedBy);
+			// Under the entry's lock, so a late cleanup of an earlier start sees this job (see below).
+			jobId = transaction.execute(status -> {
+				downloads.lockEntry(entry.id());
+				return downloads.insertQueued(entry.id(), entry.infoHash(), startedBy);
+			});
 		}
 		catch (DuplicateKeyException ex) {
 			// Another start of the same entry won the race. The library call above changed nothing (idempotent).
@@ -90,7 +99,7 @@ public class DownloadService {
 			failStart(jobId, entry, ex);
 			throw ex;
 		}
-		removeTorrentIfCancelledMeanwhile(jobId);
+		removeTorrentIfCancelledMeanwhile(jobId, entry.id());
 		log.info("Download {} of entry {} started by account {}", jobId, entry.id(), startedBy);
 		return get(jobId);
 	}
@@ -131,7 +140,7 @@ public class DownloadService {
 	 */
 	private void failStart(UUID jobId, DownloadableEntry entry, RuntimeException cause) {
 		try {
-			torrents.delete(entry.infoHash());
+			removeTorrentUnlessAnotherJobIsActive(jobId, entry.id(), entry.infoHash());
 		}
 		catch (RuntimeException ex) {
 			cause.addSuppressed(ex);
@@ -146,10 +155,17 @@ public class DownloadService {
 		}
 	}
 
-	private void removeTorrentIfCancelledMeanwhile(UUID jobId) {
+	private void removeTorrentIfCancelledMeanwhile(UUID jobId, UUID entryId) {
 		transaction.executeWithoutResult(status -> {
+			// The entry's lock first, then the job's: the order a start and a cancel take them in.
+			downloads.lockEntry(entryId);
 			DownloadRepository.Job job = downloads.lock(jobId).orElseThrow(NotFoundException::new);
 			if (job.state().active()) {
+				return;
+			}
+			if (downloads.hasOtherActiveJob(job.clientHash(), jobId)) {
+				log.info("Download {} was cancelled while its torrent was added: the torrent is kept for the "
+						+ "download of the same title started since", jobId);
 				return;
 			}
 			try {
@@ -160,6 +176,16 @@ public class DownloadService {
 				// The job is already cancelled and the library told. The status check removes the torrent.
 				log.warn("Download {} was cancelled while its torrent was added, and the torrent could not be "
 						+ "removed yet", jobId, ex);
+			}
+		});
+	}
+
+	/** A torrent of another active job of the entry is kept: it has the same info hash (see above). */
+	private void removeTorrentUnlessAnotherJobIsActive(UUID jobId, UUID entryId, String hash) {
+		transaction.executeWithoutResult(status -> {
+			downloads.lockEntry(entryId);
+			if (!downloads.hasOtherActiveJob(hash, jobId)) {
+				torrents.delete(hash);
 			}
 		});
 	}

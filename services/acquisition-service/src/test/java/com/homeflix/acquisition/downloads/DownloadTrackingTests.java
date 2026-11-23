@@ -2,6 +2,9 @@ package com.homeflix.acquisition.downloads;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 
@@ -18,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -62,6 +66,9 @@ class DownloadTrackingTests {
 	/** The real client, unless a test makes it report a state or fail. */
 	@MockitoSpyBean
 	private QbittorrentClient torrents;
+	/** The real repository, unless a test makes it fail. */
+	@MockitoSpyBean
+	private DownloadRepository repository;
 
 	private UUID entryId;
 	private String hash;
@@ -71,7 +78,7 @@ class DownloadTrackingTests {
 		clean();
 		LIBRARY.reset();
 		hash = randomHash();
-		entryId = insertEntry(hash);
+		entryId = insertEntry("Tracked film", hash);
 	}
 
 	@AfterEach
@@ -180,6 +187,35 @@ class DownloadTrackingTests {
 		assertThat(syncedOf(jobId)).isTrue();
 	}
 
+	@Test
+	void theFailureOfAnOlderJobIsNotToldWhileANewerJobDownloads() {
+		// Job A is cancelled while the library is down, then the entry is started again (job B).
+		UUID older = start();
+		LIBRARY.answerFailedWith(503);
+		downloads.cancel(older);
+		LIBRARY.reset();
+		start();
+
+		tracker.check();
+
+		// Telling the library about A now would make the entry UNAVAILABLE while B downloads.
+		assertThat(LIBRARY.calls()).isEmpty();
+		assertThat(syncedOf(older)).isTrue();
+	}
+
+	@Test
+	void aFailureOfAnEntryTheLibraryNoLongerHasIsNotRepeated() {
+		UUID jobId = start();
+		// The library answers 404 when an administrator removed the entry (H8).
+		LIBRARY.answerFailedWith(404);
+		downloads.cancel(jobId);
+
+		assertThat(syncedOf(jobId)).isTrue();
+		LIBRARY.reset();
+		tracker.check();
+		assertThat(LIBRARY.calls()).isEmpty();
+	}
+
 	// ---- Torrents left behind ----
 
 	@Test
@@ -215,6 +251,44 @@ class DownloadTrackingTests {
 		assertThat(stateOf(newJob)).isEqualTo("QUEUED");
 	}
 
+	@Test
+	void aTorrentTakenOverByANewStartIsKeptOnceThatStartIsComplete() {
+		// The new start keeps the torrent left by the failed job, with the failed job's tag.
+		UUID oldJob = insertJob("FAILED", hash);
+		QbittorrentContainer.addTorrent("magnet:?xt=urn:btih:" + hash, "homeflix-job-" + oldJob);
+		UUID newJob = start();
+		assertThat(QbittorrentContainer.torrentInfo(hash)).contains("homeflix-job-" + oldJob);
+		jdbc.update("""
+				update download_job set state = 'COMPLETED', progress_percent = 100, finished_at = now(),
+				    completed_relative_path = 'film.mp4', handoff_started_at = now() where id = ?
+				""", newJob);
+
+		tracker.check();
+
+		assertThat(QbittorrentContainer.hasTorrent(hash)).isTrue();
+	}
+
+	// ---- Errors ----
+
+	@Test
+	void anErrorOnOneJobDoesNotStopTheCheckOfTheOthers() {
+		UUID broken = start();
+		String otherHash = randomHash();
+		entryId = insertEntry("Another tracked film", otherHash);
+		UUID other = start();
+		doThrow(new DataAccessResourceFailureException("unexpected")).when(repository)
+				.updateStatus(eq(broken), any(), anyInt());
+		List<Torrent> real = torrents.list();
+		doReturn(real.stream().map(t -> new Torrent(t.hash(), "downloading", 0.5, t.tags())).toList())
+				.when(torrents).list();
+
+		tracker.check();
+
+		assertThat(stateOf(other)).isEqualTo("DOWNLOADING");
+		assertThat(stateOf(broken)).isEqualTo("QUEUED");
+		QbittorrentContainer.removeTorrent(otherHash);
+	}
+
 	// ---- Torrent client down ----
 
 	@Test
@@ -241,7 +315,7 @@ class DownloadTrackingTests {
 		List<Torrent> real = torrents.list();
 		List<Torrent> reported = real.stream()
 				.map(t -> t.hash().equals(hash)
-						? new Torrent(t.hash(), state, progress, t.tags(), t.savePath(), t.contentPath()) : t)
+						? new Torrent(t.hash(), state, progress, t.tags(), t.contentPath()) : t)
 				.toList();
 		doReturn(reported).when(torrents).list();
 	}
@@ -273,14 +347,14 @@ class DownloadTrackingTests {
 				""", UUID.class, entryId, clientHash, state, UUID.randomUUID(), state, state, state);
 	}
 
-	private UUID insertEntry(String infoHash) {
+	private UUID insertEntry(String title, String infoHash) {
 		return jdbc.queryForObject("""
 				insert into acquisition_entry (title, source_name, source_url, licence, licence_url,
 				    download_source, expected_size_bytes, expected_format)
-				values ('Tracked film', 'Test source', 'https://example.org/', 'Test licence',
+				values (?, 'Test source', 'https://example.org/', 'Test licence',
 				    'https://example.org/licence', ?, 1000, 'MP4')
 				returning id
-				""", UUID.class, "magnet:?xt=urn:btih:" + infoHash + "&dn=test.mp4");
+				""", UUID.class, title, "magnet:?xt=urn:btih:" + infoHash + "&dn=test.mp4");
 	}
 
 	private static String randomHash() {

@@ -2,6 +2,9 @@ package com.homeflix.acquisition.downloads;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -11,9 +14,11 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -79,6 +84,9 @@ class DownloadHandoffTests {
 	private WebApplicationContext context;
 	@MockitoSpyBean
 	private QbittorrentClient torrents;
+	/** The real repository, unless a test interleaves a cancel. */
+	@MockitoSpyBean
+	private DownloadRepository repository;
 
 	private final ObjectMapper json = new ObjectMapper();
 	private UUID entryId;
@@ -223,11 +231,64 @@ class DownloadHandoffTests {
 	@Test
 	void aFileOutsideTheDownloadsFolderFailsTheChecks() throws Exception {
 		UUID jobId = start();
-		reportComplete("/downloads/", "/etc/passwd");
+		reportComplete("/etc/passwd");
 
 		tracker.check();
 
 		assertVerificationFailed(jobId);
+	}
+
+	@Test
+	void aFileSavedInASubfolderIsHandedOverWithItsPathFromTheDownloadsFolder() throws Exception {
+		UUID jobId = start();
+		Files.createDirectories(DOWNLOADS.resolve("movies"));
+		Files.write(DOWNLOADS.resolve("movies").resolve(fileName), Mp4Files.valid(SIZE));
+		reportComplete(DOWNLOADS + "/movies/" + fileName);
+
+		tracker.check();
+
+		assertThat(row(jobId).get("state")).isEqualTo("COMPLETED");
+		assertThat(row(jobId).get("completed_relative_path")).isEqualTo("movies/" + fileName);
+	}
+
+	@Test
+	void aFileThatCannotBeReadIsKeptAndCheckedAgain() throws Exception {
+		UUID jobId = start();
+		Path file = write(Mp4Files.valid(SIZE));
+		reportComplete();
+		// A permission problem, such as a user mismatch between the torrent client and this service.
+		Files.setPosixFilePermissions(file, Set.of());
+
+		tracker.check();
+
+		assertThat(row(jobId).get("state")).isEqualTo("DOWNLOADING");
+		assertThat(row(jobId).get("completed_relative_path")).isNull();
+		assertThat(QbittorrentContainer.hasTorrent(hash)).isTrue();
+		assertThat(Files.exists(file)).isTrue();
+		assertThat(LIBRARY.calls()).isEmpty();
+
+		Files.setPosixFilePermissions(file, Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
+		tracker.check();
+		assertThat(row(jobId).get("state")).isEqualTo("COMPLETED");
+	}
+
+	@Test
+	void aDownloadCancelledWhileItsFileIsCheckedIsNotHandedOver() throws Exception {
+		UUID jobId = start();
+		write(Mp4Files.valid(SIZE));
+		reportComplete();
+		// The cancel comes after the checks, just before the job is marked verified.
+		doAnswer(call -> {
+			downloads.cancel(jobId);
+			return call.callRealMethod();
+		}).when(repository).markVerified(eq(jobId), any());
+
+		tracker.check();
+
+		assertThat(row(jobId).get("error_code")).isEqualTo("cancelled");
+		assertThat(row(jobId).get("completed_relative_path")).isNull();
+		assertThat(LIBRARY.calls()).extracting(LibraryStub.Call::method, LibraryStub.Call::path)
+				.containsExactly(tuple("POST", "/internal/downloads/" + entryId + "/failed"));
 	}
 
 	@Test
@@ -266,19 +327,21 @@ class DownloadHandoffTests {
 		return jobId;
 	}
 
-	private void write(byte[] content) throws IOException {
-		Files.write(DOWNLOADS.resolve(fileName), content);
+	private Path write(byte[] content) throws IOException {
+		return Files.write(DOWNLOADS.resolve(fileName), content);
 	}
 
 	private void reportComplete() {
-		reportComplete("/downloads/", "/downloads/" + fileName);
+		reportComplete(DOWNLOADS + "/" + fileName);
 	}
 
-	/** Makes the client report the test's torrent as complete, with these paths as the client sees them. */
-	private void reportComplete(String savePath, String contentPath) {
+	/**
+	 * Makes the client report the test's torrent as complete, with this content path as the client sees it:
+	 * the downloads folder is mounted here at the same path.
+	 */
+	private void reportComplete(String contentPath) {
 		List<Torrent> reported = torrents.list().stream()
-				.map(t -> t.hash().equals(hash) ? new Torrent(t.hash(), "stalledUP", 1, t.tags(), savePath, contentPath)
-						: t)
+				.map(t -> t.hash().equals(hash) ? new Torrent(t.hash(), "stalledUP", 1, t.tags(), contentPath) : t)
 				.toList();
 		doReturn(reported).when(torrents).list();
 	}
