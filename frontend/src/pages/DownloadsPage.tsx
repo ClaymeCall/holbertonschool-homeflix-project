@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   cancelDownload,
   isActive,
@@ -44,6 +44,12 @@ export function DownloadsPage() {
   const [cancelling, setCancelling] = useState<Download | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
+  const noticeRef = useRef<HTMLParagraphElement>(null)
+
+  // A start or a cancel disables or removes the button that opened its dialog, so focus goes to the outcome.
+  useEffect(() => {
+    if (notice) noticeRef.current?.focus()
+  }, [notice])
 
   const entries = catalogue.state.status === 'success' ? catalogue.state.data : []
   const list = downloads.state.status === 'success' ? downloads.state.data : []
@@ -88,7 +94,12 @@ export function DownloadsPage() {
       <h1 className={styles.title}>Downloads</h1>
 
       {notice && (
-        <p className={notice.kind === 'error' ? styles.noticeError : styles.notice} role={notice.kind === 'error' ? 'alert' : 'status'}>
+        <p
+          ref={noticeRef}
+          tabIndex={-1}
+          className={notice.kind === 'error' ? styles.noticeError : styles.notice}
+          role={notice.kind === 'error' ? 'alert' : 'status'}
+        >
           {notice.text}
         </p>
       )}
@@ -296,10 +307,15 @@ function EntryItem({ entry, downloading, onDownload }: { entry: Entry; downloadi
         )}
       </dl>
       <div className={styles.actions}>
-        <Button onClick={onDownload} disabled={downloading} aria-label={`Download ${entry.title}`}>
+        <Button
+          onClick={onDownload}
+          disabled={downloading}
+          aria-label={`${downloading ? 'Downloading' : 'Download'} ${entry.title}`}
+        >
           {downloading ? 'Downloading…' : 'Download'}
         </Button>
       </div>
+      {downloading && <p className={styles.hint}>This title is already downloading. Follow it in All downloads.</p>}
     </li>
   )
 }

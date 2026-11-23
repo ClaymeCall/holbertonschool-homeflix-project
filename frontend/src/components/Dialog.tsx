@@ -5,7 +5,8 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
 
 /**
  * A modal dialog (WAI-ARIA dialog pattern). Focus moves to the dialog when it opens, so a screen reader
- * reads its title first, stays inside it while it is open, and goes back to where it was when it closes.
+ * reads its title and then its text, stays inside it while it is open, and goes back to where it was when it
+ * closes.
  * Escape closes it, as its cancel action does.
  */
 export function Dialog({
@@ -21,6 +22,7 @@ export function Dialog({
   onClose: () => void
 }) {
   const titleId = useId()
+  const bodyId = useId()
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -58,13 +60,16 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={bodyId}
         tabIndex={-1}
         onKeyDown={handleKeyDown}
       >
         <h2 id={titleId} className={styles.title}>
           {title}
         </h2>
-        <div className={styles.body}>{children}</div>
+        <div id={bodyId} className={styles.body}>
+          {children}
+        </div>
         <div className={styles.actions}>{actions}</div>
       </div>
     </div>
