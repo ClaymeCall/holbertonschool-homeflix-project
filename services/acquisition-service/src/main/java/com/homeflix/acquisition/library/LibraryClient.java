@@ -83,6 +83,9 @@ public class LibraryClient {
 	 * Tells the library a download failed or was cancelled, so its entry is no longer shown as downloading
 	 * (consistency rules, "Failing and cancelling").
 	 *
+	 * <p>A 404 means the library no longer has the entry (an administrator removed it, H8): there is nothing
+	 * left to tell, and repeating the call would never succeed.
+	 *
 	 * @return false when the library could not be told: the call must be repeated later
 	 */
 	public boolean downloadFailed(UUID entryId) {
@@ -90,9 +93,14 @@ public class LibraryClient {
 			rest.post().uri("/internal/downloads/{entryId}/failed", entryId).retrieve().toBodilessEntity();
 			return true;
 		}
+		catch (HttpClientErrorException.NotFound ex) {
+			log.warn("The library no longer has entry {}: its failed download is not told", entryId);
+			return true;
+		}
 		catch (RestClientException ex) {
-			log.warn("The library could not be told that the download of entry {} failed; it will be told later",
-					entryId, ex);
+			// Repeated at every status check: the message only, not the stack trace each time.
+			log.warn("The library could not be told that the download of entry {} failed; it will be told later: {}",
+					entryId, ex.getMessage());
 			return false;
 		}
 	}

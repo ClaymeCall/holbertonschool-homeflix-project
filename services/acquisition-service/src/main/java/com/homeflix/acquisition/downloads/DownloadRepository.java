@@ -77,19 +77,39 @@ class DownloadRepository {
 				""", state.name(), progressPercent, id, state.name(), progressPercent);
 	}
 
+	/**
+	 * Marks as told the failures of jobs whose entry has a newer job: the library follows the newer job, and
+	 * telling it about the older failure would make the entry UNAVAILABLE while the newer job downloads.
+	 */
+	void markSupersededFailuresSynced() {
+		jdbc.update("""
+				update download_job failed set library_synced_at = now()
+				where failed.state = 'FAILED' and failed.library_synced_at is null
+				  and exists (select 1 from download_job newer
+				      where newer.entry_id = failed.entry_id and newer.created_at > failed.created_at)
+				""");
+	}
+
 	List<UnsyncedFailure> unsyncedFailures() {
 		return jdbc.query("select id, entry_id from download_job where state = 'FAILED' and library_synced_at is null",
 				(rs, row) -> new UnsyncedFailure(rs.getObject("id", UUID.class), rs.getObject("entry_id", UUID.class)));
 	}
 
-	/** Those of these jobs that are FAILED. */
-	Set<UUID> failedAmong(Collection<UUID> ids) {
-		if (ids.isEmpty()) {
+	/**
+	 * Those of these info hashes whose latest job is FAILED. A hash whose latest job is active or completed
+	 * is left out: a new start may have taken over a torrent left by a failed job, keeping its tag.
+	 */
+	Set<String> latestJobFailedAmong(Collection<String> hashes) {
+		if (hashes.isEmpty()) {
 			return Set.of();
 		}
-		String placeholders = String.join(", ", Collections.nCopies(ids.size(), "?"));
-		return Set.copyOf(jdbc.queryForList("select id from download_job where state = 'FAILED' and id in (" + placeholders + ")",
-				UUID.class, ids.toArray()));
+		String placeholders = String.join(", ", Collections.nCopies(hashes.size(), "?"));
+		return Set.copyOf(jdbc.queryForList("""
+				select client_hash from (
+				    select distinct on (client_hash) client_hash, state from download_job
+				    where client_hash in (%s) order by client_hash, created_at desc) latest
+				where state = 'FAILED'
+				""".formatted(placeholders), String.class, hashes.toArray()));
 	}
 
 	boolean hasActiveJobWithHash(String clientHash) {
