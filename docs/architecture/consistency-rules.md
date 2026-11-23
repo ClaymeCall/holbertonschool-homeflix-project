@@ -152,6 +152,8 @@ Whenever a job becomes `FAILED`, acquisition calls `POST /internal/downloads/{en
 
 If the library does not answer, the job stays marked as not yet notified, and acquisition repeats the call at each status check until it works. Until then the title shows as downloading, which is the only visible inconsistency, and it ends by itself.
 
+A failure is no longer repeated once the entry has a newer job, since the library then follows that job: telling it about the older failure would make the entry `UNAVAILABLE` while the newer job downloads. A `404` means the library no longer has the entry (H8), so there is nothing left to tell.
+
 The job table needs one extra column for this, `library_synced_at` (null while a notification is pending). It is added to the data model with this document, and created by the acquisition migration (J3).
 
 ### Restart
