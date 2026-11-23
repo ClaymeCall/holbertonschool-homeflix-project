@@ -44,6 +44,22 @@ class DownloadRepository {
 	}
 
 	/**
+	 * Locks the entry until the end of the transaction. A start takes it to create its job, and the cleanup
+	 * of a failed or cancelled start takes it to check that no other job uses the torrent.
+	 */
+	void lockEntry(UUID entryId) {
+		jdbc.queryForList("select id from acquisition_entry where id = ? for update", entryId);
+	}
+
+	/** Whether a job other than this one is active with this info hash: the torrent is then its own. */
+	boolean hasOtherActiveJob(String clientHash, UUID jobId) {
+		return Boolean.TRUE.equals(jdbc.queryForObject("""
+				select exists (select 1 from download_job
+				    where client_hash = ? and id <> ? and state in ('QUEUED', 'DOWNLOADING'))
+				""", Boolean.class, clientHash, jobId));
+	}
+
+	/**
 	 * A new job, QUEUED, with the info hash of the entry's magnet link: the torrent can be found or removed by
 	 * it from the start, even if adding it fails or is interrupted. The library was told just before, so it
 	 * is in sync. The unique indexes refuse a second active job for the same entry (DuplicateKeyException).

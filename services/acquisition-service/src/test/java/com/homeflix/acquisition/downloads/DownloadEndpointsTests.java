@@ -17,11 +17,14 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -336,6 +339,24 @@ class DownloadEndpointsTests {
 		assertFailedAndLibraryTold("cancelled");
 	}
 
+	@Test
+	void aLateCleanupOfACancelledStartKeepsTheTorrentOfTheStartThatFollowed() throws Exception {
+		// Start A is slow to add its torrent: meanwhile it is cancelled and start B of the same entry,
+		// hence of the same info hash, adds the torrent. A's cleanup must leave B's torrent alone.
+		UUID b = cancelAndStartAgainWhileTheFirstTorrentIsAdded(call -> call.callRealMethod());
+
+		assertTheSecondStartIsRunning(b);
+	}
+
+	@Test
+	void aLateFailureOfACancelledStartKeepsTheTorrentOfTheStartThatFollowed() throws Exception {
+		UUID b = cancelAndStartAgainWhileTheFirstTorrentIsAdded(call -> {
+			throw new ServiceUnavailableException("Torrent client unavailable", null);
+		});
+
+		assertTheSecondStartIsRunning(b);
+	}
+
 	// ---- Cancel (consistency rules, "Failing and cancelling") ----
 
 	@Test
@@ -415,6 +436,37 @@ class DownloadEndpointsTests {
 	}
 
 	// ---- Helpers ----
+
+	/**
+	 * Starts A. While A adds its torrent, A is cancelled and B is started, then A's add ends with
+	 * {@code endOfFirstAdd}.
+	 *
+	 * @return B's id
+	 */
+	private UUID cancelAndStartAgainWhileTheFirstTorrentIsAdded(Answer<?> endOfFirstAdd) throws Exception {
+		AtomicBoolean firstAdd = new AtomicBoolean(true);
+		AtomicReference<UUID> second = new AtomicReference<>();
+		doAnswer(call -> {
+			if (!firstAdd.getAndSet(false)) {
+				return call.callRealMethod();
+			}
+			UUID first = jdbc.queryForObject("select id from download_job where entry_id = ?", UUID.class, entryId);
+			downloads.cancel(first);
+			second.set(downloads.start(entryId, UUID.randomUUID()).id());
+			return endOfFirstAdd.answer(call);
+		}).when(torrents).add(any(), any(), any());
+
+		mvc.perform(start(entryId).header("X-Test-Caller", "admin"));
+		return second.get();
+	}
+
+	private void assertTheSecondStartIsRunning(UUID second) {
+		assertThat(QbittorrentContainer.hasTorrent(entryHash)).isTrue();
+		assertThat(QbittorrentContainer.torrentInfo(entryHash)).contains("homeflix-job-" + second);
+		assertThat(jdbc.queryForList("select state, error_code from download_job where entry_id = ? order by created_at",
+				entryId)).extracting(row -> row.get("state"), row -> row.get("error_code")).containsExactly(
+						tuple("FAILED", "cancelled"), tuple("QUEUED", null));
+	}
 
 	private UUID startedJob() throws Exception {
 		return idOf(as("admin", start(entryId)).andExpect(status().isCreated()).andReturn());
