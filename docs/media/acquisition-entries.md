@@ -95,6 +95,7 @@ Both entries were downloaded from the catalogue on the Compose stack, branch of 
 | SHA-256 of the received file | `0bb49419…8dce77`, the value above | `0d38c5a6…55c6fd`, the value above |
 | Download state | `COMPLETED`, 100 % | `COMPLETED`, 100 % |
 | Library entry | `AVAILABLE`, linked to its acquisition entry | `AVAILABLE`, linked to its acquisition entry |
+| Playback | Played from the catalogue (checked by Thomas) | Played from the catalogue (checked by Thomas) |
 
 - **Peer:** the seeder was Thomas's desktop qBittorrent 5.2.3, on the same computer as the stack. It was added by hand as a peer of the stack's client (`torrents/addPeers`, Docker Desktop host address), because the router does not loop back to its own public address. The client's peer list showed it as `qBittorrent/5.2.3`. The data came through the BitTorrent protocol, and the torrents have no web seed.
 - **Migration:** at start, Flyway applied `V7` to the acquisition database ("now at version v7"). The catalogue then listed Big Buck Bunny, Sintel and Tears of Steel.
@@ -106,4 +107,4 @@ This run does not show a transfer from another network. That is covered for Sint
 
 - [ ] Screenshots of <https://peach.blender.org/about/> and <https://mango.blender.org/sharing/> in [`evidence/`](evidence/)
 - [ ] Screenshot of both torrents seeding on a team machine
-- [x] A download of each entry from the catalogue, through the torrent, to an available title (test run above)
+- [x] A download of each entry from the catalogue, through the torrent, to a played title (test run above)
