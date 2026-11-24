@@ -7,7 +7,7 @@ Hand-written OpenAPI contracts, written **before** the implementation (ADR-0010,
 | [`common.yaml`](common.yaml) | Error body, session security scheme and responses shared by every service. |
 | [`identity.yaml`](identity.yaml) | First-run setup, sessions, account administration and viewing profiles. |
 | [`library.yaml`](library.yaml) | Folders, scans, catalogue, streaming with Range, favourites and progress. |
-| [`acquisition.yaml`](acquisition.yaml) | The verified acquisition catalogue. Downloads and the handoff to the library are added with their issues (J5 to J7). |
+| [`acquisition.yaml`](acquisition.yaml) | The verified acquisition catalogue, and starting and cancelling downloads. Status tracking and the handoff to the library are added with their issues (J6, J7). |
 
 Acquisition downloads and the handoff to the library, and the administration of catalogue metadata, are written in later pull requests, when their issues start.
 
@@ -73,6 +73,7 @@ Every service verifies the token itself with the identity service's public key. 
 | Operation | Permission |
 |---|---|
 | `GET /entries`, `GET /entries/{entryId}` | admin |
+| `POST /downloads`, `GET /downloads/{downloadId}`, `POST /downloads/{downloadId}/cancel` | admin |
 
 Every acquisition operation is administrator only (ACQ-05). Entries are added by a reviewed migration, never through the API, and no operation accepts a URL, a magnet link or a torrent file (ACQ-09, ACQ-10, R-15).
 
@@ -91,6 +92,8 @@ These codes are introduced by the contracts and must be added to the [error mode
 | `scan_in_progress` | 409 | A scan is already running. |
 | `media_not_available` | 409 | Streaming a title that is still downloading. |
 | `range_not_satisfiable` | 416 | A byte range outside the file, or several ranges. |
+| `download_in_progress` | 409 | Starting the download of an entry that already has one queued or downloading. |
+| `download_not_cancellable` | 409 | Cancelling a download that has already completed or failed. |
 
 ## Streaming and Range
 
@@ -108,4 +111,4 @@ The contract follows the identity service's implementation (#125) where the fron
 
 - **Removing a root** keeps its titles as `UNAVAILABLE`, so the migration for `media_file` must not delete rows when a root is removed (H4, issue #53).
 - **Scan duration:** the scan runs inside the request, so the gateway's read timeout for `/api/library/scans` must be raised above the default when it is implemented.
-- **Not yet specified:** administration of accounts (G8), catalogue metadata editing and removal (H8), acquisition downloads (J5, J6), handoff and deletion between services (issue #13).
+- **Not yet specified:** administration of accounts (G8), catalogue metadata editing and removal (H8), acquisition status tracking (J6), handoff and deletion between services (issue #13).

@@ -17,3 +17,24 @@ management:
       probes:
         enabled: true
       show-details: never
+
+homeflix:
+  # The library's internal endpoints (docs/architecture/consistency-rules.md, ADR-0022). Called directly on
+  # the backend network, never through the gateway, with this service's own token.
+  library:
+    base-url: ${LIBRARY_SERVICE_URL:http://library-service:8082}
+    service-token: ${ACQUISITION_TO_LIBRARY_TOKEN:}
+
+  # The torrent client's Web API, on the private p2p network (ADR-0014, ADR-0023).
+  qbittorrent:
+    url: ${QBITTORRENT_URL:http://qbittorrent:8080}
+    username: ${QBITTORRENT_USERNAME:}
+    password: ${QBITTORRENT_PASSWORD:}
+
+  # Calls to other services: timeouts and retry policy (ADR-0020, R-24).
+  # Only GET is retried, once, after a connection failure, a timeout or a 502, 503 or 504.
+  http-client:
+    connect-timeout: 2s
+    read-timeout: 5s
+    retries: 1
+    retry-pause: 200ms

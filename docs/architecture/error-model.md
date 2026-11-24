@@ -69,9 +69,18 @@ The interface is English only ([ADR-0021](../adr/0021-english-only-interface.md)
 | `scan_in_progress` | 409 | A scan is already running. Try again when it has finished. | An indexing is requested while one is running. |
 | `media_not_available` | 409 | This title is still downloading and cannot be played yet. | Streaming a title that has no file yet. |
 | `range_not_satisfiable` | 416 | This part of the video is not available. | A byte range outside the file, or several ranges. |
-| `already_in_library` | 409 | This title is already in the library. | Internal call: a download is started for a title that is already available. Shown to an administrator as a failed download. |
+| `already_in_library` | 409 | This title is already in the library. | Internal call: a download is started for a title that is already available. The administrator's start is refused with the same code and message, and no download is recorded. |
 
 `file_not_found`, `file_not_readable` and `access_denied` have different codes and messages, so the user can tell a missing file from a permission problem (PLY-05), but none ever says where the file is. `format_not_supported` is also the outcome reported for a video found during indexing in an unsupported format (see [media identification rules](../library/media-identification.md)). Such a file is not indexed, so it normally never reaches the play endpoint, which answers 415 if one ever does.
+
+### Acquisition service
+
+| Code | Status | Message | When |
+|---|---|---|---|
+| `download_in_progress` | 409 | A download of this title is already in progress. | Starting the download of an entry that already has one queued or downloading. |
+| `download_not_cancellable` | 409 | This download has already finished and cannot be cancelled. | Cancelling a download that has already completed or failed. |
+
+A start refused by the library with `already_in_library` is answered to the administrator with the same code and message. Any other refusal from the library, or a library or torrent client that does not answer, gives `503 service_unavailable`.
 
 ## Timeouts and retries
 

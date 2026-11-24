@@ -82,6 +82,9 @@ services:
   acquisition-service:
     build: ./services/acquisition-service
     environment:
+      # Sent in X-Service-Token to the library's internal endpoints (ADR-0022). The library holds the same
+      # value for this caller only. The service refuses to start without it.
+      ACQUISITION_TO_LIBRARY_TOKEN: ${ACQUISITION_TO_LIBRARY_TOKEN:?Set ACQUISITION_TO_LIBRARY_TOKEN in .env}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/homeflix_acquisition
       SPRING_DATASOURCE_USERNAME: homeflix_acquisition
       SPRING_DATASOURCE_PASSWORD: ${ACQUISITION_DB_PASSWORD:?Set ACQUISITION_DB_PASSWORD in .env}

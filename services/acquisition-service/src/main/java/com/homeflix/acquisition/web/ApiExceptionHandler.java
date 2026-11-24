@@ -76,11 +76,23 @@ public class ApiExceptionHandler {
 				Map.of(ex.getName(), "This value is not valid.")));
 	}
 
+	/** A refusal with its own code and a message the user can act on. */
+	@ExceptionHandler(RejectedRequestException.class)
+	ResponseEntity<ApiError> rejected(RejectedRequestException ex) {
+		return ResponseEntity.status(ex.status()).body(new ApiError(ex.code(), ex.getMessage(), ex.fields()));
+	}
+
 	/** A called service is down, too slow, or answered with a 5xx: one answer for all of them. */
 	@ExceptionHandler({ ServiceUnavailableException.class, ResourceAccessException.class,
 			HttpServerErrorException.class })
 	ResponseEntity<ApiError> serviceUnavailable(Exception ex) {
-		log.warn("A service this one depends on is unavailable", ex);
+		if (ex instanceof ServiceUnavailableException) {
+			// Thrown by a client of this service, which has already logged the cause with its details.
+			log.warn("A service this one depends on is unavailable: {}", ex.getMessage());
+		}
+		else {
+			log.warn("A service this one depends on is unavailable", ex);
+		}
 		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
 				.body(new ApiError("service_unavailable", SERVICE_UNAVAILABLE_MESSAGE));
 	}
