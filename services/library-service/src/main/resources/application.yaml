@@ -33,3 +33,5 @@ homeflix:
   library:
     # The folders Docker mounts into the container. An authorized root must be inside one of them (R-02).
     mounted-paths: /media/library,/media/downloads
+    # Hosts a poster image can come from (ADR-0018). Exact host names, comma separated, https only.
+    poster-hosts: ${POSTER_ALLOWED_HOSTS:upload.wikimedia.org}

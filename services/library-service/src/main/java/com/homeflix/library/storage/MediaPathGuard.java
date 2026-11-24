@@ -1,6 +1,7 @@
 package com.homeflix.library.storage;
 
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
@@ -35,7 +36,7 @@ public final class MediaPathGuard {
 	/**
 	 * Returns the real path of {@code candidate} if it exists and lies inside an authorized root.
 	 *
-	 * @throws MediaAccessDeniedException {@code NOT_FOUND} if it cannot be resolved,
+	 * @throws MediaAccessDeniedException {@code NOT_FOUND} if it cannot be resolved, {@code UNREADABLE} if a permission stops it,
 	 *         {@code OUTSIDE_ROOTS} if its real path is outside every root
 	 */
 	public Path resolve(Path candidate) {
@@ -46,6 +47,11 @@ public final class MediaPathGuard {
 		catch (NoSuchFileException e) {
 			log.warn("Media file not found: {}", candidate);
 			throw new MediaAccessDeniedException(Reason.NOT_FOUND, e);
+		}
+		catch (AccessDeniedException e) {
+			// A folder on the way cannot be searched: a permission problem on the host, not a missing file (PLY-05).
+			log.warn("Media file cannot be read, permission denied: {}", candidate, e);
+			throw new MediaAccessDeniedException(Reason.UNREADABLE, e);
 		}
 		catch (IOException e) {
 			log.warn("Media file could not be resolved: {}", candidate, e);

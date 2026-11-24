@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { callsTo, emptyResponse, jsonResponse, mockApi, signedInRoutes, testAccount, type Route } from '../test/http'
+import { callsTo, jsonResponse, mockApi, signedInRoutes, testAccount, type Route } from '../test/http'
 import { renderApp } from '../test/render'
 
 const movie = {
@@ -116,7 +116,7 @@ describe('SignInPage', () => {
       'GET /api/library/media/m1': () => (renewed ? jsonResponse(movie) : jsonResponse({}, 401)),
       'POST /api/identity/auth/refresh': () => {
         renewed = true
-        return emptyResponse()
+        return jsonResponse(testAccount)
       },
     })
     renderApp('/movies/m1')
