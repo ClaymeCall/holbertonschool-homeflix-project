@@ -34,6 +34,9 @@ homeflix:
   # The service refuses to start without it.
   internal:
     acquisition-token: ${ACQUISITION_TO_LIBRARY_TOKEN:}
+    # The secret the identity service sends, to delete the data of a deleted profile. The service refuses to
+    # start without it.
+    identity-token: ${IDENTITY_TO_LIBRARY_TOKEN:}
   library:
     # Where completed downloads land. It must be an authorized root for a download to be handed over.
     downloads-path: /media/downloads
