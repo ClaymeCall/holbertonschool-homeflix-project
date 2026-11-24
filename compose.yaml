@@ -11,6 +11,10 @@ services:
       dockerfile: gateway/Dockerfile
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
+    environment:
+      # The same list the library service validates posters against (ADR-0018). The gateway builds the
+      # img-src of its Content-Security-Policy from it at start.
+      POSTER_ALLOWED_HOSTS: ${POSTER_ALLOWED_HOSTS:-upload.wikimedia.org}
     networks: [backend]
     restart: unless-stopped
     healthcheck:
@@ -54,6 +58,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${LIBRARY_DB_PASSWORD:?Set LIBRARY_DB_PASSWORD in .env}
       # Verifies the session token with the identity service's PUBLIC key only (G5).
       JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public_key
+      # Hosts a poster image may come from (ADR-0018). The gateway reads the same variable (issue #59).
+      POSTER_ALLOWED_HOSTS: ${POSTER_ALLOWED_HOSTS:-upload.wikimedia.org}
     secrets:
       - jwt_public_key
     depends_on:

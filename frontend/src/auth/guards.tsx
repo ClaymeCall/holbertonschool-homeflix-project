@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { describeError } from '../api/errors'
 import { ErrorState, LoadingState } from '../components/StatusMessage'
 import { useAuth } from './AuthContext'
+import { redirectTarget } from './redirect'
 
 /** Shown while the session is checked, or when HomeFlix cannot be reached at all. */
 function SessionPending() {
@@ -29,6 +30,19 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     case 'signedIn':
       return children
   }
+}
+
+/**
+ * Viewing screens: only once a profile is chosen, since the list and the progress shown are the
+ * profile's (PRF-02). Placed inside RequireAuth. The library refuses them without a profile too.
+ */
+export function RequireProfile({ children }: { children: ReactNode }) {
+  const { session } = useAuth()
+  const location = useLocation()
+  if (session.status === 'signedIn' && !session.account.profileId) {
+    return <Navigate to="/profiles" replace state={{ from: location }} />
+  }
+  return children
 }
 
 /** The first-run setup screen is only reachable while no administrator exists. */
@@ -62,15 +76,4 @@ export function RequireSignedOut({ children }: { children: ReactNode }) {
     case 'signedOut':
       return children
   }
-}
-
-/** Where to go after signing in: the protected page the user asked for, or home. */
-function redirectTarget(state: unknown): string {
-  if (state && typeof state === 'object' && 'from' in state) {
-    const from = state.from as { pathname?: unknown; search?: unknown }
-    if (typeof from.pathname === 'string' && from.pathname.startsWith('/') && !from.pathname.startsWith('//')) {
-      return from.pathname + (typeof from.search === 'string' ? from.search : '')
-    }
-  }
-  return '/'
 }
