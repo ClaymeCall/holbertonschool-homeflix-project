@@ -177,6 +177,8 @@ erDiagram
         smallint progress_percent
         varchar error_code "nullable"
         varchar completed_relative_path "nullable"
+        timestamptz handoff_started_at "nullable, when the verified file was first handed over"
+        timestamptz unreadable_since "nullable, when the completed file was first found unreadable"
         uuid started_by "plain uuid, identity account"
         timestamptz created_at
         timestamptz updated_at
@@ -191,10 +193,10 @@ erDiagram
 
 ### Download jobs (ACQ-03 to ACQ-07)
 
-- States are `QUEUED`, `DOWNLOADING`, `COMPLETED` and `FAILED` (ACQ-04). A cancelled job is `FAILED` with `error_code = 'cancelled'`. The other reasons are `client_error`, `torrent_missing` (the torrent is no longer in the client), `handoff_failed` and `verification_failed`. The API returns each reason with a plain-language message.
+- States are `QUEUED`, `DOWNLOADING`, `COMPLETED` and `FAILED` (ACQ-04). A cancelled job is `FAILED` with `error_code = 'cancelled'`. The other reasons are `client_error`, `torrent_missing` (the torrent is no longer in the client), `handoff_failed`, `verification_failed` and `file_unreadable`. The API returns each reason with a plain-language message.
 - The status check (J6) updates `state` and `progress_percent` every 10 seconds from the torrent client. A torrent the client has completed keeps the job `DOWNLOADING` at 100 % until the handoff (J7).
 - At most one job per entry is active at a time: a unique index on `entry_id` where `state` is `QUEUED` or `DOWNLOADING`. The same entry always gives the same torrent, so `client_hash` is unique among active jobs only: an entry downloaded again after a cancel has a new job with the same hash. The hash is taken from the entry's magnet link when the job is created, so the torrent can be found or removed in the client even if adding it failed or was interrupted.
-- `completed_relative_path` is relative to the downloads folder. After the size and format check it is handed to the library, which indexes it (ACQ-07).
+- `completed_relative_path` is relative to the downloads folder. It is set once the file passed the size and format checks, with `handoff_started_at`, and then handed to the library, which indexes it (ACQ-07). A `COMPLETED` job always has it (migration `V5__add_download_handoff.sql`).
 - `started_by` is an account id for the audit trail. Only an administrator can start or cancel a job (ACQ-05); the server enforces it.
 
 ## References between services

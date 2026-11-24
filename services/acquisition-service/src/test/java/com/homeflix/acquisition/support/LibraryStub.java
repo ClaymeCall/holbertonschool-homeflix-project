@@ -23,6 +23,7 @@ public final class LibraryStub {
 	private final List<Call> calls = new CopyOnWriteArrayList<>();
 	private volatile int startStatus = 200;
 	private volatile int failedStatus = 204;
+	private volatile int completedStatus = 200;
 	private volatile String conflictCode = "already_in_library";
 
 	public LibraryStub() {
@@ -36,7 +37,8 @@ public final class LibraryStub {
 			String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
 			String path = exchange.getRequestURI().getPath();
 			calls.add(new Call(exchange.getRequestMethod(), path, exchange.getRequestHeaders().getFirst("X-Service-Token"), body));
-			int status = path.endsWith("/failed") ? failedStatus : startStatus;
+			int status = path.endsWith("/failed") ? failedStatus
+					: path.endsWith("/completed") ? completedStatus : startStatus;
 			byte[] answer = status == 409
 					? ("{\"error\":\"" + conflictCode + "\",\"message\":\"Refused.\"}").getBytes(StandardCharsets.UTF_8)
 					: new byte[0];
@@ -65,6 +67,7 @@ public final class LibraryStub {
 		calls.clear();
 		startStatus = 200;
 		failedStatus = 204;
+		completedStatus = 200;
 		conflictCode = "already_in_library";
 	}
 
@@ -76,6 +79,10 @@ public final class LibraryStub {
 	public void answerStartWithConflict(String code) {
 		conflictCode = code;
 		startStatus = 409;
+	}
+
+	public void answerCompletedWith(int status) {
+		completedStatus = status;
 	}
 
 	public void answerFailedWith(int status) {

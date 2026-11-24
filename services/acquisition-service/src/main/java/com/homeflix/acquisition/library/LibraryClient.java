@@ -80,6 +80,29 @@ public class LibraryClient {
 	}
 
 	/**
+	 * Hands a completed and verified file to the library, which indexes it and makes the entry available
+	 * (consistency rules, "Completing"). Repeating it changes nothing.
+	 *
+	 * @param relativePath the file's path relative to the downloads folder
+	 * @return false when the library did not answer or refused: the call is repeated at the next status check
+	 */
+	public boolean downloadCompleted(UUID entryId, String relativePath) {
+		try {
+			rest.post().uri("/internal/downloads/{entryId}/completed", entryId)
+					.contentType(MediaType.APPLICATION_JSON)
+					.body(Map.of("relativePath", relativePath))
+					.retrieve()
+					.toBodilessEntity();
+			return true;
+		}
+		catch (RestClientException ex) {
+			log.warn("The library did not accept the completed download of entry {}; it will be tried again",
+					entryId, ex);
+			return false;
+		}
+	}
+
+	/**
 	 * Tells the library a download failed or was cancelled, so its entry is no longer shown as downloading
 	 * (consistency rules, "Failing and cancelling").
 	 *

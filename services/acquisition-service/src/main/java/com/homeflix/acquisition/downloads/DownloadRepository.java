@@ -17,11 +17,16 @@ import org.springframework.stereotype.Repository;
 class DownloadRepository {
 
 	/** A job with what the service needs to act on it. */
-	record Job(UUID id, UUID entryId, String clientHash, DownloadState state) {
+	record Job(UUID id, UUID entryId, String clientHash, DownloadState state, String completedRelativePath) {
 	}
 
-	/** An active job, for the status check: {@code pastGrace} once it is older than the given grace period. */
-	record TrackedJob(UUID id, UUID entryId, String clientHash, boolean pastGrace) {
+	/**
+	 * An active job, for the status check: {@code pastGrace} once it is older than the missing-torrent grace
+	 * period, its entry's expected size, the verified file once there is one, and {@code handoffExpired} once
+	 * the handoff has waited longer than its time limit.
+	 */
+	record TrackedJob(UUID id, UUID entryId, String clientHash, boolean pastGrace, long expectedSizeBytes,
+			String completedRelativePath, boolean handoffExpired) {
 	}
 
 	/** A failed job whose failure the library has not been told about yet. */
@@ -56,14 +61,53 @@ class DownloadRepository {
 		return jdbc.query("select " + COLUMNS + " from download_job order by created_at desc, id", DOWNLOAD);
 	}
 
-	List<TrackedJob> activeJobs(Duration grace) {
+	List<TrackedJob> activeJobs(Duration grace, Duration handoffTimeout) {
 		return jdbc.query("""
-				select id, entry_id, client_hash, created_at < now() - make_interval(secs => ?) as past_grace
-				from download_job where state in ('QUEUED', 'DOWNLOADING')
+				select j.id, j.entry_id, j.client_hash, j.completed_relative_path, e.expected_size_bytes,
+				    j.created_at < now() - make_interval(secs => ?) as past_grace,
+				    coalesce(j.handoff_started_at < now() - make_interval(secs => ?), false) as handoff_expired
+				from download_job j join acquisition_entry e on e.id = j.entry_id
+				where j.state in ('QUEUED', 'DOWNLOADING')
 				""",
 				(rs, row) -> new TrackedJob(rs.getObject("id", UUID.class), rs.getObject("entry_id", UUID.class),
-						rs.getString("client_hash"), rs.getBoolean("past_grace")),
-				grace.toMillis() / 1000.0);
+						rs.getString("client_hash"), rs.getBoolean("past_grace"), rs.getLong("expected_size_bytes"),
+						rs.getString("completed_relative_path"), rs.getBoolean("handoff_expired")),
+				grace.toMillis() / 1000.0, handoffTimeout.toMillis() / 1000.0);
+	}
+
+	/**
+	 * The file passed the checks: the handoff starts now, and its time limit runs from here. The update waits
+	 * for a cancel that holds the job's lock, and then changes nothing.
+	 *
+	 * @return false when the job is no longer active (cancelled meanwhile): the file must not be handed over
+	 */
+	/**
+	 * The completed file of this active job cannot be read: notes since when, at the first time.
+	 *
+	 * @return true when it has not been readable for longer than {@code limit}: the job must fail
+	 */
+	boolean markUnreadable(UUID id, Duration limit) {
+		return jdbc.query("""
+				update download_job set unreadable_since = coalesce(unreadable_since, now())
+				where id = ? and state in ('QUEUED', 'DOWNLOADING')
+				returning unreadable_since < now() - make_interval(secs => ?)
+				""", (rs, row) -> rs.getBoolean(1), id, limit.toMillis() / 1000.0).stream().findFirst().orElse(false);
+	}
+
+	boolean markVerified(UUID id, String relativePath) {
+		return jdbc.update("""
+				update download_job set completed_relative_path = ?, handoff_started_at = now()
+				where id = ? and state in ('QUEUED', 'DOWNLOADING') and completed_relative_path is null
+				""", relativePath, id) == 1;
+	}
+
+	/** The library has the file: COMPLETED, and the library is in sync. */
+	boolean markCompleted(UUID id) {
+		return jdbc.update("""
+				update download_job set state = 'COMPLETED', progress_percent = 100, finished_at = now(),
+				    library_synced_at = now()
+				where id = ? and state in ('QUEUED', 'DOWNLOADING') and completed_relative_path is not null
+				""", id) == 1;
 	}
 
 	/**
@@ -91,8 +135,10 @@ class DownloadRepository {
 	}
 
 	/**
-	 * Those of these info hashes whose latest job is FAILED. A hash whose latest job is active or completed
-	 * is left out: a new start may have taken over a torrent left by a failed job, keeping its tag.
+	 * Those of these info hashes whose latest job is FAILED, except a failed handoff or an unreadable file: the
+	 * file is kept, so starting the download again checks it and hands it over without downloading it again. A hash
+	 * whose latest job is active or completed is left out: a new start may have taken over a torrent left by a
+	 * failed job, keeping its tag.
 	 */
 	Set<String> latestJobFailedAmong(Collection<String> hashes) {
 		if (hashes.isEmpty()) {
@@ -101,9 +147,9 @@ class DownloadRepository {
 		String placeholders = String.join(", ", Collections.nCopies(hashes.size(), "?"));
 		return Set.copyOf(jdbc.queryForList("""
 				select client_hash from (
-				    select distinct on (client_hash) client_hash, state from download_job
+				    select distinct on (client_hash) client_hash, state, error_code from download_job
 				    where client_hash in (%s) order by client_hash, created_at desc) latest
-				where state = 'FAILED'
+				where state = 'FAILED' and error_code not in ('handoff_failed', 'file_unreadable')
 				""".formatted(placeholders), String.class, hashes.toArray()));
 	}
 
@@ -152,9 +198,12 @@ class DownloadRepository {
 
 	/** Locks the job until the end of the transaction, so a cancel and a status update cannot cross. */
 	Optional<Job> lock(UUID id) {
-		return jdbc.query("select id, entry_id, client_hash, state from download_job where id = ? for update",
+		return jdbc.query("""
+				select id, entry_id, client_hash, state, completed_relative_path from download_job where id = ? for update
+				""",
 				(rs, row) -> new Job(rs.getObject("id", UUID.class), rs.getObject("entry_id", UUID.class),
-						rs.getString("client_hash"), DownloadState.valueOf(rs.getString("state"))),
+						rs.getString("client_hash"), DownloadState.valueOf(rs.getString("state")),
+						rs.getString("completed_relative_path")),
 				id).stream().findFirst();
 	}
 

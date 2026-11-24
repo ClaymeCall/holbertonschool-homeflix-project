@@ -112,6 +112,15 @@ The library is called first so that the interface never shows a download in prog
 
 When the torrent client reports the file complete, acquisition checks the size and format (R-19, ACQ-06) and then calls `POST /internal/downloads/{entryId}/completed` with the path **relative to the downloads folder**.
 
+The checks (J7), made once per download by the status check. Acquisition mounts the downloads folder **read-only** at `/downloads`, the path qBittorrent saves to, and only reads the file: it never changes or runs it.
+
+1. The torrent's content is **one regular file inside the downloads folder**: no `..`, no symbolic link, not a folder. A torrent of several files is refused.
+2. Its name ends with `.mp4` (ADR-0015), as the library identifies files by name.
+3. Its size is **exactly** the entry's `expected_size_bytes`.
+4. Its structure is an MP4: the boxes cover the whole file, the first is `ftyp` with an MP4 brand, there is one `moov` and at least one `mdat`, every video track is H.264 (`avc1` or `avc3`), at least one exists, and every sound track is AAC (`mp4a`).
+
+A file that fails a check makes the job `FAILED` with `verification_failed`, and the torrent is removed **with its data**, so the library can never index it. The reason goes to the log only.
+
 The library, in one transaction:
 
 1. Checks the path with the same guard as every file path, so a `..` or a link outside the downloads folder is refused (LIB-08, R-01).
@@ -128,12 +137,14 @@ The call is idempotent: if the entry is already `AVAILABLE` with the same file, 
 - Between "the torrent client says complete" and "the library confirmed", the job stays `DOWNLOADING` at 100 %. The screen can show it as finishing.
 - If the library does not answer or refuses, acquisition **tries again at the next 10-second status check**. It does not rely on the automatic retry, which is for `GET` only.
 - After **5 minutes** without success the job becomes `FAILED` with `error_code = 'handoff_failed'`. The administrator sees it in the download screen (ACQ-04), with a plain message. The detail goes to the log only (SEC-04).
-- The size and format check can also fail the job, with `error_code = 'verification_failed'`. Nothing is handed over.
+- The size and format check can also fail the job, with `error_code = 'verification_failed'`. Nothing is handed over. A file that cannot be read (a permission or I/O problem) does not fail the check: it is kept and checked again at the next status check, since a refused file is deleted. If it still cannot be read after the same time limit as the handoff, the job becomes `FAILED` with `error_code = 'file_unreadable'`, so the problem is visible, and the file and its torrent are kept: once the permissions are fixed, starting the download again checks it without downloading it again.
 - A cancelled job is `FAILED` with `error_code = 'cancelled'` (data model).
 - A job whose torrent is no longer in the torrent client (removed by hand, or a crash between creating the job and adding the torrent) becomes `FAILED` with `error_code = 'torrent_missing'` after a grace period of 60 seconds (`homeflix.downloads.tracking.missing-grace`), which leaves time for a start that is still adding it. A torrent in error in the client makes the job `FAILED` with `client_error`, and the torrent is removed.
 - A torrent HomeFlix added for a job that has since failed or been cancelled, and that is still in the client, is removed at the next status check. The torrents of completed jobs and the torrents HomeFlix did not add are never touched.
 
-The limit is a setting (`ACQUISITION_HANDOFF_TIMEOUT`), so it can be tuned. A test covers a library that is down for longer than the limit (TST-05, R-22).
+The limit is a setting (`ACQUISITION_HANDOFF_TIMEOUT`, 5 minutes by default), so it can be tuned. It runs from the moment the file passed the checks (`handoff_started_at`). A test covers a library that is down for longer than the limit (TST-05, R-22).
+
+After `handoff_failed`, the verified file and its torrent are kept: starting the download again finds the torrent already in the client and hands the file over without downloading it again. A download whose verified file is being handed over can no longer be cancelled (`409 download_not_cancellable`), so a cancel never removes a file the library may already have linked.
 
 ### Failing and cancelling
 

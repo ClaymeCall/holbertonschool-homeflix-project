@@ -19,6 +19,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.homeflix.acquisition.client.ServiceClientFactory;
 import com.homeflix.acquisition.config.QbittorrentProperties;
 import com.homeflix.acquisition.web.ServiceUnavailableException;
@@ -101,11 +102,17 @@ public class QbittorrentClient {
 	}
 
 	/**
-	 * A torrent as the client lists it: info hash, state, progress from 0 to 1, and its tags separated by
-	 * commas.
+	 * A torrent as the client lists it: info hash, state, progress from 0 to 1, its tags separated by commas,
+	 * and where its content is, as the client sees it (the file or folder of the content).
 	 */
 	@JsonIgnoreProperties(ignoreUnknown = true)
-	public record Torrent(String hash, String state, double progress, String tags) {
+	public record Torrent(String hash, String state, double progress, String tags,
+			@JsonProperty("content_path") String contentPath) {
+
+		public Torrent(String hash, String state, double progress, String tags) {
+			this(hash, state, progress, tags, null);
+		}
+
 	}
 
 	/**
