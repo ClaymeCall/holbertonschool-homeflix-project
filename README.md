@@ -54,6 +54,7 @@ HomeFlix is split into at least three Java/Spring Boot business microservices (i
 | Demo: one service calls another | [docs/architecture/service-to-service-demo.md](docs/architecture/service-to-service-demo.md) |
 | Copyright and peer-to-peer awareness | [docs/copyright-and-p2p.md](docs/copyright-and-p2p.md) |
 | Peer-to-peer test file: rights evidence | [docs/media/p2p-test-file.md](docs/media/p2p-test-file.md) |
+| Real peer-to-peer transfer: recorded run (J10) | [docs/acquisition/p2p-run.md](docs/acquisition/p2p-run.md) |
 | Contributing (branches, commits, pull requests) | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
 ## Rights and peer-to-peer
