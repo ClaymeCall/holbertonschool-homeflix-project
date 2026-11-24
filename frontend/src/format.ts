@@ -37,3 +37,26 @@ export function formatSpokenTime(seconds: number): string {
 function unit(value: number, name: string): string {
   return `${value} ${name}${value === 1 ? '' : 's'}`
 }
+
+/** A file size in decimal units, as file managers show it, for example "129.2 MB". */
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return ''
+  const units = ['bytes', 'kB', 'MB', 'GB', 'TB']
+  let value = bytes
+  let index = 0
+  while (value >= 1000 && index < units.length - 1) {
+    value /= 1000
+    index++
+  }
+  if (index === 0) return `${bytes} ${bytes === 1 ? 'byte' : 'bytes'}`
+  return `${value.toFixed(1)} ${units[index]}`
+}
+
+const dateTime = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+
+/** A date and time for a list, for example "20 Nov 2026, 14:05". Empty for a missing or invalid date. */
+export function formatDateTime(iso: string | null): string {
+  if (!iso) return ''
+  const date = new Date(iso)
+  return Number.isNaN(date.getTime()) ? '' : dateTime.format(date)
+}

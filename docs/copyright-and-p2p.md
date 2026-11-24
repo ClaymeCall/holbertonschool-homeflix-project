@@ -31,7 +31,7 @@ While a file downloads, the peer-to-peer client also **sends pieces of it to oth
 - Only entries from a **verified acquisition catalogue** can be downloaded. Each entry records its source and its licence or other authorization.
 - There is **no field to enter a URL or a magnet link**, so HomeFlix cannot be pointed at an arbitrary source.
 - Only an **administrator** can start or cancel a download. The server enforces it, not only the interface.
-- A **rights reminder** is shown before the first download (see below).
+- A **rights reminder** is shown before every download, and the server refuses a start that does not confirm it (see below).
 
 ## What HomeFlix cannot do for you
 
@@ -49,7 +49,7 @@ Worked example: the peer-to-peer test file, *Sintel* (CC BY 3.0), with every poi
 
 ## In-app reminder (reference text)
 
-The interface shows this text, in English, before the first download (issue J9, #82). Change it here first, then in the interface.
+The interface shows this text, in English, before every download (issue J9, #82): the download starts only after **I understand**, and the request records it (`rightsAcknowledged`). Change it here first, then in `frontend/src/pages/DownloadsPage.tsx`.
 
 > **Before you download**
 >

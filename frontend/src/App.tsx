@@ -1,7 +1,8 @@
 import { Outlet, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthProvider'
-import { RequireAuth, RequireProfile, RequireSetup, RequireSignedOut } from './auth/guards'
+import { RequireAdmin, RequireAuth, RequireProfile, RequireSetup, RequireSignedOut } from './auth/guards'
 import { AppLayout } from './components/AppLayout'
+import { DownloadsPage } from './pages/DownloadsPage'
 import { HomePage } from './pages/HomePage'
 import { MovieDetailsPage } from './pages/MovieDetailsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -68,6 +69,14 @@ function App() {
             <Route path="search" element={<SearchPage />} />
             <Route path="movies/:id" element={<MovieDetailsPage />} />
           </Route>
+          <Route
+            path="downloads"
+            element={
+              <RequireAdmin>
+                <DownloadsPage />
+              </RequireAdmin>
+            }
+          />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
