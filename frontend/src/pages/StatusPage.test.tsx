@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { callsTo, jsonResponse, mockApi, signedInRoutes, testAccount, type Route } from '../test/http'
@@ -59,7 +59,8 @@ describe('Administration area', () => {
     renderApp('/admin/status')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Status' })).toBeInTheDocument()
-    expect(callsTo(fetch, 'GET /api/acquisition/entries')).toHaveLength(1)
+    // The page can show before its checks are sent.
+    await waitFor(() => expect(callsTo(fetch, 'GET /api/acquisition/entries')).toHaveLength(1))
 
     const nav = screen.getByRole('navigation', { name: 'Main navigation' })
     await userEvent.click(within(nav).getByRole('link', { name: 'Search' }))
