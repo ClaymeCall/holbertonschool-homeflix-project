@@ -32,7 +32,7 @@ Signed in as an administrator, starting from an empty library. To get a clean ru
 | 7 | Indexing | The library log shows "Download of entry … is now in the library". `GET /api/library/media` returned *Sintel*, `AVAILABLE`. The handoff took about 15 ms after the checks passed. | [6](evidence/2026-11-24-j10-6-library-after.png) |
 | 8 | Playback | Player at 2:51 of 14:48 with the controls. `Range: bytes=0-1023` and `bytes=64000000-64001023` through the gateway answered `206` with the right `Content-Range`; without a session `401`. | [7](evidence/2026-11-24-j10-7-playback.png) |
 
-The Peers tab of the torrent client could not be captured as a screenshot during this first transfer, because the client's web interface is not published (by design, see [torrent-client.md](torrent-client.md)). The peer details above come from the client's API (`sync/torrentPeers`) at 20:22:47, during the transfer. For the cancel run below, the interface was opened through a temporary proxy bound to the local machine only (removed afterwards, no change to `compose.yaml`), but the screenshots show the *General* tab, not the *Peers* tab. **A screenshot of the Peers tab is still to be added to this page**, with the peer's address hidden.
+The Peers tab of the torrent client could not be captured as a screenshot during this first transfer, because the client's web interface is not published (by design, see [torrent-client.md](torrent-client.md)). The peer details above come from the client's API (`sync/torrentPeers`) at 20:22:47, during the transfer. For the cancel run below, the interface was opened through a temporary proxy bound to the local machine only (removed afterwards, no change to `compose.yaml`), but the screenshots show the *General* tab, not the *Peers* tab. A screenshot of the Peers tab was not taken: the team decided to rely on the API record and on the General tab and transfer-list screenshots, which also keep the peer's public address out of the repository.
 
 ## Cancel during a real transfer
 
@@ -62,7 +62,7 @@ The torrent client has no route through the gateway: `/api/qbittorrent/` answers
 
 ## What this run does not show
 
-- **The Peers tab of the client**, as a screenshot (see above). Only the transfer list and the General tab were captured, in the second run.
+- **A screenshot of the Peers tab of the client.** Not taken, by decision of the team (see above). The peer details come from the client's API at 20:22:47.
 - **The presentation network.** This was a home connection. The rehearsal on the presentation network is L10 (#106).
 - **A second seeder in the swarm.** Only one peer was seen. The backup seeder of the J1 evidence was not seen in this run.
 
@@ -70,7 +70,7 @@ The torrent client has no route through the gateway: `/api/qbittorrent/` answers
 
 1. **The downloads folder must be authorized by hand before the first handoff (setup gap).** On the first real run of the day, the library refused the completed file with `409 downloads_folder_not_authorized` ("/media/downloads is not an authorized folder. Add it in the administration area."), and the acquisition service retried every 10 seconds until an administrator added the folder in the *Library* tab. A clean install should behave the same way (not tested on one), so the first download after an installation looks stuck. This second run did not hit it because the folder was already authorized. To do: say it in the installation and configuration documentation (L1, L4 #100), and decide whether the folder should be authorized automatically.
 2. **Playback logs an `ERROR` when the browser disconnects.** When the client stops reading, `StreamController` logs a `SocketTimeoutException` through `ApiExceptionHandler` as `ERROR` ("Unexpected error"). It is harmless for the user but it is noise in the logs.
-3. **The Peers screenshot is missing** (see above). The first run could not be captured because the client interface was not reachable; the second run was captured on the General tab by mistake.
+3. **No screenshot of the Peers tab** (decision of the team, see above).
 
 ## Risk R-21
 
