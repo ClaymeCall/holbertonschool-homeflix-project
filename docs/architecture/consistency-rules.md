@@ -130,6 +130,8 @@ The call is idempotent: if the entry is already `AVAILABLE` with the same file, 
 - After **5 minutes** without success the job becomes `FAILED` with `error_code = 'handoff_failed'`. The administrator sees it in the download screen (ACQ-04), with a plain message. The detail goes to the log only (SEC-04).
 - The size and format check can also fail the job, with `error_code = 'verification_failed'`. Nothing is handed over.
 - A cancelled job is `FAILED` with `error_code = 'cancelled'` (data model).
+- A job whose torrent is no longer in the torrent client (removed by hand, or a crash between creating the job and adding the torrent) becomes `FAILED` with `error_code = 'torrent_missing'` after a grace period of 60 seconds (`homeflix.downloads.tracking.missing-grace`), which leaves time for a start that is still adding it. A torrent in error in the client makes the job `FAILED` with `client_error`, and the torrent is removed.
+- A torrent HomeFlix added for a job that has since failed or been cancelled, and that is still in the client, is removed at the next status check. The torrents of completed jobs and the torrents HomeFlix did not add are never touched.
 
 The limit is a setting (`ACQUISITION_HANDOFF_TIMEOUT`), so it can be tuned. A test covers a library that is down for longer than the limit (TST-05, R-22).
 
@@ -139,7 +141,7 @@ Whenever a job becomes `FAILED`, acquisition calls `POST /internal/downloads/{en
 
 If the library does not answer, the job stays marked as not yet notified, and acquisition repeats the call at each status check until it works. Until then the title shows as downloading, which is the only visible inconsistency, and it ends by itself.
 
-A failure is told under the entry's lock, which a start also holds while it tells the library that the title downloads. A failure of an earlier attempt is not told once the entry has a newer job, since the library then follows that job. So a late failure notice can never make the entry `UNAVAILABLE` while a new attempt downloads.
+A failure is told under the entry's lock, which a start also holds while it tells the library that the title downloads, whether it is the first call or a repeat at a status check. A failure of an earlier attempt is not told once the entry has a newer job, since the library then follows that job. So a late failure notice can never make the entry `UNAVAILABLE` while a new attempt downloads. A `404` means the library no longer has the entry (H8), so there is nothing left to tell.
 
 The job table needs one extra column for this, `library_synced_at` (null while a notification is pending). It is added to the data model with this document, and created by the acquisition migration (J3).
 

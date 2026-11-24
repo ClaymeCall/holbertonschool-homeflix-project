@@ -117,6 +117,7 @@ class DownloadEndpointsTests {
 		mvc.perform(start(entryId)).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.error").value("unauthenticated"));
 		mvc.perform(post("/downloads/" + UUID.randomUUID() + "/cancel")).andExpect(status().isUnauthorized());
 		mvc.perform(get("/downloads/" + UUID.randomUUID())).andExpect(status().isUnauthorized());
+		mvc.perform(get("/downloads")).andExpect(status().isUnauthorized());
 
 		assertNothingStarted();
 	}
@@ -126,6 +127,7 @@ class DownloadEndpointsTests {
 		as("user", start(entryId)).andExpect(status().isForbidden()).andExpect(jsonPath("$.error").value("forbidden"));
 		as("user", post("/downloads/" + UUID.randomUUID() + "/cancel")).andExpect(status().isForbidden());
 		as("user", get("/downloads/" + UUID.randomUUID())).andExpect(status().isForbidden());
+		as("user", get("/downloads")).andExpect(status().isForbidden());
 
 		assertNothingStarted();
 	}
@@ -196,6 +198,7 @@ class DownloadEndpointsTests {
 				.andExpect(jsonPath("$.state").value("QUEUED"))
 				.andExpect(jsonPath("$.progressPercent").value(0))
 				.andExpect(jsonPath("$.errorCode").value(nullValue()))
+				.andExpect(jsonPath("$.errorMessage").value(nullValue()))
 				.andExpect(jsonPath("$.startedBy").doesNotExist())
 				.andExpect(jsonPath("$.clientHash").doesNotExist())
 				.andReturn();
@@ -407,6 +410,7 @@ class DownloadEndpointsTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.state").value("FAILED"))
 				.andExpect(jsonPath("$.errorCode").value("cancelled"))
+				.andExpect(jsonPath("$.errorMessage").value("This download was cancelled."))
 				.andExpect(jsonPath("$.finishedAt").isNotEmpty());
 
 		assertThat(QbittorrentContainer.hasTorrent(entryHash)).isFalse();
@@ -472,6 +476,30 @@ class DownloadEndpointsTests {
 				.andExpect(jsonPath("$.state").value("QUEUED"))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.finishedAt").value(nullValue()));
+	}
+
+	@Test
+	void everyDownloadIsListedNewestFirst() throws Exception {
+		UUID first = startedJob();
+		as("admin", post("/downloads/" + first + "/cancel")).andExpect(status().isOk());
+		jdbc.update("update download_job set created_at = now() - interval '1 hour' where id = ?", first);
+		UUID second = startedJob();
+
+		as("admin", get("/downloads"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].id").value(second.toString()))
+				.andExpect(jsonPath("$[0].state").value("QUEUED"))
+				.andExpect(jsonPath("$[0].errorMessage").value(nullValue()))
+				.andExpect(jsonPath("$[1].id").value(first.toString()))
+				.andExpect(jsonPath("$[1].errorCode").value("cancelled"))
+				.andExpect(jsonPath("$[1].errorMessage").value("This download was cancelled."))
+				.andExpect(jsonPath("$[*].clientHash").isEmpty())
+				.andExpect(content().string(not(containsString(entryHash))));
+	}
+
+	@Test
+	void theListIsEmptyWithoutDownloads() throws Exception {
+		as("admin", get("/downloads")).andExpect(status().isOk()).andExpect(content().json("[]"));
 	}
 
 	// ---- Helpers ----

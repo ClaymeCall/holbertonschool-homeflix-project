@@ -31,6 +31,14 @@ homeflix:
     username: ${QBITTORRENT_USERNAME:}
     password: ${QBITTORRENT_PASSWORD:}
 
+  # Status check of downloads (J6; docs/architecture/consistency-rules.md, "Acquisition handoff").
+  # A new job may have no torrent in the client for missing-grace before it fails with torrent_missing.
+  downloads:
+    tracking:
+      enabled: true
+      interval: 10s
+      missing-grace: 60s
+
   # Calls to other services: timeouts and retry policy (ADR-0020, R-24).
   # Only GET is retried, once, after a connection failure, a timeout or a 502, 503 or 504.
   http-client:

@@ -1,5 +1,6 @@
 package com.homeflix.acquisition.downloads;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -28,7 +29,7 @@ import com.homeflix.acquisition.web.RejectedRequestException;
  * is removed in case the client accepted it, the job is FAILED and the library is told.</li>
  * <li><b>Cancel:</b> the torrent and its partial data are removed from the client, the job becomes FAILED
  * with {@code cancelled}, and the library is told. If the library cannot be told, the job stays marked as
- * not synced, to be told later (J6).</li>
+ * not synced, and the next status check tells it ({@link DownloadTracker}).</li>
  * </ul>
  *
  * <p>A cancel can arrive while a start is adding the torrent. The cancel holds the job's lock while it
@@ -46,7 +47,7 @@ import com.homeflix.acquisition.web.RejectedRequestException;
  * earlier attempt can no longer make the entry UNAVAILABLE after a new attempt told it the title downloads.
  *
  * <p>A crash between the job's creation and the torrent's addition leaves a QUEUED job whose torrent is not
- * in the client. J6 reconciles it by its info hash.
+ * in the client. The status check fails it with {@code torrent_missing} after a grace period.
  *
  * The caller's permission is checked before the controller is called ({@code @AdminOnly}).
  */
@@ -124,6 +125,11 @@ public class DownloadService {
 		return get(jobId);
 	}
 
+	/** Every download, newest first, for the download screen (ACQ-04). */
+	public List<Download> list() {
+		return downloads.findAll();
+	}
+
 	public Download get(UUID jobId) {
 		return downloads.find(jobId).orElseThrow(NotFoundException::new);
 	}
@@ -168,7 +174,7 @@ public class DownloadService {
 				log.info("Download {} was cancelled while its torrent was added: torrent removed", jobId);
 			}
 			catch (RuntimeException ex) {
-				// The job is already cancelled and the library told. J6 removes the torrent by its hash.
+				// The job is already cancelled and the library told. The status check removes the torrent.
 				log.warn("Download {} was cancelled while its torrent was added, and the torrent could not be "
 						+ "removed yet", jobId, ex);
 			}
