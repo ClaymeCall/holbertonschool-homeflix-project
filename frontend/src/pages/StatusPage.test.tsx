@@ -52,6 +52,19 @@ describe('Administration area', () => {
     expect(callsTo(fetch, 'GET /api/library/roots')).toHaveLength(0)
     expect(callsTo(fetch, 'GET /api/acquisition/entries')).toHaveLength(0)
   })
+
+  it('opens for an administrator who has not chosen a profile, while viewing still asks for one', async () => {
+    // Administration manages the household, not one profile's list (G10): no profile is needed for it.
+    const fetch = services({}, { ...testAccount, profileId: null })
+    renderApp('/admin/status')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Status' })).toBeInTheDocument()
+    expect(callsTo(fetch, 'GET /api/acquisition/entries')).toHaveLength(1)
+
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' })
+    await userEvent.click(within(nav).getByRole('link', { name: 'Search' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Who is watching?' })).toBeInTheDocument()
+  })
 })
 
 describe('StatusPage', () => {
