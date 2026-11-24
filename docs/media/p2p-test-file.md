@@ -143,26 +143,25 @@ ffprobe -v error -show_entries stream=codec_name,profile -of default=nw=1 sintel
 
 ## Seeding plan (risk R-21)
 
-The main seeder is in place. The backup seeder and the network test are **not done yet**:
+The main seeder and the backup seeder are in place, and the network test is done:
 
 - **Main seeder**: Thomas's computer, seeding the demo torrent in qBittorrent 5.2.3 since 2026-11-18: `sintel.mp4`, 123.2 MiB, checked at 100 %, status *Seeding* ([screenshot](evidence/2026-11-18-qbittorrent-main-seeder.png)). The *General* tab shows info hash v1 `4e626263b96d72a36b1b963f44188bf937004d5f`, created by `HomeFlix team` ([screenshot](evidence/2026-11-18-qbittorrent-infohash.png)).
-- **Backup seeder**: a second team computer seeding the same torrent. Not set up yet.
-- **Network test**: download the demo torrent from another machine or another network (for example a mobile hotspot) and record the result. Started on 2026-11-18 at 18:33 by a teammate on another machine, over Wi-Fi on another network than the main seeder: the *General* tab shows info hash v1 `4e626263b96d72a36b1b963f44188bf937004d5f`, created by `HomeFlix team`, 1 seed connected and 30.7 KiB/s download speed ([screenshot](evidence/2026-11-18-qbittorrent-backup-downloading.png), save path blurred). The end of the download is not recorded yet. Rehearsal on the presentation network is in L10 (#106).
+- **Backup seeder**: Clement's computer (ClaymeCall), a second team machine on another network than the main seeder. It downloaded the demo torrent through qBittorrent and keeps it seeding. Confirmed by Clement on 2026-11-24, without screenshots of the end of the download and of the seeding state.
+- **Network test**: the demo torrent was downloaded from another machine on another network than the main seeder, through the torrent and not by copying the file. It started on 2026-11-18 at 18:33, over Wi-Fi: the *General* tab shows info hash v1 `4e626263b96d72a36b1b963f44188bf937004d5f`, created by `HomeFlix team`, 1 seed connected and 30.7 KiB/s download speed ([screenshot](evidence/2026-11-18-qbittorrent-backup-downloading.png), save path blurred). The completed download and the seeding that followed are confirmed by Clement (2026-11-24), who ran that machine. There is no screenshot of the end of the download. Rehearsal on the presentation network is in L10 (#106).
 
-## Evidence still to collect
+## Evidence collected
 
 - [x] URL where the source `Sintel.torrent` was obtained
 - [x] Saved copy of <https://durian.blender.org/sharing/> and <https://durian.blender.org/about/>: screenshots of 2026-11-18 in [`evidence/`](evidence/)
 - [x] Demo torrent added to qBittorrent and seeding on the main seeder: [screenshot of 2026-11-18](evidence/2026-11-18-qbittorrent-main-seeder.png)
-- [ ] Download of the demo torrent from another machine and another network (for example a mobile hotspot), through the torrent and not by copying the file, with date, network and result:
+- [x] Download of the demo torrent from another machine and another network, through the torrent and not by copying the file:
   - [x] during the download, at least one connected peer and a download speed above 0: [`2026-11-18-qbittorrent-backup-downloading.png`](evidence/2026-11-18-qbittorrent-backup-downloading.png) (*General* tab, 1 seed, 30.7 KiB/s)
-  - `…-backup-infohash.png`: *General* tab after the download, info hash v1 `4e626263b96d72a36b1b963f44188bf937004d5f` and *Downloaded* 123.2 MiB (a copied file would show 0)
-  - optional: `shasum -a 256 sintel.mp4` on that machine, giving `0abf1acde9c84a7a7225250fdc65dc744918ad114b1742f6e0dca81be6cbe6a4`
-- [ ] Backup seeder: the same machine keeps the torrent seeding afterwards, `…-backup-seeder.png` showing `sintel.mp4` at 100 % with status *Seeding*
+  - [x] completed download: confirmed by Clement, who ran the backup machine (2026-11-24). No screenshot, and the SHA-256 of the downloaded file was not recorded
+- [x] Backup seeder: the same machine keeps the torrent seeding afterwards (confirmed by Clement, 2026-11-24, no screenshot)
 
 ## Checklist (issue J1)
 
 - [x] Source, licence and authorization evidence stored in the repository: quotes, links and the source URL are on this page, screenshots of the licence pages in [`evidence/`](evidence/)
 - [x] Reproduction and redistribution rights explicitly verified (CC BY 3.0, quotes above)
-- [ ] File is small, well seeded and in the supported format: small and supported format are checked (see above); **well seeded is not tested yet**
+- [x] File is small, well seeded and in the supported format: small and supported format are checked (see above); well seeded is confirmed by a second machine on another network that downloaded it and keeps seeding it (see the seeding plan)
 - [x] No arbitrary or unauthorized source integrated and no DRM circumvention (ACQ-13)
