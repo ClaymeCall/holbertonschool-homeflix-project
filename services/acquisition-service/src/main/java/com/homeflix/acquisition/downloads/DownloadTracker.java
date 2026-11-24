@@ -151,19 +151,15 @@ public class DownloadTracker {
 	private void handOver(DownloadRepository.TrackedJob job, Torrent torrent) {
 		String relativePath = job.completedRelativePath();
 		if (relativePath == null) {
+			if (stillBeingMoved(torrent)) {
+				// Complete, but the client has not finished moving the file into the downloads folder.
+				checkAgainLater(job, "the torrent client has not moved the file to the downloads folder yet: "
+						+ torrent.contentPath());
+				return;
+			}
 			DownloadedFileVerifier.Result result = verifier.verify(torrent.contentPath(), job.expectedSizeBytes());
 			if (result instanceof DownloadedFileVerifier.Unreadable unreadable) {
-				// Says nothing about the file (a permission or I/O problem): kept, and checked again next time.
-				// Past the handoff time limit the failure is made visible, still without deleting it.
-				if (downloads.markUnreadable(job.id(), downloadSettings.handoffTimeout())) {
-					log.warn("Download {} failed: the completed file could not be read for {}: {}", job.id(),
-							downloadSettings.handoffTimeout(), unreadable.reason());
-					fail(job.id(), FailureMessages.FILE_UNREADABLE);
-				}
-				else {
-					log.warn("Download {}: the completed file cannot be read, checked again at the next check: {}",
-							job.id(), unreadable.reason());
-				}
+				checkAgainLater(job, unreadable.reason());
 				return;
 			}
 			if (result instanceof DownloadedFileVerifier.Refused refused) {
@@ -192,6 +188,42 @@ public class DownloadTracker {
 					downloadSettings.handoffTimeout());
 			fail(job.id(), FailureMessages.HANDOFF_FAILED);
 		}
+	}
+
+	/**
+	 * The completed file cannot be checked yet (a permission or I/O problem, or a file the client is still
+	 * moving): kept, and checked again next time. Past the handoff time limit the failure is made visible,
+	 * still without deleting it.
+	 */
+	private void checkAgainLater(DownloadRepository.TrackedJob job, String reason) {
+		if (downloads.markUnreadable(job.id(), downloadSettings.handoffTimeout())) {
+			log.warn("Download {} failed: the completed file could not be read for {}: {}", job.id(),
+					downloadSettings.handoffTimeout(), reason);
+			fail(job.id(), FailureMessages.FILE_UNREADABLE);
+		}
+		else {
+			log.warn("Download {}: the completed file cannot be read, checked again at the next check: {}",
+					job.id(), reason);
+		}
+	}
+
+	/**
+	 * True while the client moves a complete torrent from its folder for files in progress (J4) to the
+	 * downloads folder: the torrent is already at 100 %, but its file is not, or not wholly, in place.
+	 */
+	static boolean stillBeingMoved(Torrent torrent) {
+		if (torrent == null) {
+			return false;
+		}
+		if ("moving".equals(torrent.state())) {
+			return true;
+		}
+		String inProgress = torrent.downloadPath();
+		String content = torrent.contentPath();
+		if (inProgress == null || inProgress.isBlank() || content == null) {
+			return false;
+		}
+		return content.startsWith(inProgress.endsWith("/") ? inProgress : inProgress + "/");
 	}
 
 	/** FAILED if still active. The library is told at the end of the check. */

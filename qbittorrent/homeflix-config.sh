@@ -13,3 +13,6 @@ fi
 
 # The file was written as root: give it back to the user qBittorrent runs as.
 lsiown abc:abc /config/qBittorrent/qBittorrent.conf
+
+# Files in progress are written to the incomplete downloads volume, which Docker creates owned by root.
+lsiown abc:abc /incomplete
