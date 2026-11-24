@@ -156,8 +156,11 @@ echo
 echo "Paths that must not be reachable or must be a clear 404 (ADR-0013, ADR-0017)"
 
 for path in /api/library/actuator/health /api/identity/actuator/info /api/acquisition/actuator \
-            /api/library/actuator/ /api/LIBRARY/ACTUATOR/health; do
-  body="$(curl -s -D "$WORK/h" -o - "$BASE$path")"
+            /api/library/actuator/ /api/LIBRARY/ACTUATOR/health \
+            /api/library/internal/downloads/x/completed /api/acquisition/internal /api/identity/INTERNAL/profiles/x/data \
+            /api/library//internal/downloads/x /api/library/./internal/downloads/x /api/library/media/../internal/downloads/x \
+            /api/library/%69nternal/downloads/x; do
+  body="$(curl -s --path-as-is -D "$WORK/h" -o - "$BASE$path")"
   expect "$path: status 404" "$(status "$WORK/h")" "404"
   expect "$path: JSON not_found" "$body" '{"error":"not_found","message":"This address does not exist."}'
 done

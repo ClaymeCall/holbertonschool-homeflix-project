@@ -60,6 +60,9 @@ services:
       JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public_key
       # Hosts a poster image may come from (ADR-0018). The gateway reads the same variable (issue #59).
       POSTER_ALLOWED_HOSTS: ${POSTER_ALLOWED_HOSTS:-upload.wikimedia.org}
+      # The secret the acquisition service sends in X-Service-Token to /internal (ADR-0022). Same value as in
+      # the acquisition service; the library refuses to start without it.
+      ACQUISITION_TO_LIBRARY_TOKEN: ${ACQUISITION_TO_LIBRARY_TOKEN:?Set ACQUISITION_TO_LIBRARY_TOKEN in .env}
     secrets:
       - jwt_public_key
     depends_on:

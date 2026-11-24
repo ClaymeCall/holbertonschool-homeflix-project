@@ -30,7 +30,13 @@ homeflix:
     read-timeout: 5s
     retries: 1
     retry-pause: 200ms
+  # Secret the acquisition service sends in X-Service-Token to the /internal endpoints (ADR-0022).
+  # The service refuses to start without it.
+  internal:
+    acquisition-token: ${ACQUISITION_TO_LIBRARY_TOKEN:}
   library:
+    # Where completed downloads land. It must be an authorized root for a download to be handed over.
+    downloads-path: /media/downloads
     # The folders Docker mounts into the container. An authorized root must be inside one of them (R-02).
     mounted-paths: /media/library,/media/downloads
     # Hosts a poster image can come from (ADR-0018). Exact host names, comma separated, https only.

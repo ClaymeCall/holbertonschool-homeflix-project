@@ -102,7 +102,7 @@ sequenceDiagram
    - No entry yet: created as `DOWNLOADING`.
    - An entry already `DOWNLOADING`: nothing changes.
    - An entry `UNAVAILABLE` and without a file (a previous attempt failed): made `DOWNLOADING` again, keeping what an administrator edited.
-   - An entry `AVAILABLE`: `409 already_in_library`. The title is already in the library, and the job is refused.
+   - An entry `AVAILABLE`, or `UNAVAILABLE` because its file is gone: `409 already_in_library`. The title is already in the library, and the job is refused.
 3. If the library does not answer, acquisition answers 503 and **does not start the torrent**. Nothing was created on either side.
 4. Acquisition adds the torrent and creates the job `QUEUED`. If the torrent client refuses, the job is `FAILED` and the failure is notified as below.
 
@@ -128,7 +128,7 @@ The library, in one transaction:
 3. Creates the file record, or reuses one that a scan already created, and links it to the entry.
 4. Makes the entry `AVAILABLE`.
 
-The call is idempotent: if the entry is already `AVAILABLE` with the same file, it answers 200 and changes nothing.
+The call is idempotent: if the entry is already `AVAILABLE` with the same file, it answers 200 and changes nothing. With another file it answers `409 already_in_library`. An entry that is not `DOWNLOADING` (the download already failed or was cancelled) answers `409 not_downloading`, so a late completion cannot bring a cancelled download back.
 
 **A scan may find the file first.** A manual indexing of the downloads folder (H5) can see the finished file before this call arrives and create an entry for it. The download entry then wins: in the same transaction the library removes the entry the scan created and links the file to the download entry. The scan's entry has just been created, so it has no favourite, progress or edits worth keeping.
 
@@ -148,7 +148,7 @@ After `handoff_failed`, the verified file and its torrent are kept: starting the
 
 ### Failing and cancelling
 
-Whenever a job becomes `FAILED`, acquisition calls `POST /internal/downloads/{entryId}/failed`. The library makes a `DOWNLOADING` entry `UNAVAILABLE`, so the catalogue does not show a download that is no longer running. The entry keeps its title and can be downloaded again (see "Starting"), or removed by an administrator (H8).
+Whenever a job becomes `FAILED`, acquisition calls `POST /internal/downloads/{entryId}/failed`. The library makes a `DOWNLOADING` entry `UNAVAILABLE`, so the catalogue does not show a download that is no longer running. Any other entry is left alone, including one already `AVAILABLE` (a lost reply to "completed" must not undo it), and an unknown entry also answers `204`, so repeating the call is harmless. The entry keeps its title and can be downloaded again (see "Starting"), or removed by an administrator (H8).
 
 If the library does not answer, the job stays marked as not yet notified, and acquisition repeats the call at each status check until it works. Until then the title shows as downloading, which is the only visible inconsistency, and it ends by itself.
 
