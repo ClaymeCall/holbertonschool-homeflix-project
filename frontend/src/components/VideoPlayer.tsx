@@ -78,31 +78,35 @@ interface Position {
 
 /**
  * Sends one save at a time, and then only the latest position asked for meanwhile: the server keeps the last
- * save it receives, so a slow save must never land after a newer one. A save while the page closes is sent at
- * once with keepalive, since there is no time to wait.
+ * save it receives, so a slow save must never land after a newer one. A save while the page closes cannot
+ * wait: it is sent at once with keepalive, and the save still on its way is cancelled so it cannot land after.
  */
-function oneSaveAtATime(send: (saved: Position, keepalive: boolean) => Promise<unknown>) {
-  let running = false
+function oneSaveAtATime(send: (saved: Position, keepalive: boolean, signal: AbortSignal) => Promise<unknown>) {
+  let running: AbortController | null = null
   let next: Position | null = null
-  function run(saved: Position) {
-    running = true
-    send(saved, false)
+  function run(saved: Position, keepalive: boolean) {
+    const controller = new AbortController()
+    running = controller
+    send(saved, keepalive, controller.signal)
       .catch(() => undefined)
       .finally(() => {
-        running = false
+        // A cancelled save leaves the queue to the save that replaced it.
+        if (running !== controller) return
+        running = null
         const queued = next
         next = null
-        if (queued) run(queued)
+        if (queued) run(queued, false)
       })
   }
   return (saved: Position, keepalive: boolean) => {
     if (keepalive) {
       next = null
-      send(saved, true).catch(() => undefined)
+      running?.abort()
+      run(saved, true)
     } else if (running) {
       next = saved
     } else {
-      run(saved)
+      run(saved, false)
     }
   }
 }
@@ -146,7 +150,10 @@ export function VideoPlayer({
 
   /** Saves where the viewer is, for this profile (PLY-07). A failed save never interrupts playback. */
   const send = useMemo(
-    () => oneSaveAtATime((saved, keepalive) => saveProgress(mediaId, saved.position, saved.duration, { keepalive })),
+    () =>
+      oneSaveAtATime((saved, keepalive, signal) =>
+        saveProgress(mediaId, saved.position, saved.duration, { keepalive, signal }),
+      ),
     [mediaId],
   )
   const save = useCallback(

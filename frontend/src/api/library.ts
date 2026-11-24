@@ -136,12 +136,13 @@ export function saveProgress(
   mediaId: string,
   positionSeconds: number,
   durationSeconds: number,
-  { keepalive = false } = {},
+  { keepalive = false, signal }: { keepalive?: boolean; signal?: AbortSignal } = {},
 ): Promise<ProgressEntry> {
   return apiRequest<ProgressEntry>(`${BASE}/progress/${encodeURIComponent(mediaId)}`, {
     method: 'PUT',
     body: { positionSeconds, durationSeconds },
     keepalive,
+    signal,
   })
 }
 

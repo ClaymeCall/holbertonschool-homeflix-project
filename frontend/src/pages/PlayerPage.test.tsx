@@ -386,4 +386,48 @@ describe('PlayerPage', () => {
     await waitFor(() => expect(savedBodies(fetch)).toHaveLength(2))
     expect(savedBodies(fetch)[1]).toEqual({ positionSeconds: 150, durationSeconds: 5520 })
   })
+
+  it('keeps the save sent when the tab closes, even if an older save was still on its way', async () => {
+    // The server keeps the last save that reaches it. The first save is slow to arrive; the save sent on
+    // closing the tab arrives at once.
+    let kept: unknown = null
+    let deliverFirst: () => void = () => {}
+    const fetch = playerWithProgress(saved(0, 'COMPLETED'))
+    const fast = fetch.getMockImplementation()!
+    fetch.mockImplementation((input, init) => {
+      if (init?.method !== 'PUT') return fast(input, init)
+      const body = JSON.parse(String(init.body))
+      if (callsTo(fetch, 'PUT /api/library/progress/m1').length > 1) {
+        kept = body
+        return fast(input, init)
+      }
+      return new Promise((resolve, reject) => {
+        deliverFirst = () => {
+          // A cancelled request never reaches the server.
+          if (init.signal?.aborted) return
+          kept = body
+          resolve(jsonResponse({}))
+        }
+        init.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+      })
+    })
+    const video = await openPlayer()
+    fireEvent.play(video)
+    watchUntil(video, 120)
+    fireEvent.pause(video)
+    fireEvent.play(video)
+    watchUntil(video, 150)
+
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'))
+    })
+    deliverFirst()
+
+    const sent = callsTo(fetch, 'PUT /api/library/progress/m1')
+    expect(sent).toHaveLength(2)
+    expect(sent[1][1]?.keepalive).toBe(true)
+    await waitFor(() => expect(kept).toEqual({ positionSeconds: 150, durationSeconds: 5520 }))
+    // The older save was cancelled, so it never reached the server after the last one.
+    expect(sent[0][1]?.signal?.aborted).toBe(true)
+  })
 })
