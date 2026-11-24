@@ -152,6 +152,31 @@ class CatalogueRepository {
 		return result;
 	}
 
+	/** Writes the editable fields. False when there is no such title. */
+	boolean update(UUID id, String title, String description, Integer durationSeconds, String posterUrl) {
+		return jdbc.update("""
+				update media_item set title = ?, description = ?, duration_seconds = ?, poster_url = ?, updated_at = now()
+				where id = ?
+				""", title, description, durationSeconds, posterUrl, id) > 0;
+	}
+
+	/** Gives the title exactly these genres, creating the ones that do not exist yet (case-insensitively). */
+	void replaceGenres(UUID id, Iterable<String> names) {
+		jdbc.update("delete from media_item_genre where media_item_id = ?", id);
+		for (String name : names) {
+			jdbc.update("insert into genre (name) values (?) on conflict (lower(name)) do nothing", name);
+			jdbc.update("""
+					insert into media_item_genre (media_item_id, genre_id)
+					select ?, g.id from genre g where lower(g.name) = lower(?)
+					""", id, name);
+		}
+	}
+
+	/** Deletes the catalogue row only. Favourites, progress and genre links go with it through their keys. */
+	boolean delete(UUID id) {
+		return jdbc.update("delete from media_item where id = ?", id) > 0;
+	}
+
 	private record Row(UUID id, String title, String posterUrl, Integer durationSeconds, String availability,
 			String description) {
 

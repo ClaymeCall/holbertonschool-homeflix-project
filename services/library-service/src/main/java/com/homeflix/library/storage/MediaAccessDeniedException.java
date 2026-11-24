@@ -1,7 +1,7 @@
 package com.homeflix.library.storage;
 
 /**
- * A file could not be opened because it is missing or outside the authorized roots.
+ * A file could not be opened because it is missing, unreadable or outside the authorized roots.
  *
  * <p>The message is deliberately generic and safe to show to a user (SEC-04): it never
  * contains a path. The precise cause is in {@link #reason()} and in the server log.
@@ -12,6 +12,8 @@ public class MediaAccessDeniedException extends RuntimeException {
 	public enum Reason {
 		/** The path does not exist or cannot be resolved. */
 		NOT_FOUND,
+		/** The file exists but HomeFlix is not allowed to read it, or the disk failed while reading it. */
+		UNREADABLE,
 		/** The real path is not inside any authorized root. */
 		OUTSIDE_ROOTS
 	}
