@@ -40,6 +40,7 @@ HomeFlix is split into at least three Java/Spring Boot business microservices (i
 | Architecture overview (diagram, boundaries) | [docs/architecture/overview.md](docs/architecture/overview.md) |
 | Technology stack | [docs/architecture/tech-stack.md](docs/architecture/tech-stack.md) |
 | Supported video format and conversion | [docs/user/supported-video-format.md](docs/user/supported-video-format.md) |
+| Configuration: variables, volumes, mounts, migrations, first administrator | [docs/user/configuration.md](docs/user/configuration.md) |
 | Torrent client: isolation and settings | [docs/acquisition/torrent-client.md](docs/acquisition/torrent-client.md) |
 | Architecture decision records | [docs/adr/](docs/adr/README.md) |
 | Risk register | [docs/risks.md](docs/risks.md) |
