@@ -70,7 +70,7 @@ The torrent client has no route through the gateway: `/api/qbittorrent/` answers
 ## Issues found
 
 1. **The downloads folder must be authorized by hand before the first handoff (setup gap).** On the first real run of the day, the library refused the completed file with `409 downloads_folder_not_authorized` ("/media/downloads is not an authorized folder. Add it in the administration area."), and the acquisition service retried every 10 seconds until an administrator added the folder in the *Library* tab. A clean install should behave the same way (not tested on one), so the first download after an installation looks stuck. This second run did not hit it because the folder was already authorized. To do: say it in the installation and configuration documentation (L1, L4 #100), and decide whether the folder should be authorized automatically.
-2. **Playback logs an `ERROR` when the browser disconnects.** When the client stops reading, `StreamController` logs a `SocketTimeoutException` through `ApiExceptionHandler` as `ERROR` ("Unexpected error"). It is harmless for the user but it is noise in the logs.
+2. **Playback logs an `ERROR` when the browser disconnects.** When the client stops reading, `StreamController` logs a `SocketTimeoutException` through `ApiExceptionHandler` as `ERROR` ("Unexpected error"). It is harmless for the user but it is noise in the logs. Decided not to fix it: see [ADR-0025](../adr/0025-accept-error-log-on-playback-timeout.md).
 
 ## Risk R-21
 

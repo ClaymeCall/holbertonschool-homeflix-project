@@ -65,6 +65,7 @@ The pull request checklist asks whether the change needs an ADR, and reviewers c
 | [0022](0022-internal-service-calls.md) | Internal endpoints on `/internal`, blocked at the gateway, with one token per caller | Proposed |
 | [0023](0023-qbittorrent-peer-port-and-enforced-settings.md) | Publish only qBittorrent's peer port, and enforce its login and settings at every start (refines ADR-0014) | Proposed |
 | [0024](0024-service-status-by-frontend-probe.md) | Show service status by calling one administrator operation of each service | Proposed |
+| [0025](0025-accept-error-log-on-playback-timeout.md) | Accept an `ERROR` log line when a viewer's browser stops reading a video stream | Proposed |
 
 ## Decisions still to make
 
