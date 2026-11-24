@@ -1,14 +1,21 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthProvider'
-import { RequireAuth, RequireSetup, RequireSignedOut } from './auth/guards'
+import { RequireAdmin, RequireAuth, RequireProfile, RequireSetup, RequireSignedOut } from './auth/guards'
+import { AdminLayout } from './components/AdminLayout'
 import { AppLayout } from './components/AppLayout'
+import { AccountsPage } from './pages/AccountsPage'
+import { DownloadsPage } from './pages/DownloadsPage'
 import { HomePage } from './pages/HomePage'
+import { LibraryPage } from './pages/LibraryPage'
+import { MediaEditPage } from './pages/MediaEditPage'
 import { MovieDetailsPage } from './pages/MovieDetailsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PlayerPage } from './pages/PlayerPage'
+import { ProfilesPage } from './pages/ProfilesPage'
 import { SearchPage } from './pages/SearchPage'
 import { SetupPage } from './pages/SetupPage'
 import { SignInPage } from './pages/SignInPage'
+import { StatusPage } from './pages/StatusPage'
 
 function App() {
   return (
@@ -31,10 +38,20 @@ function App() {
           }
         />
         <Route
+          path="profiles"
+          element={
+            <RequireAuth>
+              <ProfilesPage />
+            </RequireAuth>
+          }
+        />
+        <Route
           path="watch/:id"
           element={
             <RequireAuth>
-              <PlayerPage />
+              <RequireProfile>
+                <PlayerPage />
+              </RequireProfile>
             </RequireAuth>
           }
         />
@@ -45,9 +62,33 @@ function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<HomePage />} />
-          <Route path="search" element={<SearchPage />} />
-          <Route path="movies/:id" element={<MovieDetailsPage />} />
+          {/* The viewing screens show the active profile's list and progress (G10). */}
+          <Route
+            element={
+              <RequireProfile>
+                <Outlet />
+              </RequireProfile>
+            }
+          >
+            <Route index element={<HomePage />} />
+            <Route path="search" element={<SearchPage />} />
+            <Route path="movies/:id" element={<MovieDetailsPage />} />
+          </Route>
+          <Route
+            path="admin"
+            element={
+              <RequireAdmin>
+                <AdminLayout />
+              </RequireAdmin>
+            }
+          >
+            <Route index element={<Navigate to="status" replace />} />
+            <Route path="accounts" element={<AccountsPage />} />
+            <Route path="library" element={<LibraryPage />} />
+            <Route path="library/media/:id" element={<MediaEditPage />} />
+            <Route path="downloads" element={<DownloadsPage />} />
+            <Route path="status" element={<StatusPage />} />
+          </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

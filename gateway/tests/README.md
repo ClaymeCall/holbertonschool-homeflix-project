@@ -22,6 +22,7 @@ It starts the real `gateway/nginx.conf` in the same Nginx image as `gateway/Dock
 | | Buffering is off on `/api/library/`, and the answer is not chunked. |
 | Paths | `/api/<service>/actuator...` answers a JSON `404`, in any letter case. |
 | | `/api/<service>/internal...` answers the same JSON `404`, in any letter case and in the `//`, `/./`, `/../` and `%69` spellings ([ADR-0022](../../docs/adr/0022-internal-service-calls.md)). |
+| Poster policy | Every answer carries exactly one `Content-Security-Policy: img-src 'self' https://host ...`, built from `POSTER_ALLOWED_HOSTS` (spaces, capitals and a trailing comma are cleaned). An empty list gives `img-src 'self'`. A wildcard, scheme, port, single-label or injecting entry stops the gateway from starting ([ADR-0018](../../docs/adr/0018-posters-as-allowlisted-external-urls.md)). |
 | | `/api`, an unknown service, and the names of qBittorrent and the database answer the same JSON `404`. |
 | | The frontend is served at `/`, and a frontend route falls back to the app. |
 | A service down | With the library service stopped: `503` and the plain JSON message, for a normal and for a ranged request. |

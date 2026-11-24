@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { probeStream, streamUrl } from '../api/library'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { probeStream, saveProgress, streamUrl } from '../api/library'
 import { useAuth } from '../auth/AuthContext'
 import { formatClock, formatSpokenTime } from '../format'
 import { Button, ButtonLink } from './Button'
@@ -16,6 +16,8 @@ import styles from './VideoPlayer.module.css'
 const SEEK_STEP = 10
 const VOLUME_STEP = 0.1
 const HIDE_CONTROLS_AFTER_MS = 3000
+/** How often the position is saved while playing (PLY-07). Also saved on pause, at the end and on leaving. */
+export const SAVE_EVERY_MS = 10_000
 /** MediaError.MEDIA_ERR_NETWORK */
 const MEDIA_ERR_NETWORK = 2
 
@@ -60,6 +62,7 @@ async function diagnose(mediaId: string, error: MediaError | null): Promise<Prob
   if (status === 401) return 'expired'
   if (status === 403) return 'denied'
   if (status === 404 || status === 410) return 'missing'
+  if (status === 415) return 'unsupported'
   if (status === 0) return 'network'
   if (status === 502 || status === 503 || status === 504) return 'unavailable'
   if (status === 200 || status === 206) return error?.code === MEDIA_ERR_NETWORK ? 'network' : 'unsupported'
@@ -68,17 +71,70 @@ async function diagnose(mediaId: string, error: MediaError | null): Promise<Prob
 
 type WebkitVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void }
 
+interface Position {
+  position: number
+  duration: number
+}
+
+/**
+ * Sends one save at a time, and then only the latest position asked for meanwhile: the server keeps the last
+ * save it receives, so a slow save must never land after a newer one. A save while the page closes cannot
+ * wait: it is sent at once with keepalive, and the save still on its way is cancelled so it cannot land after.
+ */
+function oneSaveAtATime(send: (saved: Position, keepalive: boolean, signal: AbortSignal) => Promise<unknown>) {
+  let running: AbortController | null = null
+  let next: Position | null = null
+  function run(saved: Position, keepalive: boolean) {
+    const controller = new AbortController()
+    running = controller
+    send(saved, keepalive, controller.signal)
+      .catch(() => undefined)
+      .finally(() => {
+        // A cancelled save leaves the queue to the save that replaced it.
+        if (running !== controller) return
+        running = null
+        const queued = next
+        next = null
+        if (queued) run(queued, false)
+      })
+  }
+  return (saved: Position, keepalive: boolean) => {
+    if (keepalive) {
+      next = null
+      running?.abort()
+      run(saved, true)
+    } else if (running) {
+      next = saved
+    } else {
+      run(saved, false)
+    }
+  }
+}
+
 function fullscreenSupported(): boolean {
   return Boolean(document.fullscreenEnabled) || 'webkitEnterFullscreen' in HTMLVideoElement.prototype
 }
 
-export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title: string; backTo: string }) {
+export function VideoPlayer({
+  mediaId,
+  title,
+  backTo,
+  startAt = 0,
+}: {
+  mediaId: string
+  title: string
+  backTo: string
+  /** Where to start, in seconds: the saved position when resuming (I10). */
+  startAt?: number
+}) {
   const { expire } = useAuth()
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const playButtonRef = useRef<HTMLButtonElement>(null)
   const idleTimer = useRef<number | undefined>(undefined)
-  const resumeAt = useRef(0)
+  const resumeAt = useRef(startAt)
+  // The last position and duration seen, kept outside the element so they can still be saved on leaving.
+  const watched = useRef({ played: false, position: 0, duration: 0 })
 
   const [playing, setPlaying] = useState(false)
   const [time, setTime] = useState(0)
@@ -91,6 +147,40 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
   const [idle, setIdle] = useState(false)
   const [controlsFocused, setControlsFocused] = useState(false)
   const [canFullscreen] = useState(fullscreenSupported)
+
+  /** Saves where the viewer is, for this profile (PLY-07). A failed save never interrupts playback. */
+  const send = useMemo(
+    () =>
+      oneSaveAtATime((saved, keepalive, signal) =>
+        saveProgress(mediaId, saved.position, saved.duration, { keepalive, signal }),
+      ),
+    [mediaId],
+  )
+  const save = useCallback(
+    (keepalive = false) => {
+      const { played, position, duration } = watched.current
+      const whole = Math.floor(duration)
+      if (!played || !Number.isFinite(whole) || whole < 1) return
+      send({ position: Math.min(Math.floor(position), whole), duration: whole }, keepalive)
+    },
+    [send],
+  )
+
+  useEffect(() => {
+    if (!playing) return
+    const timer = window.setInterval(() => save(), SAVE_EVERY_MS)
+    return () => window.clearInterval(timer)
+  }, [playing, save])
+
+  // On leaving the player, and when the tab is closed (keepalive lets that last request finish).
+  useEffect(() => {
+    const onPageHide = () => save(true)
+    window.addEventListener('pagehide', onPageHide)
+    return () => {
+      window.removeEventListener('pagehide', onPageHide)
+      save()
+    }
+  }, [save])
 
   useEffect(() => {
     playButtonRef.current?.focus()
@@ -124,6 +214,8 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
     if (!video) return
     const target = Math.min(Math.max(seconds, 0), duration || 0)
     video.currentTime = target
+    // Kept at once: a pause right after the jump must save the new position, not the last one played.
+    watched.current.position = target
     setTime(target)
   }
 
@@ -247,20 +339,34 @@ export function VideoPlayer({ mediaId, title, backTo }: { mediaId: string; title
         preload="metadata"
         onClick={togglePlay}
         onPlay={() => {
+          watched.current.played = true
           setPlaying(true)
           wake()
         }}
-        onPause={() => setPlaying(false)}
-        onEnded={() => setPlaying(false)}
-        onTimeUpdate={(event) => setTime(event.currentTarget.currentTime)}
+        onPause={() => {
+          setPlaying(false)
+          save()
+        }}
+        onEnded={() => {
+          setPlaying(false)
+          save()
+        }}
+        onTimeUpdate={(event) => {
+          watched.current.position = event.currentTarget.currentTime
+          setTime(event.currentTarget.currentTime)
+        }}
         onLoadedMetadata={(event) => {
+          watched.current.duration = event.currentTarget.duration
           setDuration(event.currentTarget.duration)
           if (resumeAt.current > 0) {
             event.currentTarget.currentTime = resumeAt.current
             resumeAt.current = 0
           }
         }}
-        onDurationChange={(event) => setDuration(event.currentTarget.duration)}
+        onDurationChange={(event) => {
+          watched.current.duration = event.currentTarget.duration
+          setDuration(event.currentTarget.duration)
+        }}
         onWaiting={() => setLoading(true)}
         onCanPlay={() => setLoading(false)}
         onPlaying={() => setLoading(false)}

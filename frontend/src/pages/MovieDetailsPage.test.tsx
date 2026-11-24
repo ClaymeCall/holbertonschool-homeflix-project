@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import type { MediaDetails } from '../api/library'
@@ -79,5 +79,99 @@ describe('MovieDetailsPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('temporarily unavailable')
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { name: movie.title })).toBeInTheDocument()
+  })
+
+  // ---- Resume, My List and reset (I10; CAT-07, PLY-08, PLY-09) ----
+
+  function withProgress(progress: Route, routes: Record<string, Route> = {}) {
+    return mockApi({
+      ...signedInRoutes(),
+      'GET /api/library/media/m1': () => jsonResponse(movie),
+      'GET /api/library/progress/m1': progress,
+      ...routes,
+    })
+  }
+
+  const startedAt = (positionSeconds: number, state: 'STARTED' | 'COMPLETED' = 'STARTED') => () =>
+    jsonResponse({ mediaId: 'm1', positionSeconds, durationSeconds: 5520, state, updatedAt: '2026-11-22T20:00:00Z' })
+
+  it('offers to resume a started film, or to play it from the beginning', async () => {
+    withProgress(startedAt(2530))
+    renderApp('/movies/m1')
+
+    expect(await screen.findByRole('link', { name: /Resume from 42:10/ })).toHaveAttribute('href', '/watch/m1')
+    expect(screen.getByRole('link', { name: 'Play from the beginning' })).toHaveAttribute('href', '/watch/m1?from=start')
+    expect(screen.queryByRole('link', { name: /^Play$/ })).not.toBeInTheDocument()
+  })
+
+  it('offers Play for a film that was not started, and nothing to reset', async () => {
+    withProgress(() => jsonResponse({ error: 'not_found', message: 'This address does not exist.' }, 404))
+    renderApp('/movies/m1')
+
+    expect(await screen.findByRole('link', { name: /Play/ })).toHaveAttribute('href', '/watch/m1')
+    expect(screen.queryByRole('link', { name: /Resume/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reset progress' })).not.toBeInTheDocument()
+  })
+
+  it('plays a completed film from the beginning, and can reset it', async () => {
+    withProgress(startedAt(5400, 'COMPLETED'))
+    renderApp('/movies/m1')
+
+    expect(await screen.findByRole('button', { name: 'Reset progress' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Play/ })).toHaveAttribute('href', '/watch/m1')
+    expect(screen.queryByRole('link', { name: /Resume/ })).not.toBeInTheDocument()
+  })
+
+  it('resets the progress, so the film plays from the beginning again', async () => {
+    const fetch = withProgress(startedAt(2530), { 'DELETE /api/library/progress/m1': () => new Response(null, { status: 204 }) })
+    renderApp('/movies/m1')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Reset progress' }))
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('The progress was reset. The film now plays from the beginning.')
+    expect(notice).toHaveFocus()
+    expect(callsTo(fetch, 'DELETE /api/library/progress/m1')).toHaveLength(1)
+    expect(screen.getByRole('link', { name: /Play/ })).toHaveAttribute('href', '/watch/m1')
+    expect(screen.queryByRole('button', { name: 'Reset progress' })).not.toBeInTheDocument()
+  })
+
+  it('adds the film to My List and removes it again', async () => {
+    const fetch = withProgress(startedAt(0), {
+      'PUT /api/library/favourites/m1': () => new Response(null, { status: 204 }),
+      'DELETE /api/library/favourites/m1': () => new Response(null, { status: 204 }),
+    })
+    renderApp('/movies/m1')
+
+    const toggle = await screen.findByRole('button', { name: 'My List' })
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(toggle)
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'true'))
+    expect(callsTo(fetch, 'PUT /api/library/favourites/m1')).toHaveLength(1)
+
+    await userEvent.click(toggle)
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'false'))
+    expect(callsTo(fetch, 'DELETE /api/library/favourites/m1')).toHaveLength(1)
+  })
+
+  it('shows a film already in My List as pressed', async () => {
+    withProgress(startedAt(0), { 'GET /api/library/favourites': () => jsonResponse([movie]) })
+    renderApp('/movies/m1')
+
+    expect(await screen.findByRole('button', { name: 'My List' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('shows the server message when My List cannot be changed', async () => {
+    withProgress(startedAt(0), {
+      'PUT /api/library/favourites/m1': () =>
+        jsonResponse({ error: 'service_unavailable', message: 'This part of HomeFlix is temporarily unavailable.' }, 503),
+    })
+    renderApp('/movies/m1')
+
+    const toggle = await screen.findByRole('button', { name: 'My List' })
+    await userEvent.click(toggle)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('This part of HomeFlix is temporarily unavailable.')
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
   })
 })

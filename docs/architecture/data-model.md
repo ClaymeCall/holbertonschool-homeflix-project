@@ -164,18 +164,21 @@ erDiagram
         varchar licence
         varchar licence_url "https"
         varchar attribution "nullable"
-        varchar download_source "magnet or torrent address, never from a user"
+        varchar download_source "magnet link, never from a user"
         bigint expected_size_bytes
         varchar expected_format "MP4"
+        timestamptz created_at
     }
     download_job {
         uuid id PK
         uuid entry_id FK
-        varchar client_hash UK "qBittorrent info hash"
+        varchar client_hash "info hash of the entry's magnet link, unique among active jobs"
         varchar state "QUEUED, DOWNLOADING, COMPLETED, FAILED"
         smallint progress_percent
         varchar error_code "nullable"
         varchar completed_relative_path "nullable"
+        timestamptz handoff_started_at "nullable, when the verified file was first handed over"
+        timestamptz unreadable_since "nullable, when the completed file was first found unreadable"
         uuid started_by "plain uuid, identity account"
         timestamptz created_at
         timestamptz updated_at
@@ -186,13 +189,14 @@ erDiagram
 
 ### The verified catalogue (ACQ-01, ACQ-02, R-15)
 
-`acquisition_entry` rows are inserted by a **Flyway migration**, reviewed in a pull request like code. Only the team can add or change an entry, and there is no screen or field that accepts a URL or a magnet link (ACQ-09, ACQ-10). Each entry records its source, its licence and the expected size and format, which are checked after the download (R-19).
+`acquisition_entry` rows are inserted by a **Flyway migration**, reviewed in a pull request like code. Only the team can add or change an entry, and there is no screen or field that accepts a URL or a magnet link (ACQ-09, ACQ-10). Each entry records its source, its licence and the expected size and format, which are checked after the download (R-19). The database refuses an entry whose source or licence page is not `https`, whose download source is not a magnet link with a lower-case v1 info hash followed only by a display name (`dn`) and trackers (`tr`), whose size is not positive or whose format is not `MP4`, and a title or an info hash listed twice (migration `V2__create_acquisition_entry.sql`). Any other magnet parameter (`xs`, `as`, `ws`) is refused because it would make the torrent client fetch an address of its own. An `https` address of a `.torrent` file is refused for now: its info hash is only known once the client has fetched it, so a duplicate or the download could not be checked by its hash. The API never returns the download source.
 
 ### Download jobs (ACQ-03 to ACQ-07)
 
-- States are `QUEUED`, `DOWNLOADING`, `COMPLETED` and `FAILED` (ACQ-04). A cancelled job is `FAILED` with `error_code = 'cancelled'`.
-- At most one job per entry is active at a time: a unique index on `entry_id` where `state` is `QUEUED` or `DOWNLOADING`.
-- `completed_relative_path` is relative to the downloads folder. After the size and format check it is handed to the library, which indexes it (ACQ-07).
+- States are `QUEUED`, `DOWNLOADING`, `COMPLETED` and `FAILED` (ACQ-04). A cancelled job is `FAILED` with `error_code = 'cancelled'`. The other reasons are `client_error`, `torrent_missing` (the torrent is no longer in the client), `handoff_failed`, `verification_failed` and `file_unreadable`. The API returns each reason with a plain-language message.
+- The status check (J6) updates `state` and `progress_percent` every 10 seconds from the torrent client. A torrent the client has completed keeps the job `DOWNLOADING` at 100 % until the handoff (J7).
+- At most one job per entry is active at a time: a unique index on `entry_id` where `state` is `QUEUED` or `DOWNLOADING`. The same entry always gives the same torrent, so `client_hash` is unique among active jobs only: an entry downloaded again after a cancel has a new job with the same hash. The hash is taken from the entry's magnet link when the job is created, so the torrent can be found or removed in the client even if adding it failed or was interrupted.
+- `completed_relative_path` is relative to the downloads folder. It is set once the file passed the size and format checks, with `handoff_started_at`, and then handed to the library, which indexes it (ACQ-07). A `COMPLETED` job always has it (migration `V5__add_download_handoff.sql`).
 - `started_by` is an account id for the audit trail. Only an administrator can start or cancel a job (ACQ-05); the server enforces it.
 
 ## References between services

@@ -1,0 +1,356 @@
+# Acquisition service contract (ADR-0010). Written before the implementation.
+# Shapes follow the data model (docs/architecture/data-model.md, "Acquisition service").
+openapi: 3.1.0
+info:
+  title: HomeFlix acquisition service
+  version: 0.1.0
+  description: |
+    The verified acquisition catalogue: content the team has checked as downloadable and redistributable,
+    each entry with its source, its licence and its expected size (ACQ-01, ACQ-02, R-19), and starting and
+    cancelling the download of an entry (ACQ-03). Download status tracking (J6) and the handoff of completed
+    files to the library (J7) are added to this file by the pull requests that build them.
+
+    Paths are those of the service. Through the gateway they are served under `/api/acquisition`
+    (ADR-0017), which is the server URL below.
+
+    **Permissions** are written on each operation as `x-permission`. Every operation of this service is
+    `admin` (ACQ-05). The identity comes from the signed token only, never from a parameter (ADR-0009).
+    The permission is checked before the path or the body is read, so a caller who is not an administrator
+    gets `401` or `403` whatever the request holds.
+
+    **No arbitrary source.** Entries are added by a reviewed database migration, never through the API.
+    No operation accepts a URL, a magnet link or a torrent file, and the download address of an entry is
+    never returned (ACQ-09, ACQ-10, R-15). A download is started by naming an entry, and only that entry's
+    own source is downloaded.
+
+    **Order of the calls** (docs/architecture/consistency-rules.md, "Acquisition handoff"): a start tells the
+    library first, so its catalogue shows the title as downloading, then adds the torrent. A cancel removes
+    the torrent and its partial data, then tells the library.
+
+    **Status tracking** (J6): every 10 seconds the service reads the torrent client and gives each active
+    download the state and progress of its torrent. Waiting, stopped, checking or fetching metadata is
+    `QUEUED`; transferring or waiting for peers is `DOWNLOADING`; a torrent in error is `FAILED`. A torrent
+    the client has completed stays `DOWNLOADING` at 100 % while its file is checked (one MP4 file, H.264 and
+    AAC, of the expected size) and handed to the library; it is `COMPLETED` once the library has it. A failure
+    the library could not be told about is told at the next check.
+
+    **Errors** use the common body of `common.yaml` (ADR-0020). A method that a path does not list, such as
+    `POST /entries`, answers `405` with the code `request_rejected`.
+servers:
+  - url: /api/acquisition
+    description: Through the gateway
+tags:
+  - name: Catalogue
+  - name: Downloads
+security:
+  - cookieAuth: []
+paths:
+  /entries:
+    get:
+      tags: [Catalogue]
+      operationId: listEntries
+      summary: List the verified acquisition catalogue
+      description: |
+        Every entry, by title. This catalogue is separate from the library: an entry is content that may be
+        downloaded, not a title that is already available (ACQ-01). The list is short and curated, so it is
+        not paged.
+      x-permission: admin
+      responses:
+        '200':
+          description: The entries, alphabetical by title without regard to case.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Entry'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+
+  /entries/{entryId}:
+    parameters:
+      - $ref: '#/components/parameters/EntryId'
+    get:
+      tags: [Catalogue]
+      operationId: getEntry
+      summary: One entry of the verified catalogue
+      x-permission: admin
+      responses:
+        '200':
+          description: The entry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+
+  /downloads:
+    get:
+      tags: [Downloads]
+      operationId: listDownloads
+      summary: List the downloads
+      description: |
+        Every download, newest first, with its state, progress and, for a failed one, the reason in plain
+        language (ACQ-03, ACQ-04). Not paged: downloads are started one by one by an administrator.
+      x-permission: admin
+      responses:
+        '200':
+          description: The downloads, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Download'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+    post:
+      tags: [Downloads]
+      operationId: startDownload
+      summary: Start the download of a catalogue entry
+      description: |
+        The administrator must have read the rights reminder (ACQ-11): the interface shows it and sends
+        `rightsAcknowledged: true`, and the server refuses the start without it. Only the entry's own download
+        source is used; any other field of the body is ignored.
+
+        At most one download of an entry is active (queued or downloading) at a time. An entry can be
+        downloaded again after its download failed or was cancelled.
+
+        If the library cannot be told, nothing starts and the answer is `503`. If the torrent client fails
+        after the library was told, the torrent is removed in case the client accepted it, the download is
+        recorded as `FAILED` with `client_error`, the library is told, and the answer is `503`.
+
+        If the download is cancelled while its torrent is being added, the start removes the torrent and
+        answers `201` with the download as the cancel left it (`FAILED`, `cancelled`).
+      x-permission: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartRequest'
+      responses:
+        '201':
+          description: The download is queued in the torrent client, or was cancelled while it was added.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Download'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '409':
+          description: >
+            `download_in_progress` when a download of this entry is already queued or downloading,
+            `already_in_library` when the library already has this title available. No download is recorded
+            then.
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                inProgress:
+                  value: { error: download_in_progress, message: A download of this title is already in progress. }
+                alreadyInLibrary:
+                  value: { error: already_in_library, message: This title is already in the library. }
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /downloads/{downloadId}:
+    parameters:
+      - $ref: '#/components/parameters/DownloadId'
+    get:
+      tags: [Downloads]
+      operationId: getDownload
+      summary: One download
+      x-permission: admin
+      responses:
+        '200':
+          description: The download.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Download'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /downloads/{downloadId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/DownloadId'
+    post:
+      tags: [Downloads]
+      operationId: cancelDownload
+      summary: Cancel a download that is queued or downloading
+      description: |
+        A download whose completed file is being handed to the library cannot be cancelled any more
+        (`409 download_not_cancellable`).
+
+        Removes the torrent and the partial file from the torrent client, then records the download as
+        `FAILED` with `cancelled`. The library is told; if it cannot be told now, it is told later, and the
+        cancel still succeeds. If the torrent client does not answer, nothing changes and the answer is `503`.
+      x-permission: admin
+      responses:
+        '200':
+          description: The cancelled download.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Download'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '409':
+          description: The download has already completed or failed.
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              example: { error: download_not_cancellable, message: This download has already finished and cannot be cancelled. }
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      $ref: './common.yaml#/components/securitySchemes/cookieAuth'
+
+  parameters:
+    EntryId:
+      name: entryId
+      in: path
+      required: true
+      description: An id that is not a valid UUID answers `404`, the same as an unknown entry.
+      schema:
+        $ref: './common.yaml#/components/schemas/Uuid'
+    DownloadId:
+      name: downloadId
+      in: path
+      required: true
+      description: An id that is not a valid UUID answers `404`, the same as an unknown download.
+      schema:
+        $ref: './common.yaml#/components/schemas/Uuid'
+
+  schemas:
+    Entry:
+      type: object
+      description: |
+        Content verified as downloadable and redistributable. The source and the licence are shown to the
+        administrator before a download starts, with the rights reminder (ACQ-11). The download address is
+        kept by the service and never returned.
+      required: [id, title, sourceName, sourceUrl, licence, licenceUrl, attribution, expectedSizeBytes, expectedFormat]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        title:
+          type: string
+          examples: [Sintel]
+        sourceName:
+          description: Who publishes the content.
+          type: string
+          examples: [Blender Foundation]
+        sourceUrl:
+          description: '`https` page of the source.'
+          type: string
+          format: uri
+          examples: ['https://durian.blender.org/']
+        licence:
+          description: Name of the licence or other authorization.
+          type: string
+          examples: [Creative Commons Attribution 3.0 Unported (CC BY 3.0)]
+        licenceUrl:
+          description: '`https` page of the licence.'
+          type: string
+          format: uri
+          examples: ['https://creativecommons.org/licenses/by/3.0/']
+        attribution:
+          description: Credit the licence requires, or null when it requires none.
+          type: ['string', 'null']
+        expectedSizeBytes:
+          description: Size of the file once downloaded. The completed file is checked against it (R-19, J7).
+          type: integer
+          format: int64
+          minimum: 1
+          examples: [129184608]
+        expectedFormat:
+          description: Format of the file once downloaded. Only MP4 (H.264, AAC) is supported (ADR-0015).
+          type: string
+          enum: [MP4]
+
+    StartRequest:
+      type: object
+      description: Names a catalogue entry. There is no field for a URL, a magnet link or a file.
+      required: [entryId, rightsAcknowledged]
+      properties:
+        entryId:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        rightsAcknowledged:
+          description: '`true` once the administrator has read the rights reminder (ACQ-11). Anything else is refused.'
+          type: boolean
+          const: true
+
+    Download:
+      type: object
+      description: |
+        One download of a catalogue entry (ACQ-04). The account that started it and the torrent's info hash
+        are kept by the service and not returned.
+      required: [id, entryId, state, progressPercent, errorCode, errorMessage, createdAt, finishedAt]
+      properties:
+        id:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        entryId:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        state:
+          type: string
+          enum: [QUEUED, DOWNLOADING, COMPLETED, FAILED]
+        progressPercent:
+          description: 0 to 100, rounded down, so 100 means the whole file is there. Updated every 10 seconds.
+          type: integer
+          minimum: 0
+          maximum: 100
+        errorCode:
+          description: |
+            Why a `FAILED` download failed, null otherwise: `cancelled` (an administrator cancelled it),
+            `client_error` (the torrent client refused, did not answer, or reported an error),
+            `torrent_missing` (the torrent is no longer in the client, for example removed by hand),
+            `verification_failed` (the completed file is not the expected MP4: it was deleted),
+            `handoff_failed` (the library did not accept the file within the time limit: the file is kept),
+            `file_unreadable` (the completed file could not be read within the time limit, for example a
+            permission problem: the file is kept).
+          type: ['string', 'null']
+          examples: [cancelled]
+        errorMessage:
+          description: |
+            The reason of a failure in plain language, shown as written (ADR-0021), null otherwise. It never
+            holds a technical detail, which goes to the log only (SEC-04).
+          type: ['string', 'null']
+          examples: [This download was cancelled.]
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          description: When it completed or failed, null while it is active.
+          type: ['string', 'null']
+          format: date-time

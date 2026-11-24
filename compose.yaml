@@ -11,6 +11,10 @@ services:
       dockerfile: gateway/Dockerfile
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
+    environment:
+      # The same list the library service validates posters against (ADR-0018). The gateway builds the
+      # img-src of its Content-Security-Policy from it at start.
+      POSTER_ALLOWED_HOSTS: ${POSTER_ALLOWED_HOSTS:-upload.wikimedia.org}
     networks: [backend]
     restart: unless-stopped
     healthcheck:
@@ -81,11 +85,16 @@ services:
   acquisition-service:
     build: ./services/acquisition-service
     environment:
+      # Sent in X-Service-Token to the library's internal endpoints (ADR-0022). The library holds the same
+      # value for this caller only. The service refuses to start without it.
+      ACQUISITION_TO_LIBRARY_TOKEN: ${ACQUISITION_TO_LIBRARY_TOKEN:?Set ACQUISITION_TO_LIBRARY_TOKEN in .env}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/homeflix_acquisition
       SPRING_DATASOURCE_USERNAME: homeflix_acquisition
       SPRING_DATASOURCE_PASSWORD: ${ACQUISITION_DB_PASSWORD:?Set ACQUISITION_DB_PASSWORD in .env}
       # Login to the torrent client's API, the same values qBittorrent is configured with (J5 uses them).
       QBITTORRENT_URL: http://qbittorrent:8080
+      # Time limit of the handoff of a completed download to the library (J7, R-22).
+      ACQUISITION_HANDOFF_TIMEOUT: ${ACQUISITION_HANDOFF_TIMEOUT:-5m}
       QBITTORRENT_USERNAME: ${QBITTORRENT_USERNAME:?Set QBITTORRENT_USERNAME in .env}
       QBITTORRENT_PASSWORD: ${QBITTORRENT_PASSWORD:?Set QBITTORRENT_PASSWORD in .env}
       # Verifies the session token with the identity service's PUBLIC key only (G5).
@@ -97,6 +106,10 @@ services:
         condition: service_healthy
     networks: [backend, p2p]
     restart: unless-stopped
+    volumes:
+      # Completed downloads, read-only, at the path qBittorrent saves to: the size and format of a finished
+      # file are checked before it is handed to the library (J7, R-19). Never written, never run.
+      - ${DOWNLOADS_PATH:-./data/downloads}:/downloads:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8083/actuator/health/liveness"]
       interval: 15s

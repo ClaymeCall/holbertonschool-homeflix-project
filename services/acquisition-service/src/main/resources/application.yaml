@@ -17,3 +17,36 @@ management:
       probes:
         enabled: true
       show-details: never
+
+homeflix:
+  # The library's internal endpoints (docs/architecture/consistency-rules.md, ADR-0022). Called directly on
+  # the backend network, never through the gateway, with this service's own token.
+  library:
+    base-url: ${LIBRARY_SERVICE_URL:http://library-service:8082}
+    service-token: ${ACQUISITION_TO_LIBRARY_TOKEN:}
+
+  # The torrent client's Web API, on the private p2p network (ADR-0014, ADR-0023).
+  qbittorrent:
+    url: ${QBITTORRENT_URL:http://qbittorrent:8080}
+    username: ${QBITTORRENT_USERNAME:}
+    password: ${QBITTORRENT_PASSWORD:}
+
+  # Status check of downloads (J6; docs/architecture/consistency-rules.md, "Acquisition handoff").
+  # A new job may have no torrent in the client for missing-grace before it fails with torrent_missing.
+  downloads:
+    # Completed downloads, mounted read-only at the path qBittorrent saves to (J7, R-20).
+    folder: ${DOWNLOADS_FOLDER:/downloads}
+    # A verified file the library has not accepted after this time fails with handoff_failed.
+    handoff-timeout: ${ACQUISITION_HANDOFF_TIMEOUT:5m}
+    tracking:
+      enabled: true
+      interval: 10s
+      missing-grace: 60s
+
+  # Calls to other services: timeouts and retry policy (ADR-0020, R-24).
+  # Only GET is retried, once, after a connection failure, a timeout or a 502, 503 or 504.
+  http-client:
+    connect-timeout: 2s
+    read-timeout: 5s
+    retries: 1
+    retry-pause: 200ms

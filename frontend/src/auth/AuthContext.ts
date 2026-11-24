@@ -16,6 +16,8 @@ export interface AuthContextValue {
   signIn: (credentials: Credentials) => Promise<void>
   signOut: () => Promise<void>
   completeSetup: (credentials: Credentials) => Promise<void>
+  /** Makes this profile the active one for the rest of the session. */
+  selectProfile: (profileId: string) => Promise<void>
   /** Signs the user out with the expired-session message, for failures the API client cannot see. */
   expire: () => void
   retry: () => void

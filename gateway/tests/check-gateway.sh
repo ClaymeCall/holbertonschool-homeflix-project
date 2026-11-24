@@ -86,6 +86,8 @@ docker run -d --name "$RUN_ID-library" --network "$RUN_ID" --network-alias libra
 docker run -d --name "$RUN_ID-gateway" --network "$RUN_ID" -p 127.0.0.1::8080 \
   -v "$ROOT/gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
   -v "$ROOT/gateway/proxy-common.inc:/etc/nginx/conf.d/proxy-common.inc:ro" \
+  -v "$ROOT/gateway/docker-entrypoint.d/40-poster-csp.sh:/docker-entrypoint.d/40-poster-csp.sh:ro" \
+  -e POSTER_ALLOWED_HOSTS=" upload.wikimedia.org, Posters.Example.ORG ," \
   -v "$WORK/gateway-html:/usr/share/nginx/html:ro" "$IMAGE" >/dev/null || exit 2
 
 PORT="$(docker port "$RUN_ID-gateway" 8080/tcp | head -1 | sed 's/.*://')"
@@ -170,6 +172,33 @@ for path in /api /api/ /api/unknown /api/unknown/anything /api/qbittorrent/api/v
 done
 
 expect "the frontend is served at /" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/")" "200"
+
+echo
+echo "Content-Security-Policy: img-src from POSTER_ALLOWED_HOSTS (issue #59, ADR-0018, SEC-12)"
+
+# The list in the test setup has spaces, a capital letter and a trailing comma, to check it is cleaned.
+EXPECTED_CSP="img-src 'self' https://upload.wikimedia.org https://posters.example.org"
+for path in / /some/screen /healthz /api/unknown /api/library/actuator/health /api/library/internal/downloads/x \
+            /api/library/media/test/stream; do
+  curl -s -D "$WORK/h" -o /dev/null "$BASE$path"
+  expect "$path: Content-Security-Policy" "$(header Content-Security-Policy "$WORK/h")" "$EXPECTED_CSP"
+done
+curl -s -D "$WORK/h" -o /dev/null -H "Range: bytes=0-99" "$BASE/api/library/media/test/stream"
+expect "a ranged answer: Content-Security-Policy" "$(header Content-Security-Policy "$WORK/h")" "$EXPECTED_CSP"
+expect "only one Content-Security-Policy header is sent" "$(grep -ic '^content-security-policy:' "$WORK/h")" "1"
+
+# The script on its own: the default, an empty list, and values that must stop the gateway.
+csp_for() {
+  docker run --rm --entrypoint sh -v "$ROOT/gateway/docker-entrypoint.d/40-poster-csp.sh:/csp.sh:ro" \
+    -e CSP_INCLUDE_FILE=/tmp/csp.inc "$@" "$IMAGE" -c '/csp.sh >/dev/null 2>"$0"; echo "exit=$?"; cat /tmp/csp.inc 2>/dev/null' /tmp/err
+}
+expect "no variable: the default host" \
+  "$(csp_for | grep -o "img-src.*")" "img-src 'self' https://upload.wikimedia.org\" always;"
+expect "an empty list: HomeFlix itself only" \
+  "$(csp_for -e POSTER_ALLOWED_HOSTS= | grep -o "img-src.*")" "img-src 'self'\" always;"
+for bad in '*.example.org' 'https://example.org' 'example.org:8443' "x.org;script-src *" 'a b.org' 'x.org"' 'localhost' '192.168.0.1.' '-a.org' 'example..org'; do
+  expect "a bad entry stops the gateway: [$bad]" "$(csp_for -e "POSTER_ALLOWED_HOSTS=ok.example.org,$bad" | head -1)" "exit=1"
+done
 expect "a frontend route falls back to the app" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/some/screen")" "200"
 
 echo
