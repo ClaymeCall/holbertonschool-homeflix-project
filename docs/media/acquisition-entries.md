@@ -83,8 +83,27 @@ magnet:?xt=urn:btih:e6d8867d826b6406746e067e8b08d582cbb9dee8&dn=tears-of-steel.m
 
 A download from HomeFlix only works while a peer has the whole file. Thomas's computer seeds both torrents in qBittorrent, from a copy of each video under the file name of the torrent. As for Sintel, a seeder on the same machine as the HomeFlix stack is not found through the tracker, because most home routers do not loop back to their own public address (see [p2p-run.md](../acquisition/p2p-run.md)).
 
+## Test run (2026-11-25)
+
+Both entries were downloaded from the catalogue on the Compose stack, branch of #184 at `d4add9c`, on macOS with Docker Desktop.
+
+| | Big Buck Bunny | Tears of Steel |
+|---|---|---|
+| Started (Administration > Downloads) | 00:13:36 | 00:13:49 |
+| Completed and handed to the library | 00:15:58 | 00:15:28 |
+| Received file | `/downloads/big-buck-bunny.mp4` | `/downloads/tears-of-steel.mp4` |
+| SHA-256 of the received file | `0bb49419…8dce77`, the value above | `0d38c5a6…55c6fd`, the value above |
+| Download state | `COMPLETED`, 100 % | `COMPLETED`, 100 % |
+| Library entry | `AVAILABLE`, linked to its acquisition entry | `AVAILABLE`, linked to its acquisition entry |
+
+- **Peer:** the seeder was Thomas's desktop qBittorrent 5.2.3, on the same computer as the stack. It was added by hand as a peer of the stack's client (`torrents/addPeers`, Docker Desktop host address), because the router does not loop back to its own public address. The client's peer list showed it as `qBittorrent/5.2.3`. The data came through the BitTorrent protocol, and the torrents have no web seed.
+- **Migration:** at start, Flyway applied `V7` to the acquisition database ("now at version v7"). The catalogue then listed Big Buck Bunny, Sintel and Tears of Steel.
+- **First attempt:** the seeder first had the torrents at 0 %, because its copies of the videos had been removed from its save folder. Once they were back and rechecked, the seeder was at 100 % and both downloads completed.
+
+This run does not show a transfer from another network. That is covered for Sintel by J10 ([p2p-run.md](../acquisition/p2p-run.md)).
+
 ## Evidence still to collect
 
 - [ ] Screenshots of <https://peach.blender.org/about/> and <https://mango.blender.org/sharing/> in [`evidence/`](evidence/)
-- [ ] Both torrents added to qBittorrent and seeding on a team machine (screenshot)
-- [ ] A download of each entry from the catalogue, through the torrent, to a played title
+- [ ] Screenshot of both torrents seeding on a team machine
+- [x] A download of each entry from the catalogue, through the torrent, to an available title (test run above)
