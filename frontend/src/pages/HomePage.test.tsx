@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { media } from '../test/fixtures'
-import { jsonResponse, mockApi, signedInRoutes, testAccount, type Route } from '../test/http'
+import { callsTo, jsonResponse, mockApi, signedInRoutes, testAccount, type Route } from '../test/http'
 import { renderApp } from '../test/render'
 
 const stars = media({ id: 'm1', title: 'Night of the Stars', genres: ['Documentary'], durationSeconds: 5520 })
@@ -77,5 +77,52 @@ describe('HomePage', () => {
     renderApp('/')
     expect((await screen.findAllByText('<img src=x onerror=alert(1)>')).length).toBeGreaterThan(0)
     expect(document.querySelector('img[src="x"]')).toBeNull()
+  })
+
+  // ---- The active profile's sections (I10; CAT-08, PLY-08) ----
+
+  it('shows the started films in Continue watching and the listed ones in My List', async () => {
+    const fetch = mockApi({
+      ...signedInRoutes(),
+      'GET /api/library/media': () => jsonResponse([stars]),
+      'GET /api/library/categories': () => jsonResponse([]),
+      'GET /api/library/progress': () =>
+        jsonResponse([
+          { mediaId: 'm1', positionSeconds: 600, durationSeconds: 5520, state: 'STARTED', updatedAt: '2026-11-22T20:00:00Z', media: stars },
+        ]),
+      'GET /api/library/favourites': () => jsonResponse([holidays]),
+    })
+    renderApp('/')
+
+    const continuing = await screen.findByRole('region', { name: 'Continue watching' })
+    expect(within(continuing).getByRole('link', { name: /Night of the Stars/ })).toHaveAttribute('href', '/movies/m1')
+    const list = screen.getByRole('region', { name: 'My List' })
+    expect(within(list).getByRole('link', { name: /Holidays 2024/ })).toBeInTheDocument()
+    expect(callsTo(fetch, 'GET /api/library/progress')[0][0]).toBe('/api/library/progress?state=STARTED&limit=12')
+  })
+
+  it('explains the two sections while they are empty', async () => {
+    home(() => jsonResponse([stars]))
+    renderApp('/')
+
+    const continuing = await screen.findByRole('region', { name: 'Continue watching' })
+    expect(continuing).toHaveTextContent('The films you start appear here, so you can pick up where you left off.')
+    expect(screen.getByRole('region', { name: 'My List' })).toHaveTextContent(
+      'Add films to My List from their page to find them here.',
+    )
+  })
+
+  it('still shows the catalogue when the list of the profile cannot be read', async () => {
+    mockApi({
+      ...signedInRoutes(),
+      'GET /api/library/media': () => jsonResponse([stars]),
+      'GET /api/library/categories': () => jsonResponse([]),
+      'GET /api/library/favourites': () =>
+        jsonResponse({ error: 'service_unavailable', message: 'This part of HomeFlix is temporarily unavailable.' }, 503),
+    })
+    renderApp('/')
+
+    expect(await screen.findByRole('heading', { name: 'Your list cannot be shown' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Recently added' })).toBeInTheDocument()
   })
 })

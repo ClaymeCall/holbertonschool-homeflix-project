@@ -45,6 +45,8 @@ While a file downloads, the peer-to-peer client also **sends pieces of it to oth
 - [ ] The required attribution is recorded.
 - [ ] The file is in the supported format (MP4, H.264, AAC; ADR-0015).
 
+Worked example: the peer-to-peer test file, *Sintel* (CC BY 3.0), with every point checked and its evidence in [docs/media/p2p-test-file.md](media/p2p-test-file.md).
+
 ## In-app reminder (reference text)
 
 The interface shows this text, in English, before every download (issue J9, #82): the download starts only after **I understand**, and the request records it (`rightsAcknowledged`). Change it here first, then in `frontend/src/pages/DownloadsPage.tsx`.

@@ -27,3 +27,8 @@
   scroll-snap-align: start;
   min-width: 0;
 }
+
+.empty {
+  padding-inline: var(--gutter);
+  color: var(--text-muted);
+}

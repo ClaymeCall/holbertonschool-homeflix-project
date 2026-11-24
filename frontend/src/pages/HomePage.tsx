@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { describeError } from '../api/errors'
-import { getCategories, getRecentMedia } from '../api/library'
+import { getCategories, getRecentMedia, listContinueWatching, listFavourites } from '../api/library'
 import { useAuth } from '../auth/AuthContext'
 import { ButtonLink } from '../components/Button'
 import { MediaRow } from '../components/MediaRow'
@@ -9,6 +9,7 @@ import { useAsync } from '../hooks/useAsync'
 import styles from './HomePage.module.css'
 
 const RECENT_LIMIT = 12
+const CONTINUE_LIMIT = 12
 
 async function loadHome(signal: AbortSignal) {
   const [recent, categories] = await Promise.all([getRecentMedia(RECENT_LIMIT, signal), getCategories(signal)])
@@ -48,6 +49,7 @@ export function HomePage() {
           </EmptyState>
         ) : (
           <div className={styles.sections}>
+            <PersonalRows />
             {state.data.recent.length > 0 && <MediaRow title="Recently added" items={state.data.recent} />}
             {state.data.categories.map((category) => (
               <MediaRow key={category.genre} title={category.genre} items={category.items} />
@@ -55,6 +57,36 @@ export function HomePage() {
           </div>
         ))}
     </div>
+  )
+}
+
+/** The active profile's titles. A section that cannot be read says so, and the rest of the home still shows. */
+async function loadPersonal(signal: AbortSignal) {
+  const [started, favourites] = await Promise.all([listContinueWatching(CONTINUE_LIMIT, signal), listFavourites(signal)])
+  return { continueWatching: started.flatMap((entry) => (entry.media ? [entry.media] : [])), favourites }
+}
+
+/** Continue watching and My List, for the active profile (CAT-08, PLY-08). */
+function PersonalRows() {
+  const { state, reload } = useAsync(loadPersonal)
+
+  if (state.status === 'loading') return <LoadingState label="Loading your list…" />
+  if (state.status === 'error') {
+    return <ErrorState title="Your list cannot be shown" message={describeError(state.error)} onRetry={reload} />
+  }
+  return (
+    <>
+      <MediaRow
+        title="Continue watching"
+        items={state.data.continueWatching}
+        empty="The films you start appear here, so you can pick up where you left off."
+      />
+      <MediaRow
+        title="My List"
+        items={state.data.favourites}
+        empty="Add films to My List from their page to find them here."
+      />
+    </>
   )
 }
 
