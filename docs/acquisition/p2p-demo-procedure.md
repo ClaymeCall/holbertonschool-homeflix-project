@@ -90,7 +90,7 @@ Record each run here: date, networks, film, result, duration, and whether the se
 
 | # | Test | Demo machine network | Seeder network | Film | Result |
 |---|---|---|---|---|---|
-| 1 | Seeder port open | | Thomas's home | | To do |
+| 1 | Seeder port open | | Thomas's home | | **Done, 2026-11-25.** With qBittorrent running, an online port check reported port 60236 open (checked by Thomas). |
 | 2 | Download from home, no peer added by hand | Benji's home | Thomas's home | Big Buck Bunny or Tears of Steel | To do |
 | 3 | Rehearsal on the presentation network | School | Thomas's home | The other backup film | To do |
 | 4 | Backup network | Phone hotspot | Thomas's home | A backup film | To do |
