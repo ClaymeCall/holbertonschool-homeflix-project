@@ -139,6 +139,7 @@ pref_is "completed files go to /downloads, files in progress to /incomplete" "p[
 echo "== Downloads folder"
 
 check "qBittorrent can write to the downloads folder" "\"\${COMPOSE[@]}\" exec -T qbittorrent s6-setuidgid abc sh -c 'touch /downloads/.homeflix-write-check && rm /downloads/.homeflix-write-check'"
+check "qBittorrent can write to the incomplete downloads volume" "\"\${COMPOSE[@]}\" exec -T qbittorrent s6-setuidgid abc sh -c 'touch /incomplete/.homeflix-write-check && rm /incomplete/.homeflix-write-check'"
 
 if [[ $FAILED -eq 0 ]]; then
 	echo "All checks passed."
