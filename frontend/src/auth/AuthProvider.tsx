@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ApiError, setSessionHandlers } from '../api/client'
 import * as identity from '../api/identity'
+import type { Account } from '../api/identity'
 import { AuthContext, type AuthContextValue, type Session } from './AuthContext'
 
 /**
@@ -52,7 +53,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession((current) => (current.status === 'signedIn' ? { status: 'signedOut', reason: 'expired' } : current))
   }, [])
 
-  useEffect(() => setSessionHandlers({ renew: identity.renewSession, onExpired: expire }), [expire])
+  /**
+   * A renewed token may have lost its profile (deleted meanwhile, maybe from another device): the session
+   * follows the server's answer, so the profile screen is shown again. An unchanged account changes nothing.
+   */
+  const renewed = useCallback((account: Account) => {
+    setSession((current) =>
+      current.status === 'signedIn' && !sameAccount(current.account, account) ? { status: 'signedIn', account } : current,
+    )
+  }, [])
+
+  useEffect(
+    () =>
+      setSessionHandlers({
+        renew: async () => renewed(await identity.renewSession()),
+        onExpired: expire,
+      }),
+    [expire, renewed],
+  )
 
   const signedIn = session.status === 'signedIn'
   useEffect(() => {
@@ -60,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let lastRenewal = Date.now()
     const renew = () => {
       lastRenewal = Date.now()
-      identity.renewSession().catch((error: unknown) => {
+      identity.renewSession().then(renewed, (error: unknown) => {
         if (error instanceof ApiError && error.status === 401) expire()
       })
     }
@@ -73,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
-  }, [signedIn, expire])
+  }, [signedIn, expire, renewed])
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -94,6 +112,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await identity.createFirstAdministrator(credentials)
         setSession({ status: 'signedOut', reason: 'setupDone' })
       },
+      selectProfile: async (profileId) => {
+        const account = await identity.selectProfile(profileId)
+        setSession({ status: 'signedIn', account })
+      },
       expire,
       retry: () => {
         setSession({ status: 'checking' })
@@ -104,4 +126,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+function sameAccount(a: Account, b: Account): boolean {
+  return a.id === b.id && a.email === b.email && a.admin === b.admin && a.profileId === b.profileId
 }

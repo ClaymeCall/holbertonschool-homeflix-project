@@ -137,7 +137,7 @@ Only `title` is required. A title without description, poster, genre or duration
 
 ### Poster (ADR-0018)
 
-`poster_url` is plain text. The server validates that it is `https` on an allowed host when it is saved, and never fetches it.
+`poster_url` is plain text. The server validates that it is `https` on an allowed host when it is saved, and never fetches it. The allowed hosts are exact host names (no wildcard, so a subdomain must be listed on its own) in the `POSTER_ALLOWED_HOSTS` environment variable, comma separated, `upload.wikimedia.org` by default. An address with a user name, a port other than 443 or an IP address is refused. The service refuses to start if an entry is not a host name.
 
 ### Genres (CAT-02, CAT-04)
 

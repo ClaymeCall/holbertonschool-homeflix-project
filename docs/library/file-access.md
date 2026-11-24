@@ -68,9 +68,11 @@ This shows how the mount behaves. It was run in a plain container, not in the li
 | The title does not exist, or the id is not an id | 404 | `not_found` | This address does not exist. |
 | The file was removed or moved after indexing, the title has no file, or the path is not a file | 404 | `file_not_found` | The file for this title could not be found. It may have been moved or deleted from the library. |
 | The real path is outside the title's folder | 403 | `access_denied` | You do not have access to this video. |
+| The file exists but HomeFlix cannot read it (permission denied, or the disk or share failed), including when the folder on the way cannot be searched | 403 | `file_not_readable` | HomeFlix cannot read the file for this title. Ask an administrator to check the permissions of the folder. |
+| The file is not a supported video (a row that no longer matches its file) | 415 | `format_not_supported` | This video format is not supported. Convert it to MP4 (H.264 video, AAC audio). |
 | The title is still downloading | 409 | `media_not_available` | This title is still downloading and cannot be played yet. |
 | The range cannot be satisfied | 416 | `range_not_satisfiable` | This part of the video is not available. |
 
-Each case has its own code, so the interface can tell a missing file from a permission problem (PLY-05). A file removed after indexing is a clean 404, not a server error. No message holds a path or an exception, and the details are in the log (SEC-04).
+Each case has its own code, so the interface can tell a missing file from a permission problem (PLY-05). A file removed after indexing is a clean 404, not a server error. The file is opened once, before any header is written, so a file that is removed or becomes unreadable between the lookup and the read gets the same clean 404 or 403 and not a half answer. No message holds a path or an exception, and the details are in the log (SEC-04).
 
-An unsupported format cannot reach this endpoint: only supported videos are indexed (see the [media identification rules](media-identification.md)). A supported file that the browser still cannot play is reported by the player, not by the server.
+An unsupported format does not normally reach this endpoint: only supported videos are indexed (see the [media identification rules](media-identification.md)). If a title ever points to one (for example a row left over from an earlier version), the answer is `415 format_not_supported`, before any byte is sent (AS-09.8). A supported file that the browser still cannot play is reported by the player, not by the server.

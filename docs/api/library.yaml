@@ -247,6 +247,62 @@ paths:
         '503':
           $ref: './common.yaml#/components/responses/ServiceUnavailable'
 
+    put:
+      tags: [Catalogue]
+      operationId: updateMedia
+      summary: Edit a title's information
+      description: |
+        Replaces every editable field (CAT-09, CAT-10): a field left out or null is cleared, except `title`, which is
+        required. Used to complete an entry that only has the title taken from its file name. Availability and the
+        file are never changed here. A scan never writes these fields, so an edit survives a re-index.
+
+        The poster must be an `https` address (default port, no credentials) on a host of the allowed list, set by
+        `POSTER_ALLOWED_HOSTS` (ADR-0018). The server never opens the address. Genres are matched without regard to case and created when new.
+      x-permission: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaUpdate'
+      responses:
+        '200':
+          description: The title as saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaDetails'
+        '400':
+          $ref: './common.yaml#/components/responses/ValidationFailed'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+    delete:
+      tags: [Catalogue]
+      operationId: removeMedia
+      summary: Remove a catalogue entry
+      description: |
+        Deletes only the catalogue row, with its genre links, favourites and progress (LIB-12). The video file on
+        disk is never deleted, and neither is its file record. The next scan therefore finds the file already known
+        and does not create the entry again: a removed entry stays removed.
+      x-permission: admin
+      responses:
+        '204':
+          description: Entry removed.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
   /categories:
     get:
       tags: [Catalogue]
@@ -355,15 +411,23 @@ paths:
         '401':
           $ref: './common.yaml#/components/responses/Unauthenticated'
         '403':
-          description: The file's real path is outside the authorized folders (`access_denied`). The message never contains a path.
+          description: |
+            Two cases, told apart by the code. `access_denied`: the file's real path is outside the title's folder.
+            `file_not_readable`: the file exists but HomeFlix is not allowed to read it, or the disk failed (a
+            permission problem on the host, not the viewer's). The message never contains a path.
           content:
             application/json:
               schema:
                 $ref: './common.yaml#/components/schemas/Error'
               examples:
-                default:
+                outsideFolder:
                   value:
                     error: access_denied
+                    message: You do not have access to this video.
+                notReadable:
+                  value:
+                    error: file_not_readable
+                    message: HomeFlix cannot read the file for this title. Ask an administrator to check the permissions of the folder.
                     message: You do not have access to this video.
         '404':
           description: The title does not exist (`not_found`), or its file is missing from disk (`file_not_found`).
@@ -387,6 +451,19 @@ paths:
                   value:
                     error: media_not_available
                     message: This title is still downloading and cannot be played yet.
+        '415':
+          description: |
+            The title's file is not a supported video (`format_not_supported`). Only MP4 files are indexed, so this
+            is a database row that no longer matches its file. No byte of the file is sent.
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              examples:
+                default:
+                  value:
+                    error: format_not_supported
+                    message: This video format is not supported. Convert it to MP4 (H.264 video, AAC audio).
         '416':
           description: The range cannot be satisfied (`range_not_satisfiable`).
           headers:
@@ -656,6 +733,33 @@ components:
           properties:
             description:
               type: ['string', 'null']
+
+    MediaUpdate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        description:
+          type: ['string', 'null']
+          maxLength: 5000
+        genres:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+        durationSeconds:
+          type: ['integer', 'null']
+          minimum: 0
+        posterUrl:
+          type: ['string', 'null']
+          format: uri
+          maxLength: 2048
+          examples: [https://images.example.org/heat.jpg]
 
     Category:
       type: object

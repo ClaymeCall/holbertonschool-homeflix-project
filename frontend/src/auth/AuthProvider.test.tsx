@@ -1,6 +1,6 @@
 import { act, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { callsTo, mockApi, signedInRoutes } from '../test/http'
+import { callsTo, jsonResponse, mockApi, signedInRoutes, testAccount, type Route } from '../test/http'
 import { renderApp } from '../test/render'
 
 const REFRESH = 'POST /api/identity/auth/refresh'
@@ -15,9 +15,9 @@ function setVisibility(state: DocumentVisibilityState) {
   })
 }
 
-async function signedInApp() {
+async function signedInApp(routes: Record<string, Route> = {}) {
   vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
-  const fetch = mockApi(signedInRoutes())
+  const fetch = mockApi({ ...signedInRoutes(), ...routes })
   renderApp('/')
   await screen.findByRole('button', { name: 'Sign out' })
   return fetch
@@ -57,5 +57,15 @@ describe('AuthProvider session renewal', () => {
     setVisibility('hidden')
 
     expect(callsTo(fetch, REFRESH)).toHaveLength(0)
+  })
+
+  it('shows the profile screen again when the renewed session has lost its profile', async () => {
+    // The active profile was deleted meanwhile, for example from another device (identity.yaml, /auth/refresh).
+    await signedInApp({ [REFRESH]: () => jsonResponse({ ...testAccount, profileId: null }) })
+    setVisibility('hidden')
+    minutesLater(5)
+    setVisibility('visible')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Who is watching?' })).toBeInTheDocument()
   })
 })
