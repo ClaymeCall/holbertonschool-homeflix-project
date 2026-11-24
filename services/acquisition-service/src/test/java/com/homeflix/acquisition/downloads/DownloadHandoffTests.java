@@ -239,6 +239,47 @@ class DownloadHandoffTests {
 	}
 
 	@Test
+	void aFileTheClientIsStillMovingIsCheckedAgainOnceInPlace() throws Exception {
+		// The client keeps files in progress in /incomplete and moves them to the downloads folder once complete.
+		// It reports 100 % before the move is over: the file is first still in /incomplete, then moving.
+		UUID jobId = start();
+		Path file = write(Mp4Files.valid(SIZE / 2));
+		report("stalledUP", "/incomplete/" + fileName, "/incomplete");
+		tracker.check();
+		report("moving", DOWNLOADS + "/" + fileName, "/incomplete");
+		tracker.check();
+
+		// Neither refused nor deleted, though the file in the downloads folder is not whole yet.
+		assertThat(row(jobId).get("state")).isEqualTo("DOWNLOADING");
+		assertThat(row(jobId).get("progress_percent")).isEqualTo(100);
+		assertThat(row(jobId).get("completed_relative_path")).isNull();
+		assertThat(Files.exists(file)).isTrue();
+		assertThat(QbittorrentContainer.hasTorrent(hash)).isTrue();
+		assertThat(LIBRARY.calls()).isEmpty();
+
+		write(Mp4Files.valid(SIZE));
+		report("stalledUP", DOWNLOADS + "/" + fileName, "/incomplete");
+		tracker.check();
+		assertThat(row(jobId).get("state")).isEqualTo("COMPLETED");
+	}
+
+	@Test
+	void aFileTheClientNeverMovesFailsVisiblyAndIsKept() throws Exception {
+		UUID jobId = start();
+		report("stalledUP", "/incomplete/" + fileName, "/incomplete");
+		tracker.check();
+
+		// Still not moved after the time limit (the handoff's, 5 minutes by default).
+		jdbc.update("update download_job set unreadable_since = now() - interval '6 minutes' where id = ?", jobId);
+		tracker.check();
+
+		Download download = downloads.get(jobId);
+		assertThat(download.state()).isEqualTo(DownloadState.FAILED);
+		assertThat(download.errorCode()).isEqualTo("file_unreadable");
+		assertThat(QbittorrentContainer.hasTorrent(hash)).isTrue();
+	}
+
+	@Test
 	void aFileSavedInASubfolderIsHandedOverWithItsPathFromTheDownloadsFolder() throws Exception {
 		UUID jobId = start();
 		Files.createDirectories(DOWNLOADS.resolve("movies"));
@@ -372,8 +413,13 @@ class DownloadHandoffTests {
 	 * the downloads folder is mounted here at the same path.
 	 */
 	private void reportComplete(String contentPath) {
+		report("stalledUP", contentPath, "");
+	}
+
+	/** Makes the client report the test's torrent at 100 % in this state, with these paths. */
+	private void report(String state, String contentPath, String downloadPath) {
 		List<Torrent> reported = torrents.list().stream()
-				.map(t -> t.hash().equals(hash) ? new Torrent(t.hash(), "stalledUP", 1, t.tags(), contentPath) : t)
+				.map(t -> t.hash().equals(hash) ? new Torrent(t.hash(), state, 1, t.tags(), contentPath, downloadPath) : t)
 				.toList();
 		doReturn(reported).when(torrents).list();
 	}
