@@ -1,4 +1,4 @@
-import { act, screen } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { callsTo, jsonResponse, mockApi, signedInRoutes, testAccount, type Route } from '../test/http'
 import { renderApp } from '../test/render'
@@ -17,9 +17,13 @@ function setVisibility(state: DocumentVisibilityState) {
 
 async function signedInApp(routes: Record<string, Route> = {}) {
   vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+  const listening = vi.spyOn(document, 'addEventListener')
   const fetch = mockApi({ ...signedInRoutes(), ...routes })
   renderApp('/')
   await screen.findByRole('button', { name: 'Sign out' })
+  // The screen can show before the effects run: wait until the session renewal listens for the tab, or a
+  // change of visibility made by the test would be missed.
+  await waitFor(() => expect(listening).toHaveBeenCalledWith('visibilitychange', expect.any(Function)))
   return fetch
 }
 

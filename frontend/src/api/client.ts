@@ -38,6 +38,8 @@ export interface RequestOptions {
   signal?: AbortSignal
   /** Try to renew an expired session once on 401. Off for the identity session calls themselves. */
   renewSession?: boolean
+  /** Lets the request finish after the page is closed, for a last save (fetch `keepalive`). */
+  keepalive?: boolean
 }
 
 interface SessionHandlers {
@@ -80,7 +82,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 }
 
 async function send(path: string, options: RequestOptions): Promise<Response> {
-  const { method = 'GET', body, signal } = options
+  const { method = 'GET', body, signal, keepalive } = options
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json'
@@ -93,6 +95,7 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
       body: body === undefined ? undefined : JSON.stringify(body),
       credentials: 'same-origin',
       signal,
+      keepalive,
     })
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {

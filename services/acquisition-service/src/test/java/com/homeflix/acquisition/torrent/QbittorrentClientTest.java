@@ -87,16 +87,35 @@ class QbittorrentClientTest {
 				answer(exchange, 409);
 			}
 			else {
-				exchange.getResponseHeaders().add("Content-Type", "application/json");
-				byte[] body = "[]".getBytes();
-				exchange.sendResponseHeaders(200, body.length);
-				exchange.getResponseBody().write(body);
-				exchange.close();
+				json(exchange, "[]");
 			}
 		});
 
 		assertThatThrownBy(() -> client.add("magnet:?xt=urn:btih:" + HASH, HASH, "homeflix-job-x"))
 				.isInstanceOf(ServiceUnavailableException.class);
+	}
+
+	@Test
+	void aTorrentThatAppearsAShortTimeAfterTheAddIsAdded() {
+		// qBittorrent 5 adds a magnet link in the background: its answer can come before the torrent is listed.
+		AtomicInteger reads = new AtomicInteger();
+		QbittorrentClient client = clientOf(exchange -> {
+			String path = exchange.getRequestURI().getPath();
+			if (path.equals("/api/v2/auth/login")) {
+				exchange.getResponseHeaders().add("Set-Cookie", "QBT_SID_8080=s; HttpOnly; path=/");
+				answer(exchange, 200);
+			}
+			else if (path.equals("/api/v2/torrents/add")) {
+				answer(exchange, 200);
+			}
+			else {
+				json(exchange, reads.incrementAndGet() < 3 ? "[]" : "[{\"hash\":\"" + HASH + "\"}]");
+			}
+		});
+
+		client.add("magnet:?xt=urn:btih:" + HASH, HASH, "homeflix-job-x");
+
+		assertThat(reads).hasValue(3);
 	}
 
 	private interface Handler {
@@ -118,8 +137,18 @@ class QbittorrentClientTest {
 		server.start();
 		ServiceClientFactory clients = new ServiceClientFactory(Duration.ofSeconds(1), Duration.ofSeconds(1), 0,
 				Duration.ZERO);
+		// A short wait for an added torrent to appear, so a torrent that never does fails quickly.
 		return new QbittorrentClient(clients,
-				new QbittorrentProperties("http://127.0.0.1:" + server.getAddress().getPort(), "user", "password"));
+				new QbittorrentProperties("http://127.0.0.1:" + server.getAddress().getPort(), "user", "password"),
+				Duration.ofMillis(300), Duration.ofMillis(10));
+	}
+
+	private static void json(HttpExchange exchange, String json) throws IOException {
+		exchange.getResponseHeaders().add("Content-Type", "application/json");
+		byte[] body = json.getBytes();
+		exchange.sendResponseHeaders(200, body.length);
+		exchange.getResponseBody().write(body);
+		exchange.close();
 	}
 
 	private static void answer(HttpExchange exchange, int status) throws IOException {
