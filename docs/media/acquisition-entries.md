@@ -17,6 +17,7 @@ Both films are open movies by the Blender Foundation, released under the Creativ
 | Attribution line given by the page | "(c) copyright 2008, Blender Foundation / www.bigbuckbunny.org" | "(CC) Blender Foundation \| mango.blender.org" |
 | Not covered | Site logos and trademarks, DVD cover and disc print | Logos and trademarks (Blender, Mango, Creative Commons, sponsors), material not from the project |
 | Pages read | 2026-11-24 | 2026-11-24 |
+| Screenshot (2026-11-25, cropped to the page) | [`2026-11-25-peach-about.png`](evidence/2026-11-25-peach-about.png) | [`2026-11-25-mango-sharing.png`](evidence/2026-11-25-mango-sharing.png) |
 
 Attribution stored in the entries:
 
@@ -105,6 +106,6 @@ This run does not show a transfer from another network. That is covered for Sint
 
 ## Evidence still to collect
 
-- [ ] Screenshots of <https://peach.blender.org/about/> and <https://mango.blender.org/sharing/> in [`evidence/`](evidence/)
+- [x] Screenshots of <https://peach.blender.org/about/> and <https://mango.blender.org/sharing/> in [`evidence/`](evidence/)
 - [ ] Screenshot of both torrents seeding on a team machine
 - [x] A download of each entry from the catalogue, through the torrent, to a played title (test run above)
