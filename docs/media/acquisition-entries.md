@@ -82,7 +82,7 @@ magnet:?xt=urn:btih:e6d8867d826b6406746e067e8b08d582cbb9dee8&dn=tears-of-steel.m
 
 ## Seeding
 
-A download from HomeFlix only works while a peer has the whole file. Thomas's computer seeds both torrents in qBittorrent, from a copy of each video under the file name of the torrent. As for Sintel, a seeder on the same machine as the HomeFlix stack is not found through the tracker, because most home routers do not loop back to their own public address (see [p2p-run.md](../acquisition/p2p-run.md)).
+A download from HomeFlix only works while a peer has the whole file. Thomas's computer seeds both torrents in qBittorrent 5.2.3, from a copy of each video under the file name of the torrent. On 2026-11-25 at 00:34, both were at 100 % and seeding, created by `HomeFlix team`, with the infohashes above. Each one had sent the whole file once (247.3 MiB and 482.2 MiB, ratio 1.00), which is the test run below ([Big Buck Bunny](evidence/2026-11-25-qbittorrent-seeding-big-buck-bunny.png), [Tears of Steel](evidence/2026-11-25-qbittorrent-seeding-tears-of-steel.png), save path hidden). As for Sintel, a seeder on the same machine as the HomeFlix stack is not found through the tracker, because most home routers do not loop back to their own public address (see [p2p-run.md](../acquisition/p2p-run.md)).
 
 ## Test run (2026-11-25)
 
@@ -107,5 +107,5 @@ This run does not show a transfer from another network. That is covered for Sint
 ## Evidence still to collect
 
 - [x] Screenshots of <https://peach.blender.org/about/> and <https://mango.blender.org/sharing/> in [`evidence/`](evidence/)
-- [ ] Screenshot of both torrents seeding on a team machine
+- [x] Screenshot of both torrents seeding on a team machine (see Seeding)
 - [x] A download of each entry from the catalogue, through the torrent, to a played title (test run above)
