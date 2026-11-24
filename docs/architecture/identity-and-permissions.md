@@ -135,7 +135,7 @@ The account and the profile always come from the token.
 - Where an id is in the URL, it identifies a resource of the caller, and the service checks ownership. `DELETE /profiles/{profileId}` and `POST /profiles/{profileId}/select` look the profile up **by id and by the account in the token**. A profile of another account answers 404, exactly like one that does not exist, so ids cannot be probed.
 - A catalogue operation that needs a profile and finds none in the token answers 403 `profile_not_selected`.
 - Ids are random uuids (data model conventions), but this is defence in depth: the protection is the ownership check, not the secrecy of the id.
-- Tests: profile isolation and disabled accounts (G11), and a review of authorization in every service (K4).
+- Tests: profile isolation and disabled accounts (G11, see "Tests (TST-02)"), and a review of authorization in every service (K4).
 
 ## Selecting the active profile
 
@@ -205,6 +205,20 @@ Protections, from the browser to the service:
 4. **Fetch Metadata check:** a `POST`, `PUT`, `PATCH` or `DELETE` whose `Sec-Fetch-Site` header is `cross-site` or `same-site` gets `403 forbidden`. HomeFlix pages come from the same origin through the gateway, so they send `same-origin`. Requests without the header (older browsers, scripts, tests) are covered by points 1 to 3.
 
 The library and acquisition services apply the same rules (G5, see "How it is built").
+
+## Tests (TST-02)
+
+JUnit 5, Spring Boot Test and MockMvc, against a real PostgreSQL in Testcontainers (ADR-0011). CI runs every service's tests on each pull request (`./mvnw -B verify`).
+
+| TST-02 point | Tests |
+|---|---|
+| Sign-in | Identity: `SessionTests` (cookie and claims, wrong password, unknown email, over-long password, missing fields), `AuthenticationAndAuthorizationTests` (sign-in as user and as administrator, renewal, failed and incomplete sign-ins open no session). |
+| Anonymous access | Identity: `AuthenticationAndAuthorizationTests` (every endpoint outside the anonymous list refuses anonymous and forged sessions). Library and acquisition: `AccessGuardTests`, endpoint tests of each feature. |
+| Administrator permissions | Identity: `AuthenticationAndAuthorizationTests` (user refused, administrator allowed, administrator role claimed by a user ignored, promotion and demotion at the next renewal), `AccountManagementTests` (user refused and nothing changed, administrator demoted or disabled since sign-in refused at once). Library: administrator endpoint tests (roots, scan, metadata). |
+| Disabled accounts | Identity: `AccountManagementTests` (disabled through the administrator API: no sign-in, no renewal, until re-enabled), `ProfileIsolationAndDisabledAccountTests` (a live session with an active profile cannot be renewed, checked or used to select a profile; profiles are found again after re-enabling; a deleted account cannot renew). |
+| Profile isolation | Identity: `ProfileTests` (another account's profile answers 404 on rename, delete and select), `ProfileIsolationAndDisabledAccountTests` (an administrator has no access to other accounts' profiles; another account's profile cannot be told from a missing one; a profile of another account carried by a token is dropped). Library: `ProfileDataEndpointTests` (favourites and progress per profile), `ProfileIsolationWithSignedTokensTests` (the same with **real signed tokens**: two profiles of one account, another account, a profile id in a parameter, the body or a header, a token in an `Authorization` header, no profile, forged, altered and expired tokens). |
+
+Known limit (R-10, accepted): the library and acquisition services trust a token until it expires, so a disabled account keeps their access for at most 15 minutes. The identity service reads the account again on renewal, `GET /auth/me`, profile selection and every administrator operation.
 
 ## Decisions and open points
 
