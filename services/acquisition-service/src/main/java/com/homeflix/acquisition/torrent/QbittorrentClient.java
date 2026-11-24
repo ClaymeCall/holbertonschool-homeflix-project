@@ -1,10 +1,12 @@
 package com.homeflix.acquisition.torrent;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,15 +37,29 @@ public class QbittorrentClient {
 
 	private static final Logger log = LoggerFactory.getLogger(QbittorrentClient.class);
 
+	/** How long an added torrent may take to appear in the client's list, and how often the list is read. */
+	private static final Duration ADD_WAIT = Duration.ofSeconds(5);
+	private static final Duration ADD_POLL = Duration.ofMillis(100);
+
 	private final RestClient rest;
 	private final QbittorrentProperties settings;
+	private final Duration addWait;
+	private final Duration addPoll;
 
 	/** The session cookie as received, {@code name=value}. */
 	private volatile String session;
 
+	@Autowired
 	public QbittorrentClient(ServiceClientFactory clients, QbittorrentProperties settings) {
+		this(clients, settings, ADD_WAIT, ADD_POLL);
+	}
+
+	QbittorrentClient(ServiceClientFactory clients, QbittorrentProperties settings, Duration addWait,
+			Duration addPoll) {
 		this.rest = clients.create(settings.url());
 		this.settings = settings;
+		this.addWait = addWait;
+		this.addPoll = addPoll;
 	}
 
 	/**
@@ -53,6 +69,9 @@ public class QbittorrentClient {
 	 * <p>qBittorrent answers 409 both when the torrent is already there and when it refuses the link, so the
 	 * answer is not trusted: only the presence of the info hash is. A torrent already there is one an earlier
 	 * start left behind (no active job has this hash, the database makes sure of it), and is kept.
+	 *
+	 * <p>qBittorrent answers before the torrent is in its list (it is added in the background), so the list
+	 * is read again for a few seconds before the torrent counts as not added.
 	 *
 	 * @throws ServiceUnavailableException when the client is down or does not have the torrent afterwards
 	 */
@@ -73,10 +92,28 @@ public class QbittorrentClient {
 				return null; // Already there, or refused: the check below tells which.
 			}
 		});
-		if (!has(infoHash)) {
+		if (!appears(infoHash)) {
 			log.error("The torrent client did not add the torrent {}", infoHash);
 			throw new ServiceUnavailableException("The torrent client did not add the torrent", null);
 		}
+	}
+
+	/** True once the client lists the torrent, false if it does not within {@link #addWait}. */
+	private boolean appears(String infoHash) {
+		long deadline = System.nanoTime() + addWait.toNanos();
+		while (!has(infoHash)) {
+			if (System.nanoTime() >= deadline) {
+				return false;
+			}
+			try {
+				Thread.sleep(addPoll);
+			}
+			catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/** True when the client has a torrent with this info hash. */
