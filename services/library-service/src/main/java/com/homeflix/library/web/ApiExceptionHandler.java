@@ -89,12 +89,14 @@ public class ApiExceptionHandler {
 		return ResponseEntity.status(ex.status()).body(new ApiError(ex.code(), ex.getMessage(), ex.fields()));
 	}
 
-	/** A media file is missing, or its real path is outside the authorized roots (PLY-04, PLY-05). */
+	/** A media file is missing, cannot be read, or its real path is outside the authorized roots (PLY-04, PLY-05). */
 	@ExceptionHandler(MediaAccessDeniedException.class)
 	ResponseEntity<ApiError> mediaAccess(MediaAccessDeniedException ex) {
 		return switch (ex.reason()) {
 			case NOT_FOUND -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError("file_not_found",
 					"The file for this title could not be found. It may have been moved or deleted from the library."));
+			case UNREADABLE -> ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError("file_not_readable",
+					"HomeFlix cannot read the file for this title. Ask an administrator to check the permissions of the folder."));
 			case OUTSIDE_ROOTS -> ResponseEntity.status(HttpStatus.FORBIDDEN)
 					.body(new ApiError("access_denied", "You do not have access to this video."));
 		};

@@ -1,11 +1,12 @@
-import { Route, Routes } from 'react-router-dom'
+import { Outlet, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthProvider'
-import { RequireAuth, RequireSetup, RequireSignedOut } from './auth/guards'
+import { RequireAuth, RequireProfile, RequireSetup, RequireSignedOut } from './auth/guards'
 import { AppLayout } from './components/AppLayout'
 import { HomePage } from './pages/HomePage'
 import { MovieDetailsPage } from './pages/MovieDetailsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PlayerPage } from './pages/PlayerPage'
+import { ProfilesPage } from './pages/ProfilesPage'
 import { SearchPage } from './pages/SearchPage'
 import { SetupPage } from './pages/SetupPage'
 import { SignInPage } from './pages/SignInPage'
@@ -31,10 +32,20 @@ function App() {
           }
         />
         <Route
+          path="profiles"
+          element={
+            <RequireAuth>
+              <ProfilesPage />
+            </RequireAuth>
+          }
+        />
+        <Route
           path="watch/:id"
           element={
             <RequireAuth>
-              <PlayerPage />
+              <RequireProfile>
+                <PlayerPage />
+              </RequireProfile>
             </RequireAuth>
           }
         />
@@ -45,9 +56,18 @@ function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<HomePage />} />
-          <Route path="search" element={<SearchPage />} />
-          <Route path="movies/:id" element={<MovieDetailsPage />} />
+          {/* The viewing screens show the active profile's list and progress (G10). */}
+          <Route
+            element={
+              <RequireProfile>
+                <Outlet />
+              </RequireProfile>
+            }
+          >
+            <Route index element={<HomePage />} />
+            <Route path="search" element={<SearchPage />} />
+            <Route path="movies/:id" element={<MovieDetailsPage />} />
+          </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
