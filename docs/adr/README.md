@@ -64,6 +64,7 @@ The pull request checklist asks whether the change needs an ADR, and reviewers c
 | [0021](0021-english-only-interface.md) | English-only interface, server messages shown as written (supersedes part of ADR-0020) | Accepted |
 | [0022](0022-internal-service-calls.md) | Internal endpoints on `/internal`, blocked at the gateway, with one token per caller | Proposed |
 | [0023](0023-qbittorrent-peer-port-and-enforced-settings.md) | Publish only qBittorrent's peer port, and enforce its login and settings at every start (refines ADR-0014) | Proposed |
+| [0024](0024-service-status-by-frontend-probe.md) | Show service status by calling one administrator operation of each service | Proposed |
 
 ## Decisions still to make
 

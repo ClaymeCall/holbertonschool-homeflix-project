@@ -147,6 +147,19 @@ async function readErrorBody(
   return { fields: {} }
 }
 
+/**
+ * Reads every page of a paged list (`limit` and `offset` in the contracts). `fetchPage` asks for
+ * `pageSize` items from `offset`; a shorter page is the last one.
+ */
+export async function fetchAllPages<T>(pageSize: number, fetchPage: (offset: number) => Promise<T[]>): Promise<T[]> {
+  const all: T[] = []
+  for (;;) {
+    const page = await fetchPage(all.length)
+    all.push(...page)
+    if (page.length < pageSize) return all
+  }
+}
+
 export function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }

@@ -50,25 +50,25 @@ describe('DownloadsPage', () => {
 
   it('is not offered to an ordinary user, and never calls the acquisition API for one', async () => {
     const fetch = acquisition({}, { ...testAccount, admin: false })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
 
     expect(await screen.findByRole('heading', { name: 'Administrators only' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Downloads' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument()
     expect(fetch.mock.calls.some(([url]) => String(url).startsWith('/api/acquisition'))).toBe(false)
   })
 
-  it('is in the main navigation of an administrator', async () => {
+  it('is a section of the administration area', async () => {
     acquisition()
-    renderApp('/')
-    const nav = await screen.findByRole('navigation', { name: 'Main navigation' })
-    expect(within(nav).getByRole('link', { name: 'Downloads' })).toHaveAttribute('href', '/downloads')
+    renderApp('/admin/downloads')
+    const nav = await screen.findByRole('navigation', { name: 'Administration' })
+    expect(within(nav).getByRole('link', { name: 'Downloads' })).toHaveAttribute('aria-current', 'page')
   })
 
   // ---- Verified catalogue (ACQ-01, ACQ-02) ----
 
   it('shows each catalogue entry with its source, licence, attribution, format and size', async () => {
     acquisition()
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
 
     const catalogue = await screen.findByRole('region', { name: 'Verified catalogue' })
     const item = (await within(catalogue).findByRole('heading', { name: 'Sintel' })).closest('li') as HTMLElement
@@ -88,7 +88,7 @@ describe('DownloadsPage', () => {
 
   it('says when the catalogue is empty', async () => {
     acquisition({ 'GET /api/acquisition/entries': () => jsonResponse([]) })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
     expect(await screen.findByRole('heading', { name: 'The verified catalogue is empty' })).toBeInTheDocument()
   })
 
@@ -96,7 +96,7 @@ describe('DownloadsPage', () => {
     let answer: Route = () =>
       jsonResponse({ error: 'service_unavailable', message: 'This part of HomeFlix is temporarily unavailable.' }, 503)
     acquisition({ 'GET /api/acquisition/entries': (request) => answer(request) })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
 
     const region = await screen.findByRole('region', { name: 'Verified catalogue' })
     expect(await within(region).findByText('This part of HomeFlix is temporarily unavailable.')).toBeInTheDocument()
@@ -124,7 +124,7 @@ describe('DownloadsPage', () => {
           }),
         ]),
     })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
 
     const region = await screen.findByRole('region', { name: 'All downloads' })
     const items = await within(region).findAllByRole('listitem')
@@ -152,7 +152,7 @@ describe('DownloadsPage', () => {
       'GET /api/acquisition/downloads': () =>
         jsonResponse([download({ id: 'd1', entryId: 'e1', state: 'DOWNLOADING', progressPercent: 100 })]),
     })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
 
     const region = await screen.findByRole('region', { name: 'All downloads' })
     expect(await within(region).findByText('Finishing')).toBeInTheDocument()
@@ -162,7 +162,7 @@ describe('DownloadsPage', () => {
 
   it('says when there is no download yet', async () => {
     acquisition()
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
     expect(await screen.findByRole('heading', { name: 'No downloads yet' })).toBeInTheDocument()
   })
 
@@ -173,7 +173,7 @@ describe('DownloadsPage', () => {
       'GET /api/acquisition/downloads': () =>
         jsonResponse([download({ id: 'd1', entryId: 'e1', state: 'DOWNLOADING', progressPercent: progress })]),
     })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
     expect(await screen.findByText('10 %')).toBeInTheDocument()
 
     progress = 55
@@ -188,7 +188,7 @@ describe('DownloadsPage', () => {
       'GET /api/acquisition/downloads': () =>
         jsonResponse([download({ id: 'd1', entryId: 'e1', state: 'COMPLETED', progressPercent: 100 })]),
     })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
     expect(await screen.findByText('Completed')).toBeInTheDocument()
 
     await act(() => vi.advanceTimersByTimeAsync(REFRESH_MS * 3))
@@ -201,7 +201,7 @@ describe('DownloadsPage', () => {
     const fetch = acquisition({
       'POST /api/acquisition/downloads': () => jsonResponse(download({ id: 'd1', entryId: 'e1' }), 201),
     })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: 'Download Sintel' }))
@@ -233,7 +233,7 @@ describe('DownloadsPage', () => {
         return jsonResponse(download({ id: 'd1', entryId: 'e1' }), 201)
       },
     })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: 'Download Sintel' }))
@@ -246,7 +246,7 @@ describe('DownloadsPage', () => {
 
   it('starts nothing when the reminder is dismissed, with its button or Escape', async () => {
     const fetch = acquisition()
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
     const user = userEvent.setup()
 
     const button = await screen.findByRole('button', { name: 'Download Sintel' })
@@ -263,7 +263,7 @@ describe('DownloadsPage', () => {
 
   it('keeps the keyboard inside the reminder', async () => {
     acquisition()
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: 'Download Sintel' }))
@@ -281,7 +281,7 @@ describe('DownloadsPage', () => {
       'POST /api/acquisition/downloads': () =>
         jsonResponse({ error: 'already_in_library', message: 'This title is already in the library.' }, 409),
     })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: 'Download Sintel' }))
@@ -299,7 +299,7 @@ describe('DownloadsPage', () => {
       'POST /api/acquisition/downloads/d1/cancel': () =>
         jsonResponse(download({ id: 'd1', entryId: 'e1', state: 'FAILED', errorCode: 'cancelled' })),
     })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: 'Cancel the download of Sintel' }))
@@ -327,7 +327,7 @@ describe('DownloadsPage', () => {
         return jsonResponse(download({ id: 'd1', entryId: 'e1', state: 'FAILED', errorCode: 'cancelled' }))
       },
     })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: 'Cancel the download of Sintel' }))
@@ -348,7 +348,7 @@ describe('DownloadsPage', () => {
           409,
         ),
     })
-    renderApp('/downloads')
+    renderApp('/admin/downloads')
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: 'Cancel the download of Sintel' }))

@@ -16,7 +16,7 @@ import { formatBytes, formatDateTime } from '../format'
 import { useAsync } from '../hooks/useAsync'
 import { useLiveData } from '../hooks/useLiveData'
 import { downloadStateLabel } from '../labels'
-import styles from './DownloadsPage.module.css'
+import styles from './AdminPage.module.css'
 
 /** While a download is queued or running, the list is read again this often (the server checks every 10 s). */
 export const REFRESH_MS = 5000
