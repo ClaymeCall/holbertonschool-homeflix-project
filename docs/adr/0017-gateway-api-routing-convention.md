@@ -30,4 +30,5 @@ The gateway (ADR-0013) is the only entry point and must route browser requests t
 - Endpoints in the OpenAPI contracts have one clear public address, and the frontend calls only `/api/...` on its own origin.
 - The shape of the error JSON used by the gateway is provisional. It must be aligned with the common error format defined in issue #16.
 - A new service needs a new location block in `gateway/nginx.conf`, plus an entry in this ADR's convention.
+- The gateway sends a `Content-Security-Policy` limited to `img-src` (ADR-0018, SEC-12). It is built at start from `POSTER_ALLOWED_HOSTS` by `gateway/docker-entrypoint.d/40-poster-csp.sh` and written to `csp.inc`, which the server block includes. A location block that sets its own `add_header` would drop the server-level headers, so it must repeat them, and `gateway/tests/check-gateway.sh` checks the policy on every kind of answer.
 - HTTP Range streaming through the gateway cannot be fully verified until the library service has a streaming endpoint. It must be tested then.
