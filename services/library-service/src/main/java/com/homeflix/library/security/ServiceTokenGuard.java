@@ -34,6 +34,10 @@ public class ServiceTokenGuard {
 			throw new IllegalStateException(
 					"Set IDENTITY_TO_LIBRARY_TOKEN (homeflix.internal.identity-token): the secret the identity service sends to the library.");
 		}
+		if (acquisitionToken.equals(identityToken)) {
+			throw new IllegalStateException(
+					"ACQUISITION_TO_LIBRARY_TOKEN and IDENTITY_TO_LIBRARY_TOKEN must differ: each caller has its own secret (ADR-0022).");
+		}
 		this.acquisitionToken = acquisitionToken.getBytes(StandardCharsets.UTF_8);
 		this.identityToken = identityToken.getBytes(StandardCharsets.UTF_8);
 	}

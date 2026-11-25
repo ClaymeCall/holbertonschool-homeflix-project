@@ -808,7 +808,7 @@ paths:
         Idempotent: `204` even when the profile has no data, or is not known to the library.
 
         Only the identity service may call it: the acquisition service's secret, a user token and a missing
-        secret all get `401`. Not reachable through the gateway (ADR-0022).
+        secret all get `401`. An id that is not a UUID gets `404`, after the secret is checked. Not reachable through the gateway (ADR-0022).
       x-permission: service (identity)
       security:
         - serviceToken: []
@@ -824,6 +824,8 @@ paths:
           description: The favourites and the progress of the profile are gone.
         '401':
           $ref: './common.yaml#/components/responses/Unauthenticated'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
         '503':
           $ref: './common.yaml#/components/responses/ServiceUnavailable'
 

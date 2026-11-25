@@ -2,6 +2,7 @@ package com.homeflix.library.profiledata;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -106,9 +107,15 @@ class ProfileDataDeletionTests {
 		// The identity secret opens only this endpoint, never the acquisition ones.
 		mvc.perform(delete("/internal/profiles/{id}/data", ALICE).header("X-Service-Token", ACQUISITION_TOKEN))
 				.andExpect(status().isUnauthorized());
-		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-				.post("/internal/downloads/{id}/failed", UUID.randomUUID()).header("X-Service-Token", IDENTITY_TOKEN))
+		mvc.perform(post("/internal/downloads/{id}/failed", UUID.randomUUID()).header("X-Service-Token", IDENTITY_TOKEN))
 				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void aMalformedIdIsRefusedForTheSecretBeforeItIsRejectedAsUnknown() throws Exception {
+		mvc.perform(delete("/internal/profiles/{id}/data", "not-an-id")).andExpect(status().isUnauthorized());
+		mvc.perform(delete("/internal/profiles/{id}/data", "not-an-id").header("X-Service-Token", IDENTITY_TOKEN))
+				.andExpect(status().isNotFound());
 	}
 
 	// ---- What is deleted ----

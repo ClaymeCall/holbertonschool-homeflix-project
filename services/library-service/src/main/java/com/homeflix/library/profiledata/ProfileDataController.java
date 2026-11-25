@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.homeflix.library.security.ServiceTokenGuard;
+import com.homeflix.library.web.NotFoundException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -32,9 +33,19 @@ class ProfileDataController {
 
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void delete(HttpServletRequest request, @PathVariable UUID profileId) {
+	void delete(HttpServletRequest request, @PathVariable String profileId) {
+		// The secret is checked before the id is read, so a caller without it learns nothing from the id's shape.
 		services.requireIdentity(request);
-		service.deleteAllOf(profileId);
+		service.deleteAllOf(parse(profileId));
+	}
+
+	private static UUID parse(String profileId) {
+		try {
+			return UUID.fromString(profileId);
+		}
+		catch (IllegalArgumentException e) {
+			throw new NotFoundException();
+		}
 	}
 
 }
