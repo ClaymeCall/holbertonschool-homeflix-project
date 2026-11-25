@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -51,6 +52,7 @@ import jakarta.servlet.http.Cookie;
  * Account management by administrators (G8: ACC-09, ACC-10, SEC-02, R-10) against a real
  * PostgreSQL (ADR-0011). Sessions come from a real sign-in. Not transactional: the concurrency
  * test needs committed data, so the account table is emptied before and after each test.
+ * Deleting an account (K2) is tested in {@code AccountDeletionTests}.
  */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
@@ -451,7 +453,8 @@ class AccountManagementTests {
 				put("/accounts/" + accountId + "/role").contentType(MediaType.APPLICATION_JSON)
 						.content("{\"admin\":true}"),
 				post("/accounts/" + accountId + "/disable"),
-				post("/accounts/" + accountId + "/enable"));
+				post("/accounts/" + accountId + "/enable"),
+				delete("/accounts/" + accountId));
 	}
 
 	private void expectNothingChanged() {
