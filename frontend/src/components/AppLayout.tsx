@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigationType } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { AccountMenu } from './AccountMenu'
 import { Logo } from './Logo'
@@ -14,7 +14,16 @@ export function AppLayout() {
   const admin = session.status === 'signedIn' && session.account.admin
   const { pathname, key } = useLocation()
   const firstLoad = key === 'default'
+  const backOrForward = useNavigationType() === 'POP'
   const mainRef = useRef<HTMLElement>(null)
+
+  // BrowserRouter keeps the scroll position of the previous page, so a film opened from far down the home page
+  // would open scrolled down. A followed link starts the new page at the top. Back and forward are left to the
+  // browser, which brings the reader back to where they were.
+  useEffect(() => {
+    if (firstLoad || backOrForward) return
+    window.scrollTo(0, 0)
+  }, [pathname, firstLoad, backOrForward])
 
   // After a navigation, the link that was followed is often gone and focus would fall back to the top of the
   // document. Moving it to the main content tells keyboard and screen reader users that a new page is shown

@@ -27,8 +27,9 @@ Results of the keyboard and mobile review of the main user journeys (issue K7 #9
 | 1 | Player (`VideoPlayer.tsx`) | During playback, the controls hide after 3 s without activity. Only the bottom bar kept them shown while it had focus, so a focused **Back** link in the top bar became invisible. | The top bar keeps the controls shown while it has focus, like the bottom bar. |
 | 2 | Movie details (`MovieDetailsPage.tsx`) | **My List** was `disabled` while saving. A disabled button loses focus, so focus fell back to the top of the page after Enter or Space. | `aria-disabled` while saving, with the same dimmed style. The button keeps focus, and a second press during the save is ignored. |
 | 3 | Every page inside the main layout (`AppLayout.tsx`) | After following a link, the link was often gone and focus fell back to the top of the document. Screen reader users were not told that a new page was shown. | Focus moves to the main content after a navigation. Not on the first load, and not when the new page already moved focus into its content (Search focuses its field). |
+| 4 | Every page inside the main layout (`AppLayout.tsx`), found in review of #193 | `BrowserRouter` keeps the scroll position of the previous page. A film opened from far down the home page opened already scrolled down, without its title and Play button on screen, most visible at 375 px. | A page opened from a link starts at the top. Back and forward are left to the browser, which restores the position. |
 
-Tests: `App.test.tsx`, `PlayerPage.test.tsx` and `MovieDetailsPage.test.tsx`, one per fix. The frontend suite passes (172 tests).
+Tests: `App.test.tsx` (fixes 3 and 4), `PlayerPage.test.tsx` and `MovieDetailsPage.test.tsx`, one per fix. Each fails without its fix. The frontend suite passes (173 tests).
 
 ### Checked, no change needed
 
