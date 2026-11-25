@@ -49,8 +49,10 @@ Neither video was remuxed: both are already in the supported format (ADR-0015), 
 | SHA-256 | `0bb49419d00d9405beea040f29586b6fdf650b375cb74713e3de3be1538dce77` | `0d38c5a60e42d83e7587f495273fc7771fbf9b534322f1aa9bfe5cc89455c6fd` |
 | Container | MP4, boxes `ftyp, moov, wide, mdat` (`faststart`) | MP4, boxes `ftyp, moov, mdat` (`faststart`) |
 | Video | H.264 (`avc1`), High profile | H.264 (`avc1`), Main profile |
-| Audio | Two AAC (`mp4a`) LC tracks | AAC (`mp4a`), LC profile |
+| Audio | Two AAC (`mp4a`) LC stereo tracks (see below) | AAC (`mp4a`), LC profile |
 | Duration | 634.2 s (10 min 34 s) | 734.1 s (12 min 14 s) |
+
+The two audio tracks of Big Buck Bunny (streams 1 and 2) carry the same metadata: AAC LC, stereo, about 130 kb/s, language `eng`, both marked as default. Browsers play the first one, stream 1. The file is kept unchanged, so the second track stays in it, unused.
 
 Checked with:
 
@@ -84,6 +86,8 @@ magnet:?xt=urn:btih:e6d8867d826b6406746e067e8b08d582cbb9dee8&dn=tears-of-steel.m
 
 A download from HomeFlix only works while a peer has the whole file. Thomas's computer seeds both torrents in qBittorrent 5.2.3, from a copy of each video under the file name of the torrent. On 2026-11-25 at 00:34, both were at 100 % and seeding, created by `HomeFlix team`, with the infohashes above. Each one had sent the whole file once (247.3 MiB and 482.2 MiB, ratio 1.00), which is the test run below ([Big Buck Bunny](evidence/2026-11-25-qbittorrent-seeding-big-buck-bunny.png), [Tears of Steel](evidence/2026-11-25-qbittorrent-seeding-tears-of-steel.png), save path hidden). As for Sintel, a seeder on the same machine as the HomeFlix stack is not found through the tracker, because most home routers do not loop back to their own public address (see [p2p-run.md](../acquisition/p2p-run.md)).
 
+**No backup seeder.** Thomas's computer is the only seeder of these two torrents. If it is off, a download of Big Buck Bunny or Tears of Steel stays at 0 %. Sintel, the film of the peer-to-peer demo, has a backup seeder ([p2p-test-file.md](p2p-test-file.md#seeding-plan-risk-r-21)); these two do not. This is noted in risk R-21.
+
 ## Test run (2026-11-25)
 
 Both entries were downloaded from the catalogue on the Compose stack, branch of #184 at `d4add9c`, on macOS with Docker Desktop.
@@ -102,9 +106,9 @@ Both entries were downloaded from the catalogue on the Compose stack, branch of 
 - **Migration:** at start, Flyway applied `V7` to the acquisition database ("now at version v7"). The catalogue then listed Big Buck Bunny, Sintel and Tears of Steel.
 - **First attempt:** the seeder first had the torrents at 0 %, because its copies of the videos had been removed from its save folder. Once they were back and rechecked, the seeder was at 100 % and both downloads completed.
 
-This run does not show a transfer from another network. That is covered for Sintel by J10 ([p2p-run.md](../acquisition/p2p-run.md)).
+This run does not show a transfer from another network. That is covered for Sintel by J10 ([p2p-run.md](../acquisition/p2p-run.md)). For these two torrents, a download from another network is part of the L10 rehearsal (#106).
 
-## Evidence still to collect
+## Evidence collected
 
 - [x] Screenshots of <https://peach.blender.org/about/> and <https://mango.blender.org/sharing/> in [`evidence/`](evidence/)
 - [x] Screenshot of both torrents seeding on a team machine (see Seeding)
