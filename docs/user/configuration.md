@@ -35,10 +35,10 @@ Create the pair once, with the commands in `.env.example` and the [README](../..
 
 | Variable | Required | Default | What it is |
 |---|---|---|---|
-| `IDENTITY_TO_LIBRARY_TOKEN` | Yes | none | The secret the identity service sends to the library, for example to delete a profile's favourites and progress. |
+| `IDENTITY_TO_LIBRARY_TOKEN` | Yes | none | The secret the identity service sends to the library, for example to delete a profile's favourites and progress. Use the same recipe as below: 32 characters. |
 | `ACQUISITION_TO_LIBRARY_TOKEN` | Yes | none | The secret the acquisition service sends to the library to hand over a completed download. At least 32 characters. |
 
-Each service has its own secret and can only use its own calls. Compose gives the same value to both sides, so you only set each once. Generate each with `tr -dc a-f0-9 < /dev/urandom | head -c 32; echo`. These calls are never reachable from a browser.
+Each service has its own secret and can only use its own calls. The two values must differ (ADR-0022). Compose gives the same value to both sides, so you only set each once. Generate each with `tr -dc a-f0-9 < /dev/urandom | head -c 32; echo`. These calls are never reachable from a browser.
 
 ### Media and downloads
 
