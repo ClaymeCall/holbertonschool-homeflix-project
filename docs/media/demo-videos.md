@@ -1,6 +1,6 @@
 # Demonstration videos
 
-The videos used to show browsing and playback in the demo, with where their rights evidence is kept (issue I2 #64; DOC-06, ACQ-12, PRS-06; risk R-14). Only content whose licence allows the use is shown. No media file is committed (CONTRIBUTING): each video is obtained again from its source and checked against the SHA-256 below.
+The videos used to show browsing and playback in the demo, with where their rights evidence is kept (issue I2 #64; DOC-06, ACQ-12, PRS-06; risk R-14). Only content whose licence allows the use is shown. No media file is committed (CONTRIBUTING): each video is obtained again and checked against the SHA-256 below.
 
 ## The videos
 
@@ -14,13 +14,22 @@ All three are open movies by the Blender Foundation, under the Creative Commons 
 
 Each evidence page gives the licence quotes, a screenshot of the licence page, the source of the file, the full SHA-256 and the commands used to check the format. All three files are in the supported format (ADR-0015). *Sintel* was remuxed to put the index first. The two others already had it and are unchanged.
 
+Where to get each file again:
+
+- *Big Buck Bunny* and *Tears of Steel* are unchanged, so the file from the source torrent named on their evidence page has the same SHA-256 as the file in HomeFlix's torrent.
+- *Sintel* was remuxed, so the file above exists only in the team's torrent (infohash `4e626263…004d5f`). The official file has another SHA-256 (`1dc6f2ca…11ebc1d8`). Remuxing it again with the command in [p2p-test-file.md](p2p-test-file.md#change-made-remux-only) gives a file of the same size that plays the same, but not with the same bytes, so not with the SHA-256 above. Get `sintel.mp4` through the team's torrent.
+
 *Sintel* is the smallest and is the file of the peer-to-peer demo (J1, J10). *Big Buck Bunny* and *Tears of Steel* are larger, so they are used to fill the catalogue rather than for a live transfer.
 
 ## How they get into HomeFlix
 
 All three are entries of the verified acquisition catalogue. An administrator downloads them from **Administration > Downloads**, and each completed file is handed to the library and appears in the catalogue (J8). This is the way used in the demo.
 
+A download only works while a peer seeds the file. *Sintel* has a main and a backup seeder ([p2p-test-file.md](p2p-test-file.md#seeding-plan-risk-r-21)). *Big Buck Bunny* and *Tears of Steel* have a single seeder, Thomas's computer, and no backup seeder ([acquisition-entries.md](acquisition-entries.md#seeding), risk R-21): they can only be downloaded while it is on.
+
 For a first install with no peer available, the same files can also be copied into the folder mounted as `/media/library` (`MEDIA_LIBRARY_PATH`), and that folder added and scanned in **Administration > Library**. Check the SHA-256 first.
+
+Use one way or the other for a given film, not both. The library does not link a copied file to its catalogue entry, so a film copied into `/media/library` and later downloaded from the catalogue lands in `/media/downloads` too and is listed twice.
 
 ## Posters
 
