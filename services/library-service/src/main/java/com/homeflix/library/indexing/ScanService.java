@@ -93,10 +93,15 @@ public class ScanService {
 			try {
 				scanRoot(root, folder, startedAt, counts, unsupported);
 			}
-			catch (IOException | RuntimeException e) {
+			catch (IOException e) {
 				// One root failing must not stop the others, nor crash the request (LIB-07, H6).
-				log.error("Root could not be scanned: {}", root.path(), e);
+				log.error("Root could not be read: {}", root.path(), e);
 				inaccessible.add(new ScanReport.InaccessibleRoot(root.id(), "directory_not_readable"));
+			}
+			catch (RuntimeException e) {
+				// Not a file problem (typically the database): the folder is fine, so do not blame it (#190).
+				log.error("Root scan failed: {}", root.path(), e);
+				inaccessible.add(new ScanReport.InaccessibleRoot(root.id(), "scan_failed"));
 			}
 		}
 		OffsetDateTime finishedAt = OffsetDateTime.now().truncatedTo(ChronoUnit.MICROS);

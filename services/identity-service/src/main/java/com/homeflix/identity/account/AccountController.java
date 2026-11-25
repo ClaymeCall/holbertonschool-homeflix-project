@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -77,6 +78,16 @@ public class AccountController {
 	@PostMapping("/{accountId}/enable")
 	public ManagedAccount enable(HttpServletRequest request, @PathVariable("accountId") UUID accountId) {
 		return accounts.setDisabled(guard.requireAdmin(request), accountId, false);
+	}
+
+	/**
+	 * Deletes the account and, through the library, the favourites and progress of its profiles
+	 * (SEC-07, consistency rules). 503 when the library does not confirm: nothing is deleted.
+	 */
+	@DeleteMapping("/{accountId}")
+	public ResponseEntity<Void> delete(HttpServletRequest request, @PathVariable("accountId") UUID accountId) {
+		accounts.delete(guard.requireAdmin(request), accountId);
+		return ResponseEntity.noContent().build();
 	}
 
 	@ExceptionHandler(LastAdministratorException.class)

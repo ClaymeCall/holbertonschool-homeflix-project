@@ -794,6 +794,41 @@ paths:
         '503':
           $ref: './common.yaml#/components/responses/ServiceUnavailable'
 
+  /internal/profiles/{profileId}/data:
+    delete:
+      tags: [Internal]
+      operationId: deleteProfileData
+      summary: Delete the favourites and the viewing progress of a profile
+      description: |
+        Called by the identity service when a profile is deleted, before it deletes the profile itself
+        (docs/architecture/consistency-rules.md, "Deleting a profile"; SEC-07, R-13). The library removes the
+        favourites and the progress of this profile, in one transaction, and nothing else: titles, files and
+        folders are never touched.
+
+        Idempotent: `204` even when the profile has no data, or is not known to the library.
+
+        Only the identity service may call it: the acquisition service's secret, a user token and a missing
+        secret all get `401`. An id that is not a UUID gets `404`, after the secret is checked. Not reachable through the gateway (ADR-0022).
+      x-permission: service (identity)
+      security:
+        - serviceToken: []
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          description: The id of the profile whose data is deleted.
+          schema:
+            $ref: './common.yaml#/components/schemas/Uuid'
+      responses:
+        '204':
+          description: The favourites and the progress of the profile are gone.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
 components:
   parameters:
     EntryId:
@@ -996,7 +1031,11 @@ components:
                 const: format_not_supported
         inaccessibleRoots:
           type: array
-          description: Roots that could not be read during this scan, with the reason. Their titles are marked `UNAVAILABLE` and come back when the root can be read again.
+          description: >
+            Roots that could not be scanned, with the reason. `directory_not_found`, `directory_not_readable` and
+            `not_a_directory`: the folder cannot be read (its titles are marked `UNAVAILABLE` and come back when it can
+            be read again). `scan_failed`: the scan of the folder failed for another reason, such as a database error
+            (the details are only in the log).
           items:
             type: object
             required: [rootId, error]
@@ -1005,7 +1044,7 @@ components:
                 $ref: './common.yaml#/components/schemas/Uuid'
               error:
                 type: string
-                enum: [directory_not_found, directory_not_readable, not_a_directory]
+                enum: [directory_not_found, directory_not_readable, not_a_directory, scan_failed]
 
     ProgressState:
       type: string

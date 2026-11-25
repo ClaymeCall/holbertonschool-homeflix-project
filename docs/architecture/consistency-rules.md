@@ -43,7 +43,7 @@ Open question 6. `DELETE /profiles/{profileId}` in the identity service (the con
 3. If the library answers, identity deletes the profile row and answers 204.
 4. If the library does not answer (timeout, refused connection) or answers anything but a 2xx, identity **does not delete the profile** and answers 503. The user tries again. A 4xx also counts, so a library without the endpoint, or a wrong service token, never leads to a profile deleted with its data left behind.
 
-Identity sends its secret for the library in `X-Service-Token` (ADR-0022). It comes from `IDENTITY_TO_LIBRARY_TOKEN` in `.env`, and the identity service refuses to start without it. The library checks the same value when K3 adds the endpoint.
+Identity sends its secret for the library in `X-Service-Token` (ADR-0022). It comes from `IDENTITY_TO_LIBRARY_TOKEN` in `.env`, and the identity service refuses to start without it. The library checks the same value (`homeflix.internal.identity-token`) on this endpoint, and refuses to start without it. Only this secret opens it: the acquisition service's secret, a user token and a missing secret all get `401`.
 
 **Why this order.** Deleting the data first means a failure never leaves favourites or progress that belong to a profile that no longer exists, which is what R-13 is about. The opposite order could leave orphan rows that nobody can ever find again, because their profile id is gone. The cost of this order is small: if step 3 fails after step 2 worked, the profile exists with an empty list and an empty progress, which is harmless and is repaired by repeating the request.
 
@@ -53,12 +53,12 @@ K3 builds the library endpoint, and the profile deletion in identity (G9) calls 
 
 ## Deleting an account
 
-Open question 6, and SEC-07 (K2). `DELETE` of an account is an administrator operation, or the account's own.
+Open question 6, and SEC-07 (K2). `DELETE` of an account is an administrator operation (`DELETE /accounts/{accountId}`), or the account's own (`DELETE /auth/me`, which also clears the session cookie). The contracts are in `docs/api/identity.yaml`.
 
-1. Identity lists the account's profiles (at most 5).
-2. For each profile, identity calls the same library endpoint, one after the other.
+1. Under the accounts lock, identity checks the caller and the last-administrator rule, then lists the account's profiles (at most 5). The rule is checked first, so a refused deletion never empties anybody's favourites.
+2. For each profile, identity calls the same library endpoint, one after the other. No database transaction is held during these calls.
 3. If any call fails, identity stops, **does not delete the account**, and answers 503. The calls already made are not undone and need not be: they are idempotent, and the account still works, with an empty list for those profiles.
-4. When every call has worked, identity deletes the account. Its profiles go with it (`ON DELETE CASCADE`).
+4. When every call has worked, identity takes the lock again, locks the account row and checks everything again. If a profile was created during step 2, its data has not been cleared yet: identity goes back to step 2 for it (at most 3 rounds, then 503). Otherwise it deletes the account. Its profiles go with it (`ON DELETE CASCADE`). Locking the account row keeps a profile from being created between this check and the deletion, since a profile creation locks the same row.
 
 Other rules:
 
