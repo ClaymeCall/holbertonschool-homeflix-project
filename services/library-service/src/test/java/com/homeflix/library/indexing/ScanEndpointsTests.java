@@ -399,8 +399,7 @@ class ScanEndpointsTests {
 			String body = scan().andExpect(status().isOk())
 					.andExpect(jsonPath("$.inaccessibleRoots.length()").value(1))
 					.andExpect(jsonPath("$.inaccessibleRoots[0].rootId").value(filmsRoot.toString()))
-					// Current behaviour of the catch-all in ScanService; a dedicated code would be a separate decision.
-					.andExpect(jsonPath("$.inaccessibleRoots[0].error").value("directory_not_readable"))
+					.andExpect(jsonPath("$.inaccessibleRoots[0].error").value("scan_failed"))
 					.andExpect(jsonPath("$.added").value(1))
 					.andReturn().getResponse().getContentAsString();
 			assertThat(body).doesNotContain("secret-database-detail").doesNotContain("Zebra")

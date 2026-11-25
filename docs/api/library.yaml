@@ -996,7 +996,11 @@ components:
                 const: format_not_supported
         inaccessibleRoots:
           type: array
-          description: Roots that could not be read during this scan, with the reason. Their titles are marked `UNAVAILABLE` and come back when the root can be read again.
+          description: >
+            Roots that could not be scanned, with the reason. `directory_not_found`, `directory_not_readable` and
+            `not_a_directory`: the folder cannot be read (its titles are marked `UNAVAILABLE` and come back when it can
+            be read again). `scan_failed`: the scan of the folder failed for another reason, such as a database error
+            (the details are only in the log).
           items:
             type: object
             required: [rootId, error]
@@ -1005,7 +1009,7 @@ components:
                 $ref: './common.yaml#/components/schemas/Uuid'
               error:
                 type: string
-                enum: [directory_not_found, directory_not_readable, not_a_directory]
+                enum: [directory_not_found, directory_not_readable, not_a_directory, scan_failed]
 
     ProgressState:
       type: string
