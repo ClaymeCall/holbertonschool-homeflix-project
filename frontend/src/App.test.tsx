@@ -17,6 +17,25 @@ describe('App', () => {
     expect(await screen.findByRole('link', { name: 'Skip to content' })).toHaveAttribute('href', '#content')
   })
 
+  it('moves focus to the main content after following a link, not on the first load', async () => {
+    mockApi(signedInRoutes())
+    renderApp('/nowhere')
+    const backHome = await screen.findByRole('link', { name: 'Back to home' })
+    expect(screen.getByRole('main')).not.toHaveFocus()
+
+    await userEvent.click(backHome)
+
+    expect(await screen.findByRole('main')).toHaveFocus()
+  })
+
+  it('leaves focus where the new page put it', async () => {
+    mockApi(signedInRoutes())
+    renderApp('/nowhere')
+    await userEvent.click(await screen.findByRole('link', { name: 'Search' }))
+
+    expect(await screen.findByRole('searchbox')).toHaveFocus()
+  })
+
   it('shows a not found page for unknown paths', async () => {
     mockApi(signedInRoutes())
     renderApp('/nowhere')

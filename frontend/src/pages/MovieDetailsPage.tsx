@@ -173,6 +173,7 @@ function MyListButton({ mediaId, onError }: { mediaId: string; onError: (message
   const listed = inList ?? favourites.state.data.some((media) => media.id === mediaId)
 
   async function toggle() {
+    if (busy) return
     setBusy(true)
     try {
       await (listed ? removeFavourite(mediaId) : addFavourite(mediaId))
@@ -184,8 +185,10 @@ function MyListButton({ mediaId, onError }: { mediaId: string; onError: (message
     }
   }
 
+  // aria-disabled rather than disabled while the request runs: a disabled button loses focus, so a keyboard
+  // user would be sent back to the top of the page (UX-04).
   return (
-    <Button variant="secondary" aria-pressed={listed} onClick={toggle} disabled={busy}>
+    <Button variant="secondary" aria-pressed={listed} onClick={toggle} aria-disabled={busy}>
       <span aria-hidden="true">{listed ? '✓' : '+'}</span>
       My List
     </Button>
