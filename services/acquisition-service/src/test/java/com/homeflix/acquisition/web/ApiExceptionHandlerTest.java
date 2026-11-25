@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.QueryTimeoutException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -57,6 +58,12 @@ class ApiExceptionHandlerTest {
 		@GetMapping("/database-down")
 		String databaseDown() {
 			throw new DataAccessResourceFailureException("Failed to obtain JDBC Connection to jdbc:postgresql://secret-db:5432/library");
+		}
+
+		@GetMapping("/database-down-at-transaction")
+		String databaseDownAtTransaction() {
+			throw new CannotCreateTransactionException("Could not open JDBC Connection for transaction",
+					new RuntimeException("jdbc:postgresql://secret-db:5432/x"));
 		}
 
 		@GetMapping("/database-slow")
@@ -113,7 +120,7 @@ class ApiExceptionHandlerTest {
 
 	@Test
 	void aDatabaseThatIsDownOrTooSlowIs503WithoutDetails() throws Exception {
-		for (String address : new String[] { "/database-down", "/database-slow" }) {
+		for (String address : new String[] { "/database-down", "/database-down-at-transaction", "/database-slow" }) {
 			mvc.perform(get(address))
 					.andExpect(status().isServiceUnavailable())
 					.andExpect(jsonPath("$.error").value("service_unavailable"))

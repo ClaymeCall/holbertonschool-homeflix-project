@@ -106,7 +106,7 @@ A timeout, a refused connection, or a 5xx from the called service all become the
 | Identity service down | Sign-in and account pages show the service-unavailable message | Services check tokens themselves, so signed-in users keep browsing and playing until their token expires (about 15 minutes), then cannot renew ([identity design](identity-and-permissions.md#expiry-and-renewal), [consistency rules](consistency-rules.md#when-a-service-is-down)) |
 | Library service down | Catalogue and player show the service-unavailable message, with a retry button | Sign-in still works |
 | Acquisition service down | Download screens show the service-unavailable message | Catalogue and playback are not affected |
-| Database down | The owning service answers 503 | The other services keep working |
+| Database down | The owning service answers 503, also when the database is down at the start of a transaction | The other services keep working |
 
 The gateway answers its own 503 in the same format when a service does not answer (ADR-0017). It already matches this format: `{"error":"service_unavailable","message":"This part of HomeFlix is temporarily unavailable. Please try again in a moment."}`.
 
@@ -123,14 +123,14 @@ A message is written for the person using HomeFlix, in English (PLY-05, SEC-04):
 
 Issue #36 covers a slow dependency (timeout gives 503), a failing one (one retry for GET, none for POST, then 503), and the shape of the body without technical details (R-24, TST-05).
 
-Each service's `ApiExceptionHandlerTest` also checks that a database that is down or too slow gives the same 503, with no JDBC URL, host or SQL in the body.
+Each service's `ApiExceptionHandlerTest` also checks that a database that is down gives the same 503, with no JDBC URL, host or SQL in the body. Only "down" is covered for now: no query timeout is configured (no `statement_timeout`, no `spring.jdbc.template.query-timeout`), so a slow query or an exhausted connection pool waits (30 s by default for Hikari) instead of giving a 503. The handlers already map `QueryTimeoutException`, so a timeout set later needs no handler change.
 
 ## Where it is implemented
 
 | Part | Library service | Acquisition service | Identity service |
 |---|---|---|---|
 | Common error body and handler | `web/ApiError`, `web/ApiExceptionHandler` | same | same |
-| Dependency failure and database outage to 503 | `web/ServiceUnavailableException` and the handler (also maps `DataAccessResourceFailureException` and `QueryTimeoutException`) | same | same |
+| Dependency failure and database outage to 503 | `web/ServiceUnavailableException` and the handler (also maps `DataAccessResourceFailureException`, `CannotCreateTransactionException` and `QueryTimeoutException`) | same | same |
 | Timeouts and GET retry for outgoing calls | `client/ServiceClientFactory`, `client/RetryingGetInterceptor` | added with its first outgoing call (handoff to the library, qBittorrent) | `client/LibraryClient`: 2 s and 5 s timeouts, no retry because its only call is a DELETE |
 
 The timeouts and the retry are configuration under `homeflix.http-client` (`connect-timeout`, `read-timeout`, `retries`, `retry-pause`), with the values of the table above as defaults. The library handler also maps the media file errors (`file_not_found`, `file_not_readable`, `access_denied`).

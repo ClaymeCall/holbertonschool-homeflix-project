@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -90,14 +91,14 @@ public class ApiExceptionHandler {
 	 */
 	@ExceptionHandler({ ServiceUnavailableException.class, ResourceAccessException.class,
 			HttpServerErrorException.class,
-			DataAccessResourceFailureException.class, QueryTimeoutException.class })
+			DataAccessResourceFailureException.class, QueryTimeoutException.class, CannotCreateTransactionException.class })
 	ResponseEntity<ApiError> serviceUnavailable(Exception ex) {
 		if (ex instanceof ServiceUnavailableException) {
 			// Thrown by a client of this service, which has already logged the cause with its details.
-			log.warn("A service this one depends on is unavailable: {}", ex.getMessage());
+			log.warn("A service or database this one depends on is unavailable: {}", ex.getMessage());
 		}
 		else {
-			log.warn("A service this one depends on is unavailable", ex);
+			log.warn("A service or database this one depends on is unavailable", ex);
 		}
 		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
 				.body(new ApiError("service_unavailable", SERVICE_UNAVAILABLE_MESSAGE));
