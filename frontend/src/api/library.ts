@@ -97,7 +97,11 @@ export interface Root {
   createdAt: string
 }
 
-export type InaccessibleRootError = 'directory_not_found' | 'directory_not_readable' | 'not_a_directory'
+export type InaccessibleRootError =
+  | 'directory_not_found'
+  | 'directory_not_readable'
+  | 'not_a_directory'
+  | 'scan_failed'
 
 /** The result of a manual indexing (H5). It is not stored by the server. */
 export interface ScanReport {

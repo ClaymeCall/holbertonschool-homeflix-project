@@ -378,6 +378,54 @@ class ScanEndpointsTests {
 		assertThat(titles()).containsExactly("Amélie (2001) - Director's Cut");
 	}
 
+	// ---- Storage errors ----
+
+	@Test
+	void aDatabaseFailureRollsBackItsFolderAndNeverReachesTheResponse() throws Exception {
+		Path shows = Files.createDirectory(mounted.resolve("shows"));
+		UUID showsRoot = addRoot(shows);
+		video("Good.mp4");
+		video("Zebra.mp4");
+		Files.writeString(shows.resolve("Show.mp4"), "x");
+		dropRefuseZebra();
+		jdbc.execute("""
+				create function refuse_zebra() returns trigger language plpgsql as
+				$$ begin
+				  if new.title = 'Zebra' then raise exception 'secret-database-detail'; end if;
+				  return new;
+				end $$""");
+		jdbc.execute("create trigger refuse_zebra before insert on media_item for each row execute function refuse_zebra()");
+		try {
+			String body = scan().andExpect(status().isOk())
+					.andExpect(jsonPath("$.inaccessibleRoots.length()").value(1))
+					.andExpect(jsonPath("$.inaccessibleRoots[0].rootId").value(filmsRoot.toString()))
+					.andExpect(jsonPath("$.inaccessibleRoots[0].error").value("scan_failed"))
+					.andExpect(jsonPath("$.added").value(1))
+					.andReturn().getResponse().getContentAsString();
+			assertThat(body).doesNotContain("secret-database-detail").doesNotContain("Zebra")
+					.doesNotContain(mounted.toString()).doesNotContain("Exception");
+		}
+		finally {
+			dropRefuseZebra();
+		}
+
+		// The folder that failed was rolled back as a whole, not half-indexed. The other one is indexed.
+		assertThat(paths()).isEmpty();
+		assertThat(titles()).containsExactly("Show");
+		assertThat(jdbc.queryForObject("select count(*) from media_file where root_id = ?", Integer.class, showsRoot))
+				.isEqualTo(1);
+
+		// Once the database accepts the file again, the next scan indexes everything.
+		scan().andExpect(status().isOk()).andExpect(jsonPath("$.inaccessibleRoots.length()").value(0))
+				.andExpect(jsonPath("$.added").value(2));
+		assertThat(titles()).containsExactly("Good", "Show", "Zebra");
+	}
+
+	private void dropRefuseZebra() {
+		jdbc.execute("drop trigger if exists refuse_zebra on media_item");
+		jdbc.execute("drop function if exists refuse_zebra()");
+	}
+
 	// ---- One scan at a time ----
 
 	@Test

@@ -28,6 +28,7 @@ const INACCESSIBLE_REASON: Record<InaccessibleRootError, string> = {
   directory_not_found: 'The folder no longer exists.',
   directory_not_readable: 'HomeFlix is not allowed to read this folder.',
   not_a_directory: 'This path is no longer a folder.',
+  scan_failed: 'The scan of this folder failed. Try again, and check the logs if it keeps failing.',
 }
 
 /**
