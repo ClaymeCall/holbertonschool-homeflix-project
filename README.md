@@ -54,7 +54,7 @@ openssl pkey -in secrets/jwt-private.pem -pubout -out secrets/jwt-public.pem
 chmod 644 secrets/jwt-private.pem
 ```
 
-Keep `secrets/jwt-private.pem` private: anyone who has it can sign in as any account. The `secrets/` folder is ignored by Git. If you create a new key later, everybody is signed out.
+The file is readable (`644`) because the service runs as a non-root user inside its container and must read it; the `700` folder keeps the other users of your computer out. Keep `secrets/jwt-private.pem` private: anyone who has it can sign in as any account. The `secrets/` folder is ignored by Git. If you create a new key later, everybody is signed out.
 
 ### 3. Create your folders
 
@@ -104,7 +104,7 @@ The first start builds every image (the web interface and the three Java service
 
 Open **http://localhost:8080** in your browser (replace `8080` with your `GATEWAY_PORT`; from another device, use the computer's address instead of `localhost`).
 
-The first time, HomeFlix shows **Welcome to HomeFlix**. Enter an email address and a password of at least 12 characters, then confirm it. This creates the administrator account, and this page is only available once. Sign in if you are asked to, then give your first profile a name.
+The first time, HomeFlix shows **Welcome to HomeFlix**. Enter an email address and a password of at least 12 characters, then confirm it. This creates the administrator account, and this page is only available once. HomeFlix then sends you to the sign-in page (you are not signed in automatically): sign in with this email address and password, then give your first profile a name.
 
 ### 7. Connect your videos and play one
 
@@ -120,7 +120,7 @@ To let other people use HomeFlix, create their accounts in **Administration**, t
 
 In **Administration**, then **Downloads**, you can download an authorized video from the verified catalogue. A rights reminder is shown first. Read the [copyright and peer-to-peer awareness note](docs/copyright-and-p2p.md) before your first download.
 
-Before the first download, add `/media/downloads` as a media folder too (step 7.3). If you skip this, the download finishes but the library refuses the file, and the download looks stuck. To accept incoming connections from other peers, forward `QBITTORRENT_PEER_PORT` (6881 by default) on your router to this computer. Downloads usually work without it, but slowly or not at all if there are few peers.
+Before the first download, add `/media/downloads` as a media folder too (step 7.3). If you skip this, the download finishes but the library refuses the file, and the download looks stuck. To accept incoming connections from other peers, forward `QBITTORRENT_PEER_PORT` (6881 by default) on your router to this computer. Forward only this port, never `GATEWAY_PORT`: HomeFlix uses plain HTTP and is not meant to be reachable from the Internet. Downloads usually work without it, but slowly or not at all if there are few peers.
 
 ### Stop, restart and update
 
