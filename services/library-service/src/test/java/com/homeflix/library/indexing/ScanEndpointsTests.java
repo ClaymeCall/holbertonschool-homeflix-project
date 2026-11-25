@@ -387,6 +387,7 @@ class ScanEndpointsTests {
 		video("Good.mp4");
 		video("Zebra.mp4");
 		Files.writeString(shows.resolve("Show.mp4"), "x");
+		dropRefuseZebra();
 		jdbc.execute("""
 				create function refuse_zebra() returns trigger language plpgsql as
 				$$ begin
@@ -398,14 +399,15 @@ class ScanEndpointsTests {
 			String body = scan().andExpect(status().isOk())
 					.andExpect(jsonPath("$.inaccessibleRoots.length()").value(1))
 					.andExpect(jsonPath("$.inaccessibleRoots[0].rootId").value(filmsRoot.toString()))
+					// Current behaviour of the catch-all in ScanService; a dedicated code would be a separate decision.
+					.andExpect(jsonPath("$.inaccessibleRoots[0].error").value("directory_not_readable"))
 					.andExpect(jsonPath("$.added").value(1))
 					.andReturn().getResponse().getContentAsString();
 			assertThat(body).doesNotContain("secret-database-detail").doesNotContain("Zebra")
 					.doesNotContain(mounted.toString()).doesNotContain("Exception");
 		}
 		finally {
-			jdbc.execute("drop trigger refuse_zebra on media_item");
-			jdbc.execute("drop function refuse_zebra()");
+			dropRefuseZebra();
 		}
 
 		// The folder that failed was rolled back as a whole, not half-indexed. The other one is indexed.
@@ -415,8 +417,14 @@ class ScanEndpointsTests {
 				.isEqualTo(1);
 
 		// Once the database accepts the file again, the next scan indexes everything.
-		scan().andExpect(status().isOk()).andExpect(jsonPath("$.inaccessibleRoots.length()").value(0));
+		scan().andExpect(status().isOk()).andExpect(jsonPath("$.inaccessibleRoots.length()").value(0))
+				.andExpect(jsonPath("$.added").value(2));
 		assertThat(titles()).containsExactly("Good", "Show", "Zebra");
+	}
+
+	private void dropRefuseZebra() {
+		jdbc.execute("drop trigger if exists refuse_zebra on media_item");
+		jdbc.execute("drop function if exists refuse_zebra()");
 	}
 
 	// ---- One scan at a time ----
