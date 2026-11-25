@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
@@ -15,7 +16,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * The verified catalogue table (V2) and its first entry (V3) against a real PostgreSQL (ADR-0011):
+ * The verified catalogue table (V2) and its entries (V3, V7) against a real PostgreSQL (ADR-0011):
  * what the database refuses, so a bad entry cannot be added even by a migration (ACQ-02, R-15, R-19).
  */
 @Import(TestcontainersConfiguration.class)
@@ -45,6 +46,27 @@ class AcquisitionEntryMigrationTests {
 		// The torrent built for the demo, recorded with issue J1 (#74).
 		assertThat((String) sintel.get("download_source"))
 				.startsWith("magnet:?xt=urn:btih:4e626263b96d72a36b1b963f44188bf937004d5f&");
+	}
+
+	@Test
+	void bigBuckBunnyAndTearsOfSteelAreVerifiedEntries() {
+		Map<String, Object> bunny = jdbc.queryForMap("select * from acquisition_entry where title = 'Big Buck Bunny'");
+		Map<String, Object> tears = jdbc.queryForMap("select * from acquisition_entry where title = 'Tears of Steel'");
+
+		assertThat(bunny.get("source_url")).isEqualTo("https://peach.blender.org/about/");
+		assertThat(tears.get("source_url")).isEqualTo("https://mango.blender.org/sharing/");
+		for (Map<String, Object> entry : List.of(bunny, tears)) {
+			assertThat(entry.get("licence")).isEqualTo("Creative Commons Attribution 3.0 Unported (CC BY 3.0)");
+			assertThat(entry.get("licence_url")).isEqualTo("https://creativecommons.org/licenses/by/3.0/");
+			assertThat(entry.get("expected_format")).isEqualTo("MP4");
+		}
+		assertThat(bunny.get("expected_size_bytes")).isEqualTo(259392822L);
+		assertThat(tears.get("expected_size_bytes")).isEqualTo(505533124L);
+		// The single-file torrents built for HomeFlix (#184), not the published multi-file ones.
+		assertThat((String) bunny.get("download_source"))
+				.startsWith("magnet:?xt=urn:btih:7b28c6b6cfc3eaf6b546fb2256c6d9c883f316c3&");
+		assertThat((String) tears.get("download_source"))
+				.startsWith("magnet:?xt=urn:btih:e6d8867d826b6406746e067e8b08d582cbb9dee8&");
 	}
 
 	@Test
