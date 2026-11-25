@@ -188,6 +188,73 @@ paths:
           $ref: './common.yaml#/components/responses/Unauthenticated'
         '503':
           $ref: './common.yaml#/components/responses/ServiceUnavailable'
+    delete:
+      tags: [Accounts]
+      operationId: deleteOwnAccount
+      summary: Delete the signed-in account
+      description: |
+        The account deletes itself and its associated data in every service (SEC-07, K2). Same rules as
+        `DELETE /accounts/{accountId}`: through the library service, the favourites and viewing progress
+        of each profile are deleted first (consistency rules: issue #13); if the library does not answer,
+        or answers with an error, the account is **not** deleted and the answer is 503, so the user can try
+        again. Then the account and its profiles are deleted, and the session cookie is cleared.
+        Source media is never deleted. A disabled account cannot delete itself (401), and the last enabled
+        administrator cannot either (`last_administrator`).
+      x-permission: account
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Account deleted. The cookie is cleared.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearedSessionCookie'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '409':
+          $ref: '#/components/responses/LastAdministrator'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+
+  /accounts/{accountId}:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+    delete:
+      tags: [Accounts]
+      operationId: deleteAccount
+      summary: Delete an account
+      description: |
+        Deletes the account and its associated data in every service (SEC-07, K2), following the
+        consistency rules (issue #13):
+
+        1. The last-administrator rule is checked first, so a refused deletion changes nothing.
+        2. For each profile, the library service deletes its favourites and viewing progress.
+        3. The account is deleted, and its profiles with it.
+
+        If the library does not answer, or answers with an error, the account is **not** deleted and the
+        answer is 503. The calls already made are not undone: they are idempotent, so the request can
+        simply be repeated. Source media is never deleted. The acquisition service keeps the opaque id of
+        the account in its download history (audit), which holds no personal data (SEC-06).
+
+        A session of the deleted account stays valid until its token expires, within 15 minutes, and
+        cannot be renewed (R-10). An administrator may delete its own account if another enabled
+        administrator remains.
+      x-permission: admin
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Account deleted, with its profiles and their favourites and progress.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LastAdministrator'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
 
   /accounts:
     get:
@@ -569,8 +636,8 @@ components:
     LastAdministrator:
       description: |
         The change would leave HomeFlix without an enabled administrator (`last_administrator`).
-        Checked on the server under a lock, so two administrators demoting or disabling each other
-        at the same moment still leave one (identity design, "Roles and permissions").
+        Checked on the server under a lock, so two administrators demoting, disabling or deleting each
+        other at the same moment still leave one (identity design, "Roles and permissions").
       content:
         application/json:
           schema:

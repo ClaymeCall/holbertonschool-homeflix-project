@@ -28,6 +28,8 @@ public final class FakeLibrary {
 	private final HttpServer server;
 	private final List<Call> calls = new CopyOnWriteArrayList<>();
 	private volatile int status = 204;
+	private volatile int successesBeforeStatus = 0;
+	private volatile Runnable onNextCall;
 
 	private FakeLibrary() {
 		try {
@@ -50,12 +52,28 @@ public final class FakeLibrary {
 
 	/** Every following call is answered with this status, without a body. */
 	public void answerWith(int status) {
+		answerWith(status, 0);
+	}
+
+	/**
+	 * The next {@code successes} calls are answered 204, and every one after them with this status:
+	 * a library that fails in the middle of a series of calls.
+	 */
+	public void answerWith(int status, int successes) {
+		this.successesBeforeStatus = calls.size() + successes;
 		this.status = status;
 	}
 
-	/** Back to 204 and no recorded call. */
+	/** Runs this once, when the next call arrives and before it is answered. */
+	public void onNextCall(Runnable action) {
+		this.onNextCall = action;
+	}
+
+	/** Back to 204, no pending action and no recorded call. */
 	public void reset() {
 		status = 204;
+		successesBeforeStatus = 0;
+		onNextCall = null;
 		calls.clear();
 	}
 
@@ -63,11 +81,16 @@ public final class FakeLibrary {
 		return List.copyOf(calls);
 	}
 
-	private void handle(HttpExchange exchange) throws IOException {
+	private synchronized void handle(HttpExchange exchange) throws IOException {
 		try (exchange) {
+			Runnable action = onNextCall;
+			onNextCall = null;
+			if (action != null) {
+				action.run();
+			}
 			calls.add(new Call(exchange.getRequestMethod(), exchange.getRequestURI().getPath(),
 					exchange.getRequestHeaders().getFirst("X-Service-Token")));
-			exchange.sendResponseHeaders(status, -1);
+			exchange.sendResponseHeaders(calls.size() > successesBeforeStatus ? status : 204, -1);
 		}
 	}
 

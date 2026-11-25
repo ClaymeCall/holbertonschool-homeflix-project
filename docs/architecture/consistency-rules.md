@@ -53,12 +53,12 @@ K3 builds the library endpoint, and the profile deletion in identity (G9) calls 
 
 ## Deleting an account
 
-Open question 6, and SEC-07 (K2). `DELETE` of an account is an administrator operation, or the account's own.
+Open question 6, and SEC-07 (K2). `DELETE` of an account is an administrator operation (`DELETE /accounts/{accountId}`), or the account's own (`DELETE /auth/me`, which also clears the session cookie). The contracts are in `docs/api/identity.yaml`.
 
-1. Identity lists the account's profiles (at most 5).
-2. For each profile, identity calls the same library endpoint, one after the other.
+1. Under the accounts lock, identity checks the caller and the last-administrator rule, then lists the account's profiles (at most 5). The rule is checked first, so a refused deletion never empties anybody's favourites.
+2. For each profile, identity calls the same library endpoint, one after the other. No database transaction is held during these calls.
 3. If any call fails, identity stops, **does not delete the account**, and answers 503. The calls already made are not undone and need not be: they are idempotent, and the account still works, with an empty list for those profiles.
-4. When every call has worked, identity deletes the account. Its profiles go with it (`ON DELETE CASCADE`).
+4. When every call has worked, identity takes the lock again, locks the account row and checks everything again. If a profile was created during step 2, its data has not been cleared yet: identity goes back to step 2 for it (at most 3 rounds, then 503). Otherwise it deletes the account. Its profiles go with it (`ON DELETE CASCADE`). Locking the account row keeps a profile from being created between this check and the deletion, since a profile creation locks the same row.
 
 Other rules:
 
