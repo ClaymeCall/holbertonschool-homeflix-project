@@ -58,13 +58,17 @@ The only pair under 4.5:1 is `--text-subtle` on `--surface-2`, and the interface
 
 ## Mobile (375 px)
 
-**Result: to do.** To check in each journey:
+**Result: pass.** The six journeys work at a 375 px wide viewport in the browser's device mode, including playback of a film (browser run on 2026-11-25). No fix was needed.
+
+Points looked at in each journey:
 
 - the header, where the e-mail, the Admin badge, the active profile, "Switch profile" and "Sign out" share one line;
 - the administration lists (Accounts, Library, Downloads), which have no small-screen rule;
 - the player controls;
 - no horizontal scrolling of the page, apart from the film rows.
 
+Device mode reproduces the width and touch input, not a real phone browser. The run on a real phone is not part of this review.
+
 ## Open items
 
-- Mobile run at 375 px, and fixes for what it finds.
+None for K7.
