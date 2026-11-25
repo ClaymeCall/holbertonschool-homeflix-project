@@ -43,7 +43,7 @@ Open question 6. `DELETE /profiles/{profileId}` in the identity service (the con
 3. If the library answers, identity deletes the profile row and answers 204.
 4. If the library does not answer (timeout, refused connection) or answers anything but a 2xx, identity **does not delete the profile** and answers 503. The user tries again. A 4xx also counts, so a library without the endpoint, or a wrong service token, never leads to a profile deleted with its data left behind.
 
-Identity sends its secret for the library in `X-Service-Token` (ADR-0022). It comes from `IDENTITY_TO_LIBRARY_TOKEN` in `.env`, and the identity service refuses to start without it. The library checks the same value when K3 adds the endpoint.
+Identity sends its secret for the library in `X-Service-Token` (ADR-0022). It comes from `IDENTITY_TO_LIBRARY_TOKEN` in `.env`, and the identity service refuses to start without it. The library checks the same value (`homeflix.internal.identity-token`) on this endpoint, and refuses to start without it. Only this secret opens it: the acquisition service's secret, a user token and a missing secret all get `401`.
 
 **Why this order.** Deleting the data first means a failure never leaves favourites or progress that belong to a profile that no longer exists, which is what R-13 is about. The opposite order could leave orphan rows that nobody can ever find again, because their profile id is gone. The cost of this order is small: if step 3 fails after step 2 worked, the profile exists with an empty list and an empty progress, which is harmless and is repaired by repeating the request.
 

@@ -63,6 +63,8 @@ services:
       # The secret the acquisition service sends in X-Service-Token to /internal (ADR-0022). Same value as in
       # the acquisition service; the library refuses to start without it.
       ACQUISITION_TO_LIBRARY_TOKEN: ${ACQUISITION_TO_LIBRARY_TOKEN:?Set ACQUISITION_TO_LIBRARY_TOKEN in .env}
+      # The secret the identity service sends in X-Service-Token to delete the data of a deleted profile (K3).
+      IDENTITY_TO_LIBRARY_TOKEN: ${IDENTITY_TO_LIBRARY_TOKEN:?Set IDENTITY_TO_LIBRARY_TOKEN in .env}
     secrets:
       - jwt_public_key
     depends_on:
