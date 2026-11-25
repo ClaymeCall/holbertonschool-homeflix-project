@@ -24,6 +24,8 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.DockerClientFactory;
@@ -135,8 +137,8 @@ class PersistenceAfterRestartTests {
 		}
 	}
 
-	private static org.springframework.test.web.servlet.ResultActions as(MockMvc mvc, UUID profile,
-			org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request) throws Exception {
+	private static ResultActions as(MockMvc mvc, UUID profile,
+			MockHttpServletRequestBuilder request) throws Exception {
 		return mvc.perform(request.header("X-Test-Caller", "user").header("X-Test-Profile", profile.toString()));
 	}
 
