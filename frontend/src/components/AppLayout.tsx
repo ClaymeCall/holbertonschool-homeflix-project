@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { AccountMenu } from './AccountMenu'
@@ -14,12 +14,25 @@ export function AppLayout() {
   const admin = session.status === 'signedIn' && session.account.admin
   // Small screens: the navigation and the account menu sit behind a burger button. From 60rem they are always shown.
   const [menuOpen, setMenuOpen] = useState(false)
+  // The header's height (it grows with the open menu) is published as --header-height, so that what sticks under it
+  // (the administration tabs) always sits right below it.
+  const shellRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const shell = shellRef.current
+    const header = headerRef.current
+    if (!shell || !header || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => shell.style.setProperty('--header-height', `${header.offsetHeight}px`))
+    observer.observe(header)
+    return () => observer.disconnect()
+  }, [])
   return (
-    <div className={styles.shell}>
+    <div ref={shellRef} className={styles.shell}>
       <a className={styles.skipLink} href="#content">
         Skip to content
       </a>
       <header
+        ref={headerRef}
         className={styles.header}
         onKeyDown={(event) => {
           if (event.key === 'Escape' && menuOpen) {

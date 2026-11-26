@@ -7,11 +7,17 @@
   padding: 1.5rem var(--gutter) 3rem;
 }
 
+/* Fixed under the main header while the page scrolls. --header-height is set by AppLayout. */
 .nav {
+  position: sticky;
+  top: var(--header-height, 0);
+  z-index: 4;
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
-  padding-bottom: 0.75rem;
+  margin-top: -1.5rem;
+  padding: 0.75rem 0;
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
 
