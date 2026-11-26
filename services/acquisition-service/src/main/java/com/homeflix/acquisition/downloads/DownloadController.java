@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,7 +20,7 @@ import com.homeflix.acquisition.security.Caller;
 import jakarta.validation.Valid;
 
 /**
- * Listing, starting and cancelling downloads (docs/api/acquisition.yaml, tag Downloads; ACQ-03, ACQ-04). Administrator only
+ * Listing, starting, cancelling and deleting downloads (docs/api/acquisition.yaml, tag Downloads; ACQ-03, ACQ-04). Administrator only
  * (ACQ-05): {@link AdminOnly} checks the caller before Spring reads the path or the body, so a caller who is
  * not an administrator gets 401 or 403 whatever the request holds.
  */
@@ -48,6 +49,12 @@ class DownloadController {
 	@PostMapping("/{downloadId}/cancel")
 	Download cancel(@PathVariable UUID downloadId) {
 		return downloads.cancel(downloadId);
+	}
+
+	@DeleteMapping("/{downloadId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void delete(@PathVariable UUID downloadId) {
+		downloads.delete(downloadId);
 	}
 
 	@GetMapping("/{downloadId}")

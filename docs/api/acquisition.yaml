@@ -193,6 +193,32 @@ paths:
           $ref: './common.yaml#/components/responses/NotFound'
         '503':
           $ref: './common.yaml#/components/responses/ServiceUnavailable'
+    delete:
+      tags: [Downloads]
+      operationId: deleteDownload
+      summary: Delete a finished download from the history
+      description: |
+        Removes the record of a download that is `COMPLETED`, or `FAILED` (including cancelled) once the library
+        has been told. Only the record goes: the title stays in the library, and a file or torrent left by a
+        failure is not touched. A download that is queued or downloading cannot be deleted (cancel it first),
+        nor a failure the library has not been told about yet (`409 download_not_deletable`).
+      x-permission: admin
+      responses:
+        '204':
+          description: The download is deleted.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthenticated'
+        '403':
+          $ref: './common.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '409':
+          description: The download is still active, or the library has not been told about its failure yet.
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Error'
+              example: { error: download_not_deletable, message: This download cannot be deleted yet. Cancel it if it is still running, or try again in a moment. }
 
   /downloads/{downloadId}/cancel:
     parameters:

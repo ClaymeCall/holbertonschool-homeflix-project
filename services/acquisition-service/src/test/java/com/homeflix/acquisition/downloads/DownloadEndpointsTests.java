@@ -7,12 +7,14 @@ import static org.mockito.Mockito.doAnswer;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.OffsetDateTime;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
@@ -147,6 +149,70 @@ class DownloadEndpointsTests {
 		as("user", get("/downloads/not-an-id")).andExpect(status().isForbidden());
 
 		assertNothingStarted();
+	}
+
+	// ---- Deleting from the history ----
+
+	@Test
+	void onlyAnAdministratorCanDeleteADownload() throws Exception {
+		UUID job = insertJob("COMPLETED", null, true);
+
+		mvc.perform(delete("/downloads/" + job)).andExpect(status().isUnauthorized());
+		as("user", delete("/downloads/" + job)).andExpect(status().isForbidden());
+		mvc.perform(delete("/downloads/not-an-id")).andExpect(status().isUnauthorized());
+		as("user", delete("/downloads/not-an-id")).andExpect(status().isForbidden());
+
+		assertThat(countJobs()).isEqualTo(1);
+	}
+
+	@Test
+	void aCompletedDownloadIsDeletedFromTheHistory() throws Exception {
+		UUID job = insertJob("COMPLETED", null, true);
+
+		as("admin", delete("/downloads/" + job)).andExpect(status().isNoContent());
+
+		assertThat(countJobs()).isZero();
+		as("admin", get("/downloads/" + job)).andExpect(status().isNotFound());
+	}
+
+	@Test
+	void aFailedDownloadTheLibraryKnowsAboutIsDeleted() throws Exception {
+		UUID job = insertJob("FAILED", "cancelled", true);
+
+		as("admin", delete("/downloads/" + job)).andExpect(status().isNoContent());
+
+		assertThat(countJobs()).isZero();
+	}
+
+	@Test
+	void anActiveDownloadCannotBeDeleted() throws Exception {
+		for (String state : new String[] { "QUEUED", "DOWNLOADING" }) {
+			UUID job = insertJob(state, null, true);
+
+			as("admin", delete("/downloads/" + job))
+					.andExpect(status().isConflict())
+					.andExpect(jsonPath("$.error").value("download_not_deletable"));
+
+			assertThat(countJobs()).isEqualTo(1);
+			jdbc.update("delete from download_job");
+		}
+	}
+
+	@Test
+	void aFailureTheLibraryHasNotBeenToldAboutIsKept() throws Exception {
+		UUID job = insertJob("FAILED", "client_error", false);
+
+		as("admin", delete("/downloads/" + job))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.error").value("download_not_deletable"));
+
+		assertThat(countJobs()).isEqualTo(1);
+	}
+
+	@Test
+	void deletingAnUnknownDownloadIsNotFound() throws Exception {
+		as("admin", delete("/downloads/" + UUID.randomUUID())).andExpect(status().isNotFound());
+		as("admin", delete("/downloads/not-an-id")).andExpect(status().isNotFound());
 	}
 
 	// ---- Validation (SEC-01, ACQ-11) ----
@@ -571,6 +637,20 @@ class DownloadEndpointsTests {
 
 	private int countJobs() {
 		return jdbc.queryForObject("select count(*) from download_job", Integer.class);
+	}
+
+	/** A job of the test entry in this state, as the service would have left it. */
+	private UUID insertJob(String state, String errorCode, boolean librarySynced) {
+		boolean finished = state.equals("COMPLETED") || state.equals("FAILED");
+		boolean completed = state.equals("COMPLETED");
+		return jdbc.queryForObject("""
+				insert into download_job (entry_id, client_hash, state, progress_percent, error_code,
+				    completed_relative_path, handoff_started_at, started_by, finished_at, library_synced_at)
+				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				returning id
+				""", UUID.class, entryId, entryHash, state, completed ? 100 : 0, errorCode,
+				completed ? "test.mp4" : null, completed ? OffsetDateTime.now() : null, UUID.randomUUID(),
+				finished ? OffsetDateTime.now() : null, librarySynced ? OffsetDateTime.now() : null);
 	}
 
 	private UUID insertEntry(String title, String hash) {

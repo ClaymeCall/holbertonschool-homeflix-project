@@ -127,6 +127,22 @@ public class DownloadService {
 		return get(jobId);
 	}
 
+	/**
+	 * Removes a finished download from the history. Only the record goes: the library keeps its title, and a file
+	 * or torrent left by a failure is not touched. An active download is cancelled first, never deleted.
+	 */
+	public void delete(UUID jobId) {
+		transaction.executeWithoutResult(status -> {
+			// Under the job's lock, so a cancel or a status update cannot cross the delete.
+			downloads.lock(jobId).orElseThrow(NotFoundException::new);
+			if (!downloads.deleteFinished(jobId)) {
+				throw new RejectedRequestException(HttpStatus.CONFLICT, "download_not_deletable",
+						"This download cannot be deleted yet. Cancel it if it is still running, or try again in a moment.");
+			}
+		});
+		log.info("Download {} deleted from the history", jobId);
+	}
+
 	/** Every download, newest first, for the download screen (ACQ-04). */
 	public List<Download> list() {
 		return downloads.findAll();
