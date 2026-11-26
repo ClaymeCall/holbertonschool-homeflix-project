@@ -26,7 +26,7 @@ The answers: `401 unauthenticated` without a valid identity, `403 forbidden` for
 Short names used for the tests that prove a refusal:
 
 - **Identity scan**: `AuthenticationAndAuthorizationTests.everyEndpointOutsideTheAnonymousListRefusesAnonymousRequests`. It finds every endpoint by scanning the application and expects `401` without a session, except on the anonymous ones.
-- **Library scan** and **Acquisition scan**: `EndpointPermissionTests` in each service, added by this review. Same scan, with real signed tokens, a valid body on every request so the refusal comes from the guard, and every role the contract does not allow (see below).
+- **Library scan** and **Acquisition scan**: `EndpointPermissionTests` in each service, added by this review. Same scan, with real signed tokens, a valid body on every request so the refusal comes from the guard, and every role the contract does not allow (see below). The same scan also sends each endpoint as its allowed caller and expects neither `401` nor `403`, so a guard that refused everyone would fail too (checked by making `requireAdmin` refuse every caller: the six admin endpoints failed).
 
 ### Identity service
 
@@ -84,20 +84,36 @@ What the library scan checks, on every endpoint of each permission:
 | `GET /entries`, `GET /entries/{entryId}` | admin | Acquisition scan; `EntryEndpointsTests.anonymousCallerIsRefused`, `ordinaryUserIsRefused` |
 | `GET /downloads`, `POST /downloads`, `GET /downloads/{downloadId}`, `POST /downloads/{downloadId}/cancel` | admin | Acquisition scan; `DownloadEndpointsTests.anonymousCallerCannotStartCancelOrRead` |
 
-The acquisition scan expects `401` without a cookie and with an invalid one, and `403` for a signed-in user, on every endpoint. Removing `@AdminOnly` from one controller makes it fail (checked during this review).
+The acquisition scan expects `401` without a cookie and with an invalid one, `403` for a signed-in user, and neither for an administrator, on every endpoint. Removing `@AdminOnly` from one controller makes it fail (checked during this review).
 
 ## Direct calls to the services (R-12)
 
 The services publish no port to the host (checked in CI, and `docker compose ps`: only the gateway and qBittorrent's peer port). Something on the backend network could still call them directly, without the gateway. They refuse it:
 
 ```sh
-for url in http://identity-service:8081/accounts http://library-service:8082/media http://acquisition-service:8083/downloads; do
-  printf "%s: " "$url"
-  docker run --rm --network homeflix_backend --entrypoint curl homeflix-qbittorrent:latest -s -m 5 -o /dev/null -w '%{http_code}\n' "$url"
+# A token signed with no key: alg "none", admin true, valid until 2100.
+b64url() { base64 | tr -d '=\n' | tr '/+' '_-'; }
+forged="$(printf '{"alg":"none","typ":"JWT"}' | b64url).$(printf '{"iss":"homeflix-identity","sub":"00000000-0000-0000-0000-000000000001","admin":true,"exp":4102444800}' | b64url)."
+call() { # method url [extra curl arguments]
+  method=$1 url=$2; shift 2
+  printf '%s %s %s: ' "$method" "$url" "$*"
+  docker run --rm --network homeflix_backend --entrypoint curl homeflix-qbittorrent:latest \
+    -s -m 5 -o /dev/null -w '%{http_code}\n' -X "$method" "$@" "$url"
+}
+profile=00000000-0000-0000-0000-000000000002
+for url in http://identity-service:8081/auth/me http://identity-service:8081/accounts http://identity-service:8081/profiles \
+    http://library-service:8082/media http://library-service:8082/roots http://library-service:8082/favourites \
+    http://acquisition-service:8083/entries http://acquisition-service:8083/downloads; do
+  call GET "$url"
+  call GET "$url" -b "homeflix_token=$forged"
 done
+call DELETE "http://library-service:8082/internal/profiles/$profile/data"
+call DELETE "http://library-service:8082/internal/profiles/$profile/data" -H "X-Service-Token: guessed-secret"
+# Through the gateway:
+curl -s -o /dev/null -w '%{http_code}\n' -X DELETE "http://localhost:8080/api/library/internal/profiles/$profile/data"
 ```
 
-The qBittorrent image is used only because it has `curl`. Result on 2026-11-25:
+The qBittorrent image is used only because it has `curl`. Result on 2026-11-25, run again with this script on 2026-11-26 with the same answers:
 
 | Direct call on the backend network | No session | Forged token (`alg: none`, `admin: true`) |
 |---|---|---|
