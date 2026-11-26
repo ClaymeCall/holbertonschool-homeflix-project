@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Download, Entry } from '../api/acquisition'
 import { callsTo, jsonResponse, mockApi, signedInRoutes, testAccount, type Route } from '../test/http'
 import { renderApp } from '../test/render'
-import { REFRESH_MS } from './DownloadsPage'
+import { PAGE_SIZE, REFRESH_MS } from './DownloadsPage'
 
 const sintel: Entry = {
   id: 'e1',
@@ -356,5 +356,51 @@ describe('DownloadsPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'This download has already finished and cannot be cancelled.',
     )
+  })
+
+  // ---- Layout and paging of the history ----
+
+  it('puts the verified catalogue, where a download starts, before the history', async () => {
+    acquisition()
+    renderApp('/admin/downloads')
+
+    const catalogue = await screen.findByRole('region', { name: 'Verified catalogue' })
+    const history = screen.getByRole('region', { name: 'All downloads' })
+    expect(catalogue.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('shows the history one page at a time, newest first', async () => {
+    const many = Array.from({ length: PAGE_SIZE + 3 }, (_, index) =>
+      download({
+        id: `d${index}`,
+        entryId: index === PAGE_SIZE ? 'e2' : 'e1',
+        state: 'COMPLETED',
+        progressPercent: 100,
+        finishedAt: '2026-11-19T09:00:00Z',
+      }),
+    )
+    acquisition({ 'GET /api/acquisition/downloads': () => jsonResponse(many) })
+    renderApp('/admin/downloads')
+    const user = userEvent.setup()
+
+    const region = await screen.findByRole('region', { name: 'All downloads' })
+    expect(await within(region).findAllByRole('listitem')).toHaveLength(PAGE_SIZE)
+    expect(within(region).getByText('Page 1 of 2')).toBeInTheDocument()
+    expect(within(region).getByRole('button', { name: 'Previous' })).toBeDisabled()
+
+    await user.click(within(region).getByRole('button', { name: 'Next' }))
+    expect(within(region).getAllByRole('listitem')).toHaveLength(3)
+    expect(within(region).getByText('Page 2 of 2')).toBeInTheDocument()
+    expect(within(region).getByRole('button', { name: 'Next' })).toBeDisabled()
+  })
+
+  it('shows no pager when the history fits on one page', async () => {
+    acquisition({
+      'GET /api/acquisition/downloads': () => jsonResponse([download({ id: 'd1', entryId: 'e1', state: 'QUEUED' })]),
+    })
+    renderApp('/admin/downloads')
+    const region = await screen.findByRole('region', { name: 'All downloads' })
+    await within(region).findByRole('heading', { name: 'Sintel' })
+    expect(screen.queryByRole('navigation', { name: 'Download pages' })).not.toBeInTheDocument()
   })
 })

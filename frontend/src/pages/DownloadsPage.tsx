@@ -21,6 +21,9 @@ import styles from './AdminPage.module.css'
 /** While a download is queued or running, the list is read again this often (the server checks every 10 s). */
 export const REFRESH_MS = 5000
 
+/** The downloads shown on one page of the history. */
+export const PAGE_SIZE = 10
+
 function pollWhileActive(downloads: Download[]): number | null {
   return downloads.some(isActive) ? REFRESH_MS : null
 }
@@ -42,6 +45,7 @@ export function DownloadsPage() {
   const downloads = useLiveData(listDownloads, pollWhileActive)
   const [reminderFor, setReminderFor] = useState<Entry | null>(null)
   const [cancelling, setCancelling] = useState<Download | null>(null)
+  const [page, setPage] = useState(0)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
   const noticeRef = useRef<HTMLParagraphElement>(null)
@@ -54,6 +58,10 @@ export function DownloadsPage() {
   const entries = catalogue.state.status === 'success' ? catalogue.state.data : []
   const list = downloads.state.status === 'success' ? downloads.state.data : []
   const titleOf = (entryId: string) => entries.find((entry) => entry.id === entryId)?.title ?? 'Catalogue entry'
+  // The list is read whole, and shown PAGE_SIZE at a time, newest first. A page that no longer exists is left behind.
+  const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE))
+  const current = Math.min(page, pageCount - 1)
+  const visible = list.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE)
   const activeEntries = new Set(list.filter(isActive).map((download) => download.entryId))
 
   async function confirmStart() {
@@ -104,44 +112,6 @@ export function DownloadsPage() {
         </p>
       )}
 
-      <section className={styles.section} aria-labelledby="downloads-heading">
-        <h2 id="downloads-heading" className={styles.heading}>
-          All downloads
-        </h2>
-        {downloads.state.status === 'loading' && <LoadingState label="Loading the downloads…" />}
-        {downloads.state.status === 'error' && (
-          <ErrorState
-            title="The downloads cannot be shown"
-            message={describeError(downloads.state.error)}
-            onRetry={downloads.retry}
-          />
-        )}
-        {downloads.state.status === 'success' &&
-          (list.length === 0 ? (
-            <EmptyState title="No downloads yet">
-              <p>Start one from the verified catalogue below.</p>
-            </EmptyState>
-          ) : (
-            <>
-              {downloads.stale && (
-                <p className={styles.stale} role="status">
-                  The list could not be refreshed. It is shown as it was a moment ago.
-                </p>
-              )}
-              <ul className={styles.list}>
-                {list.map((download) => (
-                  <DownloadItem
-                    key={download.id}
-                    download={download}
-                    title={titleOf(download.entryId)}
-                    onCancel={() => setCancelling(download)}
-                  />
-                ))}
-              </ul>
-            </>
-          ))}
-      </section>
-
       <section className={styles.section} aria-labelledby="catalogue-heading">
         <h2 id="catalogue-heading" className={styles.heading}>
           Verified catalogue
@@ -177,6 +147,57 @@ export function DownloadsPage() {
                 />
               ))}
             </ul>
+          ))}
+      </section>
+
+      <section className={styles.section} aria-labelledby="downloads-heading">
+        <h2 id="downloads-heading" className={styles.heading}>
+          All downloads
+        </h2>
+        {downloads.state.status === 'loading' && <LoadingState label="Loading the downloads…" />}
+        {downloads.state.status === 'error' && (
+          <ErrorState
+            title="The downloads cannot be shown"
+            message={describeError(downloads.state.error)}
+            onRetry={downloads.retry}
+          />
+        )}
+        {downloads.state.status === 'success' &&
+          (list.length === 0 ? (
+            <EmptyState title="No downloads yet">
+              <p>Start one from the verified catalogue above.</p>
+            </EmptyState>
+          ) : (
+            <>
+              {downloads.stale && (
+                <p className={styles.stale} role="status">
+                  The list could not be refreshed. It is shown as it was a moment ago.
+                </p>
+              )}
+              <ul className={styles.list}>
+                {visible.map((download) => (
+                  <DownloadItem
+                    key={download.id}
+                    download={download}
+                    title={titleOf(download.entryId)}
+                    onCancel={() => setCancelling(download)}
+                  />
+                ))}
+              </ul>
+              {pageCount > 1 && (
+                <nav className={styles.pager} aria-label="Download pages">
+                  <Button variant="secondary" onClick={() => setPage(current - 1)} disabled={current === 0}>
+                    Previous
+                  </Button>
+                  <span className={styles.pageInfo}>
+                    Page {current + 1} of {pageCount}
+                  </span>
+                  <Button variant="secondary" onClick={() => setPage(current + 1)} disabled={current >= pageCount - 1}>
+                    Next
+                  </Button>
+                </nav>
+              )}
+            </>
           ))}
       </section>
 

@@ -28,7 +28,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
   padding: 0.75rem var(--gutter);
   background: var(--bg);
   border-bottom: 1px solid var(--border);
@@ -39,15 +40,54 @@
   border-radius: var(--radius-sm);
 }
 
-.nav {
-  display: flex;
-  gap: 0.25rem;
-  order: 3;
+.burger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.burger:hover {
+  border-color: var(--text-muted);
+}
+
+.burger svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* Mobile first: the menu is a panel under the logo, opened by the burger button. */
+.menu {
+  display: none;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
   width: 100%;
 }
 
+.menuOpen {
+  display: flex;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 .navLink {
-  padding: 0.5rem 0.75rem;
+  display: block;
+  text-align: center;
+  padding: 0.75rem;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-weight: 500;
@@ -67,10 +107,28 @@
   text-underline-offset: 0.4em;
 }
 
-@media (min-width: 40rem) {
-  .nav {
-    order: 0;
+/* Desktop: no burger, the navigation and the account menu share the header row. */
+@media (min-width: 60rem) {
+  .burger {
+    display: none;
+  }
+
+  .menu {
+    display: flex;
+    flex: 1;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
     width: auto;
+  }
+
+  .nav {
+    flex-direction: row;
+  }
+
+  .navLink {
+    padding: 0.5rem 0.75rem;
+    text-align: start;
   }
 }
 
