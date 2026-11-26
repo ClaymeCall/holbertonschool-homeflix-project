@@ -21,11 +21,15 @@ Where to get each file again:
 
 *Sintel* is the smallest and is the file of the peer-to-peer demo (J1, J10). *Big Buck Bunny* and *Tears of Steel* are larger, so they are used to fill the catalogue rather than for a live transfer.
 
+### More films (#198)
+
+Nine more Blender open movies are entries of the catalogue, under CC BY 2.5, 3.0 or 4.0: *Spring*, *Sprite Fright*, *Caminandes 3: Llamigos*, *Charge*, *Coffee Run*, *Cosmos Laundromat*, *Elephants Dream*, *Hero* and *Wing It!*. Their licences, files (size, SHA-256, format) and torrents are in [acquisition-entries.md](acquisition-entries.md#more-blender-open-movies-198). All are in the supported format. Five were remuxed to put the index first, and their attribution says so. Get them through the team's torrents.
+
 ## How they get into HomeFlix
 
-All three are entries of the verified acquisition catalogue. An administrator downloads them from **Administration > Downloads**, and each completed file is handed to the library and appears in the catalogue (J8). This is the way used in the demo.
+All of them are entries of the verified acquisition catalogue. An administrator downloads them from **Administration > Downloads**, and each completed file is handed to the library and appears in the catalogue (J8). This is the way used in the demo.
 
-A download only works while a peer seeds the file. *Sintel* has a main and a backup seeder ([p2p-test-file.md](p2p-test-file.md#seeding-plan-risk-r-21)). *Big Buck Bunny* and *Tears of Steel* have a single seeder, Thomas's computer, and no backup seeder ([acquisition-entries.md](acquisition-entries.md#seeding), risk R-21): they can only be downloaded while it is on.
+A download only works while a peer seeds the file. *Sintel* has a main and a backup seeder ([p2p-test-file.md](p2p-test-file.md#seeding-plan-risk-r-21)). *Big Buck Bunny*, *Tears of Steel* and the nine films of #198 have a single seeder, Thomas's computer, and no backup seeder ([acquisition-entries.md](acquisition-entries.md#seeding), risk R-21): they can only be downloaded while it is on.
 
 For a first install with no peer available, the same files can also be copied into the folder mounted as `/media/library` (`MEDIA_LIBRARY_PATH`), and that folder added and scanned in **Administration > Library**. Check the SHA-256 first.
 

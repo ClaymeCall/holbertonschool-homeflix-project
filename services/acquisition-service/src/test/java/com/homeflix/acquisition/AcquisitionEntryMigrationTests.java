@@ -16,7 +16,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * The verified catalogue table (V2) and its entries (V3, V7) against a real PostgreSQL (ADR-0011):
+ * The verified catalogue table (V2) and its entries (V3, V7, V8, V9) against a real PostgreSQL (ADR-0011):
  * what the database refuses, so a bad entry cannot be added even by a migration (ACQ-02, R-15, R-19).
  */
 @Import(TestcontainersConfiguration.class)
@@ -67,6 +67,57 @@ class AcquisitionEntryMigrationTests {
 				.startsWith("magnet:?xt=urn:btih:7b28c6b6cfc3eaf6b546fb2256c6d9c883f316c3&");
 		assertThat((String) tears.get("download_source"))
 				.startsWith("magnet:?xt=urn:btih:e6d8867d826b6406746e067e8b08d582cbb9dee8&");
+	}
+
+	@Test
+	void springAndSpriteFrightAreVerifiedEntries() {
+		Map<String, Object> spring = jdbc.queryForMap("select * from acquisition_entry where title = 'Spring'");
+		Map<String, Object> sprite = jdbc.queryForMap("select * from acquisition_entry where title = 'Sprite Fright'");
+
+		assertThat(spring.get("source_url")).isEqualTo("https://studio.blender.org/films/spring/");
+		assertThat(sprite.get("source_url")).isEqualTo("https://studio.blender.org/films/sprite-fright/");
+		for (Map<String, Object> entry : List.of(spring, sprite)) {
+			assertThat(entry.get("licence")).isEqualTo("Creative Commons Attribution 4.0 International (CC BY 4.0)");
+			assertThat(entry.get("licence_url")).isEqualTo("https://creativecommons.org/licenses/by/4.0/");
+			assertThat(entry.get("expected_format")).isEqualTo("MP4");
+		}
+		// CC BY asks to say when the work was changed: Spring was remuxed.
+		assertThat((String) spring.get("attribution")).contains("Remuxed");
+		assertThat(spring.get("expected_size_bytes")).isEqualTo(90190400L);
+		assertThat(sprite.get("expected_size_bytes")).isEqualTo(110581245L);
+		// The single-file torrents built for HomeFlix (#198).
+		assertThat((String) spring.get("download_source"))
+				.startsWith("magnet:?xt=urn:btih:df418f62342353102d8c74e3f66f65643bd60a47&");
+		assertThat((String) sprite.get("download_source"))
+				.startsWith("magnet:?xt=urn:btih:d219709e3db88021f22b26ba21ee5aeffcab3b54&");
+	}
+
+	@Test
+	void sevenMoreBlenderOpenMoviesAreVerifiedEntries() {
+		// Title, licence version, expected size and info hash of the single-file torrent built for HomeFlix (#198).
+		Object[][] expected = {
+				{ "Caminandes 3: Llamigos", "3.0", 138945811L, "13179b286c170a89d226f83724ced32bd40919d4" },
+				{ "Charge", "4.0", 191560304L, "5175c58aa5334f23bad19f3c79d4c493f255e597" },
+				{ "Coffee Run", "4.0", 17475696L, "909a2a7aa6560cc4de8bb8285a8b480ff12514da" },
+				{ "Cosmos Laundromat", "4.0", 220087074L, "e8b8a9f4b82bc070aafb9c50348c85719c35e5e7" },
+				{ "Elephants Dream", "2.5", 67801890L, "247ad6ae086248ee40e8bf537cbb5ae1b8c9bebf" },
+				{ "Hero", "4.0", 53008533L, "11eb33acc6693933c7c7bc946a3b6c5e73e51a34" },
+				{ "Wing It!", "4.0", 65577791L, "3f6cc49e3fc6fc2fc0e7734590973a76ed3103fe" } };
+		for (Object[] film : expected) {
+			Map<String, Object> entry = jdbc.queryForMap("select * from acquisition_entry where title = ?", film[0]);
+
+			assertThat((String) entry.get("licence")).contains("(CC BY " + film[1] + ")");
+			assertThat(entry.get("licence_url")).isEqualTo("https://creativecommons.org/licenses/by/" + film[1] + "/");
+			assertThat((String) entry.get("source_url")).startsWith("https://");
+			assertThat(entry.get("expected_format")).isEqualTo("MP4");
+			assertThat(entry.get("expected_size_bytes")).isEqualTo(film[2]);
+			assertThat((String) entry.get("download_source")).startsWith("magnet:?xt=urn:btih:" + film[3] + "&");
+		}
+		// CC BY asks to say when the work was changed: these four were remuxed.
+		for (String remuxed : List.of("Coffee Run", "Cosmos Laundromat", "Hero", "Wing It!")) {
+			assertThat(jdbc.queryForObject("select attribution from acquisition_entry where title = ?", String.class,
+					remuxed)).contains("Remuxed");
+		}
 	}
 
 	@Test
