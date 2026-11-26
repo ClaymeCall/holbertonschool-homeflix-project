@@ -65,3 +65,11 @@ export function cancelDownload(id: string): Promise<Download> {
 export function isActive(download: Download): boolean {
   return download.state === 'QUEUED' || download.state === 'DOWNLOADING'
 }
+
+/**
+ * Deletes a finished download (completed, or failed) from the history. Only the record goes: the title stays in
+ * the library. Fails with 409 `download_not_deletable` for an active download.
+ */
+export function deleteDownload(id: string): Promise<void> {
+  return apiRequest<void>(`${BASE}/downloads/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
