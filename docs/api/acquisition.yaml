@@ -7,7 +7,7 @@ info:
   description: |
     The verified acquisition catalogue: content the team has checked as downloadable and redistributable,
     each entry with its source, its licence and its expected size (ACQ-01, ACQ-02, R-19), and starting and
-    cancelling the download of an entry (ACQ-03). Download status tracking (J6) and the handoff of completed
+    cancelling the download of an entry (ACQ-03), and deleting a finished one from the history. Download status tracking (J6) and the handoff of completed
     files to the library (J7) are added to this file by the pull requests that build them.
 
     Paths are those of the service. Through the gateway they are served under `/api/acquisition`
@@ -98,7 +98,8 @@ paths:
       summary: List the downloads
       description: |
         Every download, newest first, with its state, progress and, for a failed one, the reason in plain
-        language (ACQ-03, ACQ-04). Not paged: downloads are started one by one by an administrator.
+        language (ACQ-03, ACQ-04). Not paged: downloads are started one by one by an administrator, and the
+        interface shows them ten at a time.
       x-permission: admin
       responses:
         '200':
