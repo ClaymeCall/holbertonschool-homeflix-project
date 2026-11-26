@@ -25,7 +25,7 @@ No defect was found.
 
 Clients send media ids, never file paths. Before opening a file, the library resolves its real path, links included, and checks that it is inside its own root (`MediaPathGuard`, see [file access](../library/file-access.md)). A root can only be added inside a mounted path (`RootValidator`). The completed-file checks of the acquisition service apply the same rule to the downloads folder.
 
-Tests, all passing in the full suites of 2026-11-25 (library 366 tests, acquisition 171 tests, no failure):
+Tests, all passing in the full suites of 2026-11-26 (library 370 tests, acquisition 175 tests, no failure, the same counts as CI):
 
 | What is refused | Tests |
 |---|---|
