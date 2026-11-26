@@ -7,7 +7,7 @@ Hand-written OpenAPI contracts, written **before** the implementation (ADR-0010,
 | [`common.yaml`](common.yaml) | Error body, session security scheme and responses shared by every service. |
 | [`identity.yaml`](identity.yaml) | First-run setup, sessions, account administration and viewing profiles. |
 | [`library.yaml`](library.yaml) | Folders, scans, catalogue, streaming with Range, favourites and progress. |
-| [`acquisition.yaml`](acquisition.yaml) | The verified acquisition catalogue, and listing, starting, tracking and cancelling downloads, up to the handoff of the completed file to the library. |
+| [`acquisition.yaml`](acquisition.yaml) | The verified acquisition catalogue, and listing, starting, tracking, cancelling and deleting downloads, up to the handoff of the completed file to the library. |
 
 Acquisition downloads and the handoff to the library, and the administration of catalogue metadata, are written in later pull requests, when their issues start.
 
@@ -73,7 +73,7 @@ Every service verifies the token itself with the identity service's public key. 
 | Operation | Permission |
 |---|---|
 | `GET /entries`, `GET /entries/{entryId}` | admin |
-| `GET /downloads`, `POST /downloads`, `GET /downloads/{downloadId}`, `POST /downloads/{downloadId}/cancel` | admin |
+| `GET /downloads`, `POST /downloads`, `GET /downloads/{downloadId}`, `POST /downloads/{downloadId}/cancel`, `DELETE /downloads/{downloadId}` | admin |
 
 Every acquisition operation is administrator only (ACQ-05). Entries are added by a reviewed migration, never through the API, and no operation accepts a URL, a magnet link or a torrent file (ACQ-09, ACQ-10, R-15).
 
@@ -94,6 +94,7 @@ These codes are introduced by the contracts and must be added to the [error mode
 | `range_not_satisfiable` | 416 | A byte range outside the file, or several ranges. |
 | `download_in_progress` | 409 | Starting the download of an entry that already has one queued or downloading. |
 | `download_not_cancellable` | 409 | Cancelling a download that has already completed or failed. |
+| `download_not_deletable` | 409 | Deleting a download that is queued or downloading, or a failure the library has not been told about yet. |
 
 ## Streaming and Range
 

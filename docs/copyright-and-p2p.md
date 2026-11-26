@@ -30,7 +30,7 @@ While a file downloads, the peer-to-peer client also **sends pieces of it to oth
 
 - Only entries from a **verified acquisition catalogue** can be downloaded. Each entry records its source and its licence or other authorization.
 - There is **no field to enter a URL or a magnet link**, so HomeFlix cannot be pointed at an arbitrary source.
-- Only an **administrator** can start or cancel a download. The server enforces it, not only the interface.
+- Only an **administrator** can start, cancel or delete a download. The server enforces it, not only the interface.
 - A **rights reminder** is shown before every download, and the server refuses a start that does not confirm it (see below).
 
 ## What HomeFlix cannot do for you

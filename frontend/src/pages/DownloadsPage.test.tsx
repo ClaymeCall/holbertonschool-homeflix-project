@@ -135,7 +135,8 @@ describe('DownloadsPage', () => {
     expect(within(items[1]).getByText('Queued')).toBeInTheDocument()
     expect(within(items[2]).getByText('Completed')).toBeInTheDocument()
     expect(within(items[2]).queryByRole('progressbar')).not.toBeInTheDocument()
-    expect(within(items[2]).queryByRole('button')).not.toBeInTheDocument()
+    // A finished download cannot be cancelled, only deleted from the history.
+    expect(within(items[2]).queryByRole('button', { name: /^Cancel/ })).not.toBeInTheDocument()
     expect(within(items[3]).getByText('Failed')).toBeInTheDocument()
     expect(within(items[3]).getByText('This download was cancelled.')).toBeInTheDocument()
     // An entry with an active download cannot be started again, and says why.
@@ -402,5 +403,59 @@ describe('DownloadsPage', () => {
     const region = await screen.findByRole('region', { name: 'All downloads' })
     await within(region).findByRole('heading', { name: 'Sintel' })
     expect(screen.queryByRole('navigation', { name: 'Download pages' })).not.toBeInTheDocument()
+  })
+
+  // ---- Deleting from the history ----
+
+  it('deletes a finished download from the history after a confirmation', async () => {
+    let deleted = false
+    const done = download({ id: 'd1', entryId: 'e1', state: 'COMPLETED', progressPercent: 100, finishedAt: '2026-11-19T09:00:00Z' })
+    const fetch = acquisition({
+      'GET /api/acquisition/downloads': () => jsonResponse(deleted ? [] : [done]),
+      'DELETE /api/acquisition/downloads/d1': () => {
+        deleted = true
+        return new Response(null, { status: 204 })
+      },
+    })
+    renderApp('/admin/downloads')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Delete the download of Sintel from the history' }))
+    const dialog = screen.getByRole('dialog', { name: 'Delete this download?' })
+    expect(callsTo(fetch, 'DELETE /api/acquisition/downloads/d1')).toHaveLength(0)
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('The download of Sintel was deleted from the history.')
+    expect(await screen.findByRole('heading', { name: 'No downloads yet' })).toBeInTheDocument()
+    expect(callsTo(fetch, 'DELETE /api/acquisition/downloads/d1')).toHaveLength(1)
+  })
+
+  it('offers no delete for a download that is queued or downloading', async () => {
+    acquisition({
+      'GET /api/acquisition/downloads': () =>
+        jsonResponse([
+          download({ id: 'd1', entryId: 'e1', state: 'DOWNLOADING', progressPercent: 30 }),
+          download({ id: 'd2', entryId: 'e2', state: 'QUEUED' }),
+        ]),
+    })
+    renderApp('/admin/downloads')
+    const region = await screen.findByRole('region', { name: 'All downloads' })
+    await within(region).findAllByRole('listitem')
+    expect(screen.queryByRole('button', { name: /^Delete the download/ })).not.toBeInTheDocument()
+  })
+
+  it('shows the server message when a delete is refused', async () => {
+    acquisition({
+      'GET /api/acquisition/downloads': () =>
+        jsonResponse([download({ id: 'd1', entryId: 'e1', state: 'FAILED', errorCode: 'client_error', errorMessage: 'x', finishedAt: '2026-11-19T09:00:00Z' })]),
+      'DELETE /api/acquisition/downloads/d1': () =>
+        jsonResponse({ error: 'download_not_deletable', message: 'This download cannot be deleted yet.' }, 409),
+    })
+    renderApp('/admin/downloads')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Delete the download of Sintel from the history' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('This download cannot be deleted yet.')
   })
 })

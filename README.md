@@ -118,7 +118,7 @@ To let other people use HomeFlix, create their accounts in **Administration**, t
 
 ### Getting videos by peer-to-peer
 
-In **Administration**, then **Downloads**, you can download an authorized video from the verified catalogue. A rights reminder is shown first. Read the [copyright and peer-to-peer awareness note](docs/copyright-and-p2p.md) before your first download.
+In **Administration**, then **Downloads**, you can download an authorized video from the verified catalogue. A rights reminder is shown first. Read the [copyright and peer-to-peer awareness note](docs/copyright-and-p2p.md) before your first download. The verified catalogue comes first on that page, then the history of all downloads, ten per page, newest first. A queued or running download can be cancelled. A completed or failed one can be deleted from the history with **Delete**: only its line in the list is removed, and titles already in the library are not affected.
 
 Before the first download, add `/media/downloads` as a media folder too (step 7.3). If you skip this, the download finishes but the library refuses the file, and the download looks stuck. To accept incoming connections from other peers, forward `QBITTORRENT_PEER_PORT` (6881 by default) on your router to this computer. Forward only this port, never `GATEWAY_PORT`: HomeFlix uses plain HTTP and is not meant to be reachable from the Internet. Downloads usually work without it, but slowly or not at all if there are few peers.
 

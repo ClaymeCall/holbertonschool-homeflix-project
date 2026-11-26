@@ -220,6 +220,19 @@ class DownloadRepository {
 				""", errorCode, id) == 1;
 	}
 
+	/**
+	 * Removes a finished job from the history: COMPLETED, or FAILED with the library already told. A job that is
+	 * still active, or a failure the library has not been told about yet, is kept: the status check still needs it.
+	 *
+	 * @return false when the job was not removable (nothing was changed)
+	 */
+	boolean deleteFinished(UUID id) {
+		return jdbc.update("""
+				delete from download_job
+				where id = ? and (state = 'COMPLETED' or (state = 'FAILED' and library_synced_at is not null))
+				""", id) == 1;
+	}
+
 	void markLibrarySynced(UUID id) {
 		jdbc.update("update download_job set library_synced_at = now() where id = ?", id);
 	}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   cancelDownload,
+  deleteDownload,
   isActive,
   listDownloads,
   listEntries,
@@ -45,14 +46,16 @@ export function DownloadsPage() {
   const downloads = useLiveData(listDownloads, pollWhileActive)
   const [reminderFor, setReminderFor] = useState<Entry | null>(null)
   const [cancelling, setCancelling] = useState<Download | null>(null)
+  const [deleting, setDeleting] = useState<Download | null>(null)
   const [page, setPage] = useState(0)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
   const noticeRef = useRef<HTMLParagraphElement>(null)
 
-  // A start or a cancel disables or removes the button that opened its dialog, so focus goes to the outcome.
+  // A start, a cancel or a delete disables or removes the button that opened its dialog, so focus goes to the outcome.
+  // The page must not scroll to it: the notice is a toast fixed at the bottom of the screen, always in view.
   useEffect(() => {
-    if (notice) noticeRef.current?.focus()
+    if (notice) noticeRef.current?.focus({ preventScroll: true })
   }, [notice])
 
   const entries = catalogue.state.status === 'success' ? catalogue.state.data : []
@@ -96,6 +99,22 @@ export function DownloadsPage() {
     }
   }
 
+  async function confirmDelete() {
+    if (!deleting) return
+    const title = titleOf(deleting.entryId)
+    setBusy(true)
+    try {
+      await deleteDownload(deleting.id)
+      setNotice({ kind: 'success', text: `The download of ${title} was deleted from the history.` })
+    } catch (error) {
+      setNotice({ kind: 'error', text: describeError(error) })
+    } finally {
+      setBusy(false)
+      setDeleting(null)
+      downloads.refresh()
+    }
+  }
+
   return (
     <div className={styles.page}>
       <title>Downloads · HomeFlix</title>
@@ -105,10 +124,13 @@ export function DownloadsPage() {
         <p
           ref={noticeRef}
           tabIndex={-1}
-          className={notice.kind === 'error' ? styles.noticeError : styles.notice}
+          className={`${notice.kind === 'error' ? styles.noticeError : styles.notice} ${styles.toast}`}
           role={notice.kind === 'error' ? 'alert' : 'status'}
         >
-          {notice.text}
+          <span>{notice.text}</span>
+          <button type="button" className={styles.dismiss} onClick={() => setNotice(null)}>
+            Dismiss
+          </button>
         </p>
       )}
 
@@ -181,6 +203,10 @@ export function DownloadsPage() {
                     download={download}
                     title={titleOf(download.entryId)}
                     onCancel={() => setCancelling(download)}
+                    onDelete={() => {
+                      setNotice(null)
+                      setDeleting(download)
+                    }}
                   />
                 ))}
               </ul>
@@ -233,6 +259,28 @@ export function DownloadsPage() {
         </Dialog>
       )}
 
+      {deleting && (
+        <Dialog
+          title="Delete this download?"
+          onClose={() => setDeleting(null)}
+          actions={
+            <>
+              <Button variant="secondary" onClick={() => setDeleting(null)} disabled={busy}>
+                Keep it
+              </Button>
+              <Button onClick={confirmDelete} disabled={busy}>
+                {busy ? 'Deleting…' : 'Delete'}
+              </Button>
+            </>
+          }
+        >
+          <p>
+            The download of {titleOf(deleting.entryId)} is removed from this list. Titles already in the library are
+            not affected.
+          </p>
+        </Dialog>
+      )}
+
       {cancelling && (
         <Dialog
           title="Cancel this download?"
@@ -258,7 +306,17 @@ export function DownloadsPage() {
   )
 }
 
-function DownloadItem({ download, title, onCancel }: { download: Download; title: string; onCancel: () => void }) {
+function DownloadItem({
+  download,
+  title,
+  onCancel,
+  onDelete,
+}: {
+  download: Download
+  title: string
+  onCancel: () => void
+  onDelete: () => void
+}) {
   const finishing = isFinishing(download)
   const label = finishing ? 'Finishing' : downloadStateLabel[download.state]
   const started = formatDateTime(download.createdAt)
@@ -285,6 +343,13 @@ function DownloadItem({ download, title, onCancel }: { download: Download; title
         <div className={styles.actions}>
           <Button variant="secondary" onClick={onCancel} aria-label={`Cancel the download of ${title}`}>
             Cancel
+          </Button>
+        </div>
+      )}
+      {!isActive(download) && (
+        <div className={styles.actions}>
+          <Button variant="secondary" onClick={onDelete} aria-label={`Delete the download of ${title} from the history`}>
+            Delete
           </Button>
         </div>
       )}

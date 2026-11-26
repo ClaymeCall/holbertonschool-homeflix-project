@@ -282,3 +282,29 @@
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* An outcome shown over the page, at the bottom of the screen: it is seen wherever the page is scrolled to. */
+.toast {
+  position: fixed;
+  right: var(--gutter);
+  bottom: 1rem;
+  left: var(--gutter);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 40rem;
+  margin: 0 auto;
+  box-shadow: 0 0.5rem 2rem rgb(0 0 0 / 0.5);
+}
+
+.dismiss {
+  flex-shrink: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
