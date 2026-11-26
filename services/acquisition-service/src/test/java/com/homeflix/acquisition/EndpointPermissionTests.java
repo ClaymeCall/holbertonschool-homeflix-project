@@ -6,10 +6,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.IntPredicate;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
@@ -76,7 +75,7 @@ class EndpointPermissionTests {
 
 	@Test
 	void everyEndpointIsListed() {
-		assertThat(new TreeSet<>(applicationEndpoints())).isEqualTo(new TreeSet<>(ENDPOINTS));
+		assertThat(new TreeSet<>(ApplicationEndpoints.of(mappings))).isEqualTo(new TreeSet<>(ENDPOINTS));
 	}
 
 	@Test
@@ -91,8 +90,23 @@ class EndpointPermissionTests {
 		expect(request -> request.cookie(new Cookie("homeflix_token", user)), 403);
 	}
 
+	@Test
+	void anAdministratorGetsPastTheGuardEverywhere() throws Exception {
+		// Without this, a guard that refused everyone would still pass the refusal tests above. The answer can be
+		// 200 or 404 (the ids are random), or 503 without a torrent client, but never 401 or 403.
+		String admin = TestTokens.admin(UUID.randomUUID());
+		check(request -> request.cookie(new Cookie("homeflix_token", admin)),
+				answered -> answered != 401 && answered != 403, "a refusal");
+	}
+
 	private void expect(Function<MockHttpServletRequestBuilder, MockHttpServletRequestBuilder> caller, int status)
 			throws Exception {
+		check(caller, answered -> answered == status, "instead of " + status);
+	}
+
+	/** Sends every endpoint as {@code caller} makes it, and checks the status it answers. */
+	private void check(Function<MockHttpServletRequestBuilder, MockHttpServletRequestBuilder> caller,
+			IntPredicate expected, String otherwise) throws Exception {
 		List<String> problems = new ArrayList<>();
 		for (String endpoint : ENDPOINTS) {
 			String[] parts = endpoint.split(" ", 2);
@@ -103,28 +117,11 @@ class EndpointPermissionTests {
 				request.contentType(MediaType.APPLICATION_JSON).content(body);
 			}
 			int answered = mvc.perform(caller.apply(request)).andReturn().getResponse().getStatus();
-			if (answered != status) {
-				problems.add(endpoint + " answered " + answered + " instead of " + status);
+			if (!expected.test(answered)) {
+				problems.add(endpoint + " answered " + answered + ", " + otherwise);
 			}
 		}
 		assertThat(problems).isEmpty();
-	}
-
-	/** The endpoints of HomeFlix code, as "METHOD /path". Framework ones such as /error are left out. */
-	private List<String> applicationEndpoints() {
-		List<String> endpoints = new ArrayList<>();
-		mappings.getHandlerMethods().forEach((info, handler) -> {
-			if (!handler.getBeanType().getPackageName().startsWith("com.homeflix")) {
-				return;
-			}
-			Set<RequestMethod> methods = info.getMethodsCondition().getMethods();
-			for (String path : info.getPatternValues()) {
-				for (RequestMethod method : methods.isEmpty() ? Set.of(RequestMethod.GET) : methods) {
-					endpoints.add(method.name() + " " + path);
-				}
-			}
-		});
-		return endpoints;
 	}
 
 }

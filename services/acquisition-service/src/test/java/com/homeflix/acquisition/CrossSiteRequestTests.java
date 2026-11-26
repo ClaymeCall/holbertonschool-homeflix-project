@@ -23,7 +23,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
@@ -48,7 +47,7 @@ class CrossSiteRequestTests {
 				() -> TestTokens.writeTemporaryPem(TestTokens.toPem(TestTokens.identityPublicKey())));
 	}
 
-	private static final Set<RequestMethod> SAFE = Set.of(RequestMethod.GET, RequestMethod.HEAD, RequestMethod.OPTIONS);
+	private static final Set<String> SAFE = Set.of("GET", "HEAD", "OPTIONS");
 
 	/** A valid body, so validation never answers first. */
 	private static final Map<String, String> BODIES = Map.of(
@@ -121,18 +120,9 @@ class CrossSiteRequestTests {
 
 	/** The HomeFlix endpoints whose method is not GET, HEAD or OPTIONS, as "METHOD /path". */
 	private List<String> stateChangingEndpoints() {
-		List<String> endpoints = new ArrayList<>();
-		mappings.getHandlerMethods().forEach((info, handler) -> {
-			if (!handler.getBeanType().getPackageName().startsWith("com.homeflix")) {
-				return;
-			}
-			for (RequestMethod method : info.getMethodsCondition().getMethods()) {
-				if (!SAFE.contains(method)) {
-					info.getPatternValues().forEach(path -> endpoints.add(method.name() + " " + path));
-				}
-			}
-		});
-		return endpoints;
+		return ApplicationEndpoints.of(mappings).stream()
+				.filter(endpoint -> !SAFE.contains(endpoint.split(" ", 2)[0]))
+				.toList();
 	}
 
 }

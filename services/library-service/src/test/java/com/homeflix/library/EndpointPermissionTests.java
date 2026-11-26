@@ -13,7 +13,9 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.IntPredicate;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,12 +24,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
@@ -90,12 +92,15 @@ class EndpointPermissionTests {
 		PERMISSIONS.put("GET /demo/identity", Permission.ANONYMOUS);
 	}
 
+	/** The title sent in bodies, so what an allowed call creates can be removed. */
+	private static final String TEST_TITLE = "Endpoint permission test";
+
 	/** A valid body for the endpoints that read one. */
 	private static final Map<String, String> BODIES = Map.of(
 			"POST /roots", "{\"path\":\"/media/library\"}",
-			"PUT /media/{mediaId}", "{\"title\":\"A title\"}",
+			"PUT /media/{mediaId}", "{\"title\":\"" + TEST_TITLE + "\"}",
 			"PUT /progress/{mediaId}", "{\"positionSeconds\":10,\"durationSeconds\":100}",
-			"PUT /internal/downloads/{entryId}", "{\"title\":\"A title\"}",
+			"PUT /internal/downloads/{entryId}", "{\"title\":\"" + TEST_TITLE + "\"}",
 			"POST /internal/downloads/{entryId}/completed", "{\"relativePath\":\"film.mp4\"}");
 
 	private final UUID account = UUID.randomUUID();
@@ -103,6 +108,9 @@ class EndpointPermissionTests {
 
 	@Autowired
 	private WebApplicationContext context;
+
+	@Autowired
+	private JdbcTemplate jdbc;
 
 	@Autowired
 	@Qualifier("requestMappingHandlerMapping")
@@ -117,7 +125,7 @@ class EndpointPermissionTests {
 
 	@Test
 	void everyEndpointHasAPermissionAndEveryPermissionAnEndpoint() {
-		assertThat(new TreeSet<>(applicationEndpoints())).isEqualTo(new TreeSet<>(PERMISSIONS.keySet()));
+		assertThat(new TreeSet<>(ApplicationEndpoints.of(mappings))).isEqualTo(new TreeSet<>(PERMISSIONS.keySet()));
 	}
 
 	@Test
@@ -155,9 +163,42 @@ class EndpointPermissionTests {
 				401);
 	}
 
+	@Test
+	void theAllowedCallerGetsPastTheGuardEverywhere() throws Exception {
+		// Without this, a guard that refused everyone would still pass the refusal tests above. The answer can be
+		// 200, 204 or 404 (the ids are random), but never 401 or 403.
+		String user = TestTokens.user(account, profile);
+		Map<Permission, Function<MockHttpServletRequestBuilder, MockHttpServletRequestBuilder>> allowed = Map.of(
+				Permission.ANONYMOUS, request -> request,
+				Permission.ACCOUNT, request -> request.cookie(session(user)),
+				Permission.ADMIN, request -> request.cookie(session(TestTokens.admin(account))),
+				Permission.PROFILE, request -> request.cookie(session(user)),
+				Permission.ACQUISITION_SERVICE, request -> request.header("X-Service-Token", ACQUISITION_SECRET),
+				Permission.IDENTITY_SERVICE, request -> request.header("X-Service-Token", IDENTITY_SECRET));
+		assertThat(allowed.keySet()).containsExactlyInAnyOrder(Permission.values());
+		for (Map.Entry<Permission, Function<MockHttpServletRequestBuilder, MockHttpServletRequestBuilder>> caller
+				: allowed.entrySet()) {
+			check(Set.of(caller.getKey()), caller.getValue(), answered -> answered != 401 && answered != 403,
+					"a refusal");
+		}
+	}
+
+	@AfterEach
+	void removeWhatTheAllowedCallsCreated() {
+		// PUT /internal/downloads/{entryId} lists a downloading title.
+		jdbc.update("delete from media_item where title = ?", TEST_TITLE);
+	}
+
 	/** Sends each endpoint of these permissions, as {@code caller} makes it, and expects {@code status}. */
 	private void expect(Set<Permission> permissions,
 			Function<MockHttpServletRequestBuilder, MockHttpServletRequestBuilder> caller, int status) throws Exception {
+		check(permissions, caller, answered -> answered == status, "instead of " + status);
+	}
+
+	/** Sends each endpoint of these permissions, as {@code caller} makes it, and checks the status it answers. */
+	private void check(Set<Permission> permissions,
+			Function<MockHttpServletRequestBuilder, MockHttpServletRequestBuilder> caller, IntPredicate expected,
+			String otherwise) throws Exception {
 		List<String> problems = new ArrayList<>();
 		for (Map.Entry<String, Permission> endpoint : PERMISSIONS.entrySet()) {
 			if (!permissions.contains(endpoint.getValue())) {
@@ -171,8 +212,8 @@ class EndpointPermissionTests {
 				request.contentType(MediaType.APPLICATION_JSON).content(body);
 			}
 			int answered = mvc.perform(caller.apply(request)).andReturn().getResponse().getStatus();
-			if (answered != status) {
-				problems.add(endpoint.getKey() + " answered " + answered + " instead of " + status);
+			if (!expected.test(answered)) {
+				problems.add(endpoint.getKey() + " answered " + answered + ", " + otherwise);
 			}
 		}
 		assertThat(problems).isEmpty();
@@ -180,23 +221,6 @@ class EndpointPermissionTests {
 
 	private static Cookie session(String token) {
 		return new Cookie("homeflix_token", token);
-	}
-
-	/** The endpoints of HomeFlix code, as "METHOD /path". Framework ones such as /error are left out. */
-	private List<String> applicationEndpoints() {
-		List<String> endpoints = new ArrayList<>();
-		mappings.getHandlerMethods().forEach((info, handler) -> {
-			if (!handler.getBeanType().getPackageName().startsWith("com.homeflix")) {
-				return;
-			}
-			Set<RequestMethod> methods = info.getMethodsCondition().getMethods();
-			for (String path : info.getPatternValues()) {
-				for (RequestMethod method : methods.isEmpty() ? Set.of(RequestMethod.GET) : methods) {
-					endpoints.add(method.name() + " " + path);
-				}
-			}
-		});
-		return endpoints;
 	}
 
 }
