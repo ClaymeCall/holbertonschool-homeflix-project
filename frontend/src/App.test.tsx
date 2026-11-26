@@ -35,9 +35,12 @@ describe('App', () => {
     const backHome = await screen.findByRole('link', { name: 'Back to home' })
     expect(screen.getByRole('main')).not.toHaveFocus()
 
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
     await userEvent.click(backHome)
 
     expect(await screen.findByRole('main')).toHaveFocus()
+    // Without scrolling: on back and forward, the browser restores the position (#193 review).
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
   })
 
   it('starts a page opened from a link at the top, and leaves back and forward to the browser', async () => {

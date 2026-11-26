@@ -28,11 +28,12 @@ export function AppLayout() {
   // After a navigation, the link that was followed is often gone and focus would fall back to the top of the
   // document. Moving it to the main content tells keyboard and screen reader users that a new page is shown
   // (UX-04). Not on the first load, where the browser starts at the top, and not when the new page has
-  // already moved focus into its content (Search focuses its field).
+  // already moved focus into its content (Search focuses its field). focus() would scroll by default, which
+  // would undo the position the browser restores on back and forward: the scroll is left to the effect above.
   useEffect(() => {
     const main = mainRef.current
     if (firstLoad || !main || main.contains(document.activeElement)) return
-    main.focus()
+    main.focus({ preventScroll: true })
   }, [pathname, firstLoad])
 
   return (
