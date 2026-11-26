@@ -1,15 +1,20 @@
+/* Mobile first: stacked inside the burger menu, under a divider. */
 .menu {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: center;
   gap: 0.75rem;
-  margin-left: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
 }
 
 .account {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  max-width: 16rem;
+  max-width: 100%;
   color: var(--text);
   font-weight: 500;
   white-space: nowrap;
@@ -32,7 +37,7 @@
 }
 
 .profile {
-  max-width: 10rem;
+  max-width: 100%;
   overflow: hidden;
   color: var(--text);
   font-weight: 600;
@@ -45,12 +50,33 @@
   white-space: nowrap;
 }
 
+.menu button {
+  width: 100%;
+}
+
 .switch:hover {
   color: var(--text);
 }
 
-@media (max-width: 30rem) {
+@media (min-width: 60rem) {
+  .profile {
+    max-width: 10rem;
+  }
+
   .account {
-    display: none;
+    max-width: 16rem;
+  }
+
+  .menu {
+    flex-direction: row;
+    align-items: center;
+    text-align: start;
+    margin-left: auto;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .menu button {
+    width: auto;
   }
 }
