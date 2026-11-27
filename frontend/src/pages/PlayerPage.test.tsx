@@ -189,6 +189,31 @@ describe('PlayerPage', () => {
     expect(requestFullscreen).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the controls shown while the Back link has focus', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      player()
+      const video = await openPlayer()
+      fireEvent.play(video)
+      const shell = video.parentElement as HTMLElement
+      const shown = shell.className
+
+      // With no control focused, the controls hide after a while without activity.
+      ;(document.activeElement as HTMLElement).blur()
+      fireEvent.pointerMove(shell)
+      await act(() => vi.advanceTimersByTimeAsync(3000))
+      expect(shell.className).not.toBe(shown)
+
+      // Back is in the top bar: while it has focus, nothing hides.
+      screen.getByRole('link', { name: 'Back' }).focus()
+      fireEvent.pointerMove(shell)
+      await act(() => vi.advanceTimersByTimeAsync(3000))
+      expect(shell.className).toBe(shown)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('shows a loading indicator until the video can play', async () => {
     player()
     renderApp('/watch/m1')
