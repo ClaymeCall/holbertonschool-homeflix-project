@@ -154,6 +154,27 @@ describe('MovieDetailsPage', () => {
     expect(callsTo(fetch, 'DELETE /api/library/favourites/m1')).toHaveLength(1)
   })
 
+  it('keeps focus on My List while the change is saved, and sends it once', async () => {
+    let answer: (response: Response) => void = () => undefined
+    const fetch = withProgress(startedAt(0), {
+      'PUT /api/library/favourites/m1': () => new Promise<Response>((resolve) => (answer = resolve)),
+    })
+    renderApp('/movies/m1')
+
+    const toggle = await screen.findByRole('button', { name: 'My List' })
+    toggle.focus()
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-disabled', 'true'))
+    expect(toggle).toHaveFocus()
+    await userEvent.keyboard('{Enter}')
+    expect(callsTo(fetch, 'PUT /api/library/favourites/m1')).toHaveLength(1)
+
+    answer(new Response(null, { status: 204 }))
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'true'))
+    expect(toggle).toHaveAttribute('aria-disabled', 'false')
+    expect(toggle).toHaveFocus()
+  })
+
   it('shows a film already in My List as pressed', async () => {
     withProgress(startedAt(0), { 'GET /api/library/favourites': () => jsonResponse([movie]) })
     renderApp('/movies/m1')
