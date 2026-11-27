@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
 import { probeStream, saveProgress, streamUrl } from '../api/library'
 import { useAuth } from '../auth/AuthContext'
 import { formatClock, formatSpokenTime } from '../format'
@@ -317,6 +317,13 @@ export function VideoPlayer({
     event.preventDefault()
   }
 
+  // The controls never hide while one of them has focus, in the top bar or the bottom bar (UX-04).
+  const chromeFocus = {
+    onFocus: () => setControlsFocused(true),
+    onBlur: (event: FocusEvent<HTMLDivElement>) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setControlsFocused(false)
+    },
+  }
   const controlsHidden = playing && idle && !controlsFocused && !problem
   const shownVolume = muted ? 0 : volume
   const details = problem ? problems[problem] : null
@@ -373,7 +380,7 @@ export function VideoPlayer({
         onError={() => void handleError()}
       />
 
-      <div className={`${styles.topBar} ${styles.chrome}`}>
+      <div className={`${styles.topBar} ${styles.chrome}`} {...chromeFocus}>
         <ButtonLink to={backTo} variant="secondary" className={styles.back}>
           Back
         </ButtonLink>
@@ -404,10 +411,7 @@ export function VideoPlayer({
 
       <div
         className={`${styles.controls} ${styles.chrome}`}
-        onFocus={() => setControlsFocused(true)}
-        onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) setControlsFocused(false)
-        }}
+        {...chromeFocus}
       >
         <input
           className={styles.seek}
