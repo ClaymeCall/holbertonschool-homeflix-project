@@ -177,6 +177,7 @@ HomeFlix is split into at least three Java/Spring Boot business microservices (i
 | Mandatory requirements checklist | [docs/product/requirements.md](docs/product/requirements.md) |
 | Acceptance criteria for the 10 MVP scenarios | [docs/product/acceptance-criteria.md](docs/product/acceptance-criteria.md) |
 | Keyboard and mobile review of the main journeys (K7) | [docs/product/keyboard-and-mobile-review.md](docs/product/keyboard-and-mobile-review.md) |
+| Authorization and data isolation review (K4) | [docs/security/authorization-review.md](docs/security/authorization-review.md) |
 | Out of scope and future extensions | [docs/product/out-of-scope.md](docs/product/out-of-scope.md) |
 | Architecture overview (diagram, boundaries) | [docs/architecture/overview.md](docs/architecture/overview.md) |
 | Technology stack | [docs/architecture/tech-stack.md](docs/architecture/tech-stack.md) |
