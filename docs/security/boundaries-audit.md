@@ -6,7 +6,7 @@ The file and network boundaries of HomeFlix, checked as built (issue K6 #89; SEC
 |---|---|
 | Code reviewed | `main` at `c8dd742`, plus the tests added by K4 and K5 |
 | Stack used for the live checks | Docker Compose, built from that code, on macOS with Docker Desktop |
-| Reviewed by | Thomas Rousseau |
+| Reviewed by | Thomas Rousseau (author); peer review by Clement Callejon on #196 (2026-11-26) |
 | Date | 2026-11-25 |
 
 ## Summary
@@ -54,10 +54,15 @@ docker compose exec -T acquisition-service touch /downloads/.k6-write-test
 | library-service | `/media/library` | `ro` | `touch: cannot touch '/media/library/.k6-write-test': Read-only file system` |
 | library-service | `/media/downloads` | `ro` | `Read-only file system` |
 | acquisition-service | `/downloads` | `ro` | `Read-only file system` |
-| qbittorrent | `/downloads` | `rw` | Writable by `qbittorrent-nox`, which runs as uid 501, the owner of the folder |
+| qbittorrent | `/downloads` | `rw` | Writable by `qbittorrent-nox`, which runs as uid 501 (`PUID` from `.env`; `compose.yaml` defaults to 1000), the owner of the folder |
 | gateway, identity-service | none | | |
 
-No file was created on the host. So HomeFlix cannot modify or delete the source media: removing a title or an account only removes database rows (LIB-12, SEC-07), and a completed download that fails the checks is removed through qBittorrent, the only writer.
+No file was created on the host. So HomeFlix cannot modify or delete the source media: removing a title or an account only removes database rows, and a completed download that fails the checks is removed through qBittorrent, the only writer.
+
+The two other halves of R-03 are covered by tests, which also check that the video file is still there:
+
+- **Removing a title (LIB-12):** `MediaAdminEndpointsTests`: `removingAnEntryDeletesTheRowButNeverTheFile`, `aRemovedEntryDoesNotReappearOnTheNextScan`.
+- **Deleting an account (SEC-07):** library `ProfileDataDeletionTests.theSourceMediaIsNeverDeleted`; identity `AccountDeletionTests.administratorDeletesAnAccountAndTheLibraryDataOfEachProfile` (only the library's profile-data endpoint is called, and the identity service mounts no media folder).
 
 ## Remote URLs (R-17; ACQ-10)
 
@@ -70,7 +75,7 @@ No server fetches a URL that comes from a user or from stored data:
 | Service | Calls | Target |
 |---|---|---|
 | identity | `LibraryClient` (profile data deletion) | `LIBRARY_SERVICE_URL`, default `http://library-service:8082` |
-| library | `ServiceClientFactory` (service-to-service demo) | `IDENTITY_SERVICE_URL`, default `http://identity-service:8081` |
+| library | `ServiceClientFactory` (service-to-service demo, D5; whether to keep it is finding F9, left to K11 #94) | `IDENTITY_SERVICE_URL`, default `http://identity-service:8081` |
 | acquisition | `LibraryClient` (handoff) | `LIBRARY_SERVICE_URL`, default `http://library-service:8082` |
 | acquisition | `QbittorrentClient` | `QBITTORRENT_URL`, `http://qbittorrent:8080` in `compose.yaml` |
 
@@ -88,6 +93,19 @@ No server fetches a URL that comes from a user or from stored data:
 CI runs the same script on every pull request.
 
 The gateway checks (`gateway/tests/check-gateway.sh`, 90 checks, all passed on 2026-11-25) also show that `/actuator` and unknown `/api` paths answer a JSON `404`. `/internal` paths are not routed either ([authorization review](authorization-review.md#direct-calls-to-the-services-r-12)).
+
+## How to reproduce the counts
+
+Run from the root of the repository, the scripts with the local Compose stack running. Last lines of each output, run again on 2026-11-27 with the same results:
+
+```sh
+qbittorrent/check-isolation.sh .env               # 26 lines "PASS ...", then: All checks passed.
+gateway/tests/check-gateway.sh                    # 90 passed, 0 failed
+(cd services/library-service && ./mvnw test)      # Tests run: 370, Failures: 0, Errors: 0, Skipped: 0
+(cd services/acquisition-service && ./mvnw test)  # Tests run: 175, Failures: 0, Errors: 0, Skipped: 0
+```
+
+CI runs the same scripts and suites on every pull request, with the same counts.
 
 ## Findings
 
