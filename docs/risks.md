@@ -125,7 +125,7 @@ These combine a high impact with a real chance of happening, or are directly gra
 | 2026-11-18 | Thomas Rousseau | Torrent client (J4, ADR-0023): login from `.env` (R-18 done), seeding limit (R-16 done for the limit), peer port published (R-21 partly done). |
 | 2026-11-24 | Clement Callejon | Real transfer run and recorded (J10, #83): R-21 updated; setup gap (downloads folder to authorize before the first handoff) logged in [p2p-run.md](acquisition/p2p-run.md). |
 | 2026-11-25 | Thomas Rousseau | Big Buck Bunny and Tears of Steel added to the verified catalogue (#184): R-21 notes that they have a single seeder. |
-| 2026-11-25 | Thomas Rousseau | Demo videos documented with their rights evidence, no poster used (I2, #64): R-14 done. |
 | 2026-11-25 | Thomas Rousseau | Authorization and data isolation review (K4, #87): R-06 and R-12 done. |
 | 2026-11-25 | Thomas Rousseau | Security review (K5, #88): R-09 and R-33 done; secrets scan of the history clean. |
 | 2026-11-25 | Thomas Rousseau | Audit of paths, mounts, remote URLs and the internal network (K6, #89): R-01 to R-04 and R-17 done. |
+| 2026-11-25 | Thomas Rousseau | Demo videos documented with their rights evidence, no poster used (I2, #64): R-14 done. |
