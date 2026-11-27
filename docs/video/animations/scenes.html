@@ -1,0 +1,198 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#0E0E10}
+body{font-family:'Inter',sans-serif;color:#F4F1EA}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden;
+ background:radial-gradient(1300px 760px at 15% -5%,#2c2214 0%,#18140F 48%,#0E0E10 100%)}
+.abs{position:absolute}
+.card{background:#1A1A1E;border:2px solid #45423C;border-radius:24px}
+.hl{border-color:#E8A33D}
+.k{font:700 26px 'Inter';letter-spacing:.18em;text-transform:uppercase;color:#E8A33D}
+.h1{font:800 70px 'Inter Display','Inter';letter-spacing:-.02em;color:#F4F1EA}
+.mono{font-family:'DejaVu Sans Mono',monospace}
+.acc{color:#E8A33D}
+.mut{color:#A6A3A0}
+.bod{color:#D9D5CE}
+</style></head>
+<body><div id="stage"></div>
+<script>
+const NS='http://www.w3.org/2000/svg';
+const st=document.getElementById('stage');
+const ease=x=>1-Math.pow(1-x,3);
+const clamp=x=>Math.max(0,Math.min(1,x));
+const lerp=(a,b,c)=>a+(b-a)*c;
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+let items=[],draws=[],packets=[],hooks=[];
+function el(html,style){const d=document.createElement('div');d.className='abs';d.style.cssText=style||'';d.innerHTML=html;st.appendChild(d);return d}
+function reg(e,s,d,o){o=o||{};items.push({e,s,d:d===undefined?.6:d,dx:o.dx||0,dy:o.dy===undefined?26:o.dy,sc:o.sc||1,out:o.out});e.style.opacity=0;return e}
+function logo(sz){return `<svg width="${sz}" height="${sz}" viewBox="0 0 32 32" style="color:#E8A33D"><path d="M5 15.5 16 5.5l11 10V27H5z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="M13.5 14v9l7.5-4.5z" fill="currentColor"/></svg>`}
+function wordmark(sz){return `<span style="font:900 ${sz}px 'Inter Display','Inter';letter-spacing:-.02em">Home<span class="acc">Flix</span></span>`}
+function svgLayer(){const s=document.createElementNS(NS,'svg');s.setAttribute('width',1920);s.setAttribute('height',1080);s.style.cssText='position:absolute;left:0;top:0;pointer-events:none';
+ s.innerHTML=`<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#E8A33D"/></marker><marker id="ag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#A6A3A0"/></marker></defs>`;st.appendChild(s);return s}
+let SV=null;
+function path(d,s,dur,o){o=o||{};const p=document.createElementNS(NS,'path');p.setAttribute('d',d);p.setAttribute('fill','none');p.setAttribute('stroke',o.color||'#E8A33D');p.setAttribute('stroke-width',o.w||4);p.setAttribute('stroke-linecap','round');
+ if(o.dash){p.setAttribute('stroke-dasharray',o.dash)}SV.appendChild(p);const len=p.getTotalLength();
+ draws.push({p,s,d:dur===undefined?.8:dur,len,dashed:!!o.dash,arrow:o.arrow===undefined?true:o.arrow,mk:o.color==='#A6A3A0'?'ag':'ah'});p.style.opacity=0;return p}
+function packet(p,s,dur,col){const c=document.createElementNS(NS,'circle');c.setAttribute('r',10);c.setAttribute('fill',col||'#F4F1EA');c.style.opacity=0;SV.appendChild(c);packets.push({p,c,s,dur,len:p.getTotalLength()})}
+function txt(html,x,y,css,s,d,o){return reg(el(html,`left:${x}px;top:${y}px;${css}`),s,d,o)}
+function box(x,y,w,h,html,s,o){o=o||{};return reg(el(html,`left:${x}px;top:${y}px;width:${w}px;height:${h}px;${o.css||''}`),s,o.d,o)}
+function header(k,t){txt(k,120,64,'',0,.01).className='abs k';
+ const h=el(t,'left:120px;top:100px');h.className='abs h1';reg(h,0.2,.7);
+ const lg=el(logo(54)+`<span style="margin-left:12px;vertical-align:14px">${wordmark(34)}</span>`,'right:110px;top:58px;display:flex;align-items:center');lg.style.left='auto';reg(lg,0.4,.6,{dy:0})}
+
+function renderAt(t){
+ let key='';
+ for(const it of items){const p=ease(clamp((t-it.s)/it.d));let q=1;if(it.out!==undefined)q=1-ease(clamp((t-it.out)/.5));
+  const o=p*q;it.e.style.opacity=o.toFixed(3);it.e.style.transform=`translate(${(it.dx*(1-p)).toFixed(1)}px,${(it.dy*(1-p)).toFixed(1)}px) scale(${(1+(it.sc-1)*(1-p)).toFixed(4)})`;key+=o.toFixed(3)+'|'}
+ for(const d of draws){const p=ease(clamp((t-d.s)/d.d));
+  if(d.dashed){d.p.style.opacity=p.toFixed(3)}else{d.p.style.opacity=p>0.001?1:0;d.p.style.strokeDasharray=d.len;d.p.style.strokeDashoffset=(d.len*(1-p)).toFixed(1)}
+  if(d.arrow){d.p.setAttribute('marker-end',p>=0.999?`url(#${d.mk})`:'')}key+=p.toFixed(3)+'|'}
+ for(const k of packets){const r=(t-k.s)/k.dur;if(r<0||r>1){k.c.style.opacity=0;key+='x';continue}
+  const pt=k.p.getPointAtLength(k.len*ease(r));k.c.setAttribute('cx',pt.x);k.c.setAttribute('cy',pt.y);k.c.style.opacity=1;key+=r.toFixed(4)+'|'}
+ for(const h of hooks){key+=h(t)}
+ return key}
+
+const S={};
+/* ---------- INTRO (14s) ---------- */
+S.intro={dur:14,build(){
+ const names=['film_final_v2.mkv','Vacances_2019_FINAL.mp4','sintel(1).avi','IMG_0042.MOV','serie_S01E03.mkv','mariage_Lucie.mp4','copie de copie.mp4','documentaire_old.avi','backup/films/…','telechargement (3).mp4','film_famille_noel.mov','Nouveau dossier (2)','D:\\Videos\\divers\\…','NAS/films/a_trier'];
+ const r=mulberry(11);
+ const pills=names.map((n,i)=>{const w=n.length*17+56;const x=60+r()*(1920-w-120),y=90+r()*860,vx=(r()-.5)*46,vy=(r()-.5)*32;
+  const e=el(n,`font:500 32px 'Inter';padding:14px 26px;border:2px solid #45423C;border-radius:14px;background:#1A1A1E;color:#A6A3A0;white-space:nowrap;opacity:0`);return{e,x,y,vx,vy,w,i}});
+ hooks.push(t=>{let k='';for(const p of pills){const a=clamp((t-p.i*.1)/.7);let x=p.x+p.vx*Math.min(t,5.5),y=p.y+p.vy*Math.min(t,5.5);
+   const c=ease(clamp((t-5.6)/1.2));x=lerp(x,960-p.w/2,c);y=lerp(y,500,c);const o=a*(1-ease(clamp((t-6.4)/.6)));
+   p.e.style.left=x.toFixed(1)+'px';p.e.style.top=y.toFixed(1)+'px';p.e.style.opacity=o.toFixed(3);p.e.style.transform=`scale(${(1-.55*c).toFixed(3)})`;k+=x.toFixed(1)+y.toFixed(1)+o.toFixed(2)}return k});
+ txt('Vos films sont quelque part…',0,960,'width:1920px;text-align:center;font:600 40px Inter;color:#A6A3A0',1,.8,{out:5.6});
+ const lg=el(logo(190)+`<span style="margin-left:34px">${wordmark(210)}</span>`,'left:0;top:330px;width:1920px;display:flex;justify-content:center;align-items:center');reg(lg,6.0,1,{sc:.7,dy:0});
+ txt('Votre cinéma maison. Chez vous.',0,600,'width:1920px;text-align:center;font:700 64px "Inter Display";color:#F4F1EA',8.8,.8);
+ txt('Streaming auto-hébergé · pour toute la famille',0,700,'width:1920px;text-align:center;font:500 38px Inter;color:#A6A3A0',10.6,.8);
+}};
+/* ---------- VALEUR (20s) ---------- */
+S.value={dur:20,build(){
+ txt('Pourquoi HomeFlix',120,64,'',0,.01).className='abs k';
+ const h=el('Le cinéma maison, simplement','left:120px;top:100px');h.className='abs h1';reg(h,.2,.7);
+ const cards=[['01','Chez vous','Vos films et vos comptes restent sur votre machine. Le dossier vidéo est monté en lecture seule : HomeFlix n’y touche jamais.',2.0],
+  ['02','Un profil par personne','Chacun retrouve ses favoris et reprend sa lecture exactement là où il s’était arrêté.',7.0],
+  ['03','Simple à lancer','Toute la plateforme démarre avec Docker Compose : un PC, un serveur ou un NAS suffisent.',12.0]];
+ cards.forEach((c,i)=>box(120+i*580,270,520,520,`<div style="font:900 90px 'Inter Display';color:#E8A33D;line-height:1">${c[0]}</div><div style="font:800 46px 'Inter Display';margin:26px 0 20px;line-height:1.1">${c[1]}</div><div style="font:400 31px/1.45 Inter;color:#D9D5CE">${c[2]}</div>`,c[3],{css:'padding:44px;background:#1A1A1E;border:2px solid #45423C;border-radius:24px'}));
+ txt('docker compose up --build',120,850,'font:600 40px "DejaVu Sans Mono";color:#E8A33D;padding:22px 34px;background:#18140F;border:2px solid #45423C;border-radius:16px',15,.7);
+ txt('Aucun abonnement. Aucun compte chez un tiers.',700,872,'font:600 36px Inter;color:#D9D5CE',16.5,.7);
+}};
+/* ---------- DIVIDER (4s) ---------- */
+S.divider={dur:4,build(){
+ txt('PARTIE 2',0,330,'width:1920px;text-align:center;font:700 34px Inter;letter-spacing:.3em;color:#E8A33D',.1,.6);
+ txt('Comment HomeFlix est construit',0,400,'width:1920px;text-align:center;font:900 112px "Inter Display";letter-spacing:-.02em',.4,.8);
+ txt(logo(80),0,640,'width:1920px;display:flex;justify-content:center',1.0,.6,{dy:0});
+}};
+/* ---------- CONCEPTION (40s) ---------- */
+S.design={dur:40,build(){
+ header('Conception','De l’idée au projet');
+ const c=[['1','Besoins et parcours','2 profils (administrateur, membre du foyer) et 4 parcours : installer, regarder, ajouter un film, gérer.',2.0],
+  ['2','25 décisions écrites','Chaque choix d’architecture est un ADR : contexte, décision, alternatives écartées.',10.0],
+  ['3','Contrats d’API d’abord','OpenAPI écrit à la main avant le code : front et services avancent en parallèle.',20.0],
+  ['4','Issues et pull requests','Une tâche = une issue = une branche. Chaque changement est relu par un autre membre.',30.0]];
+ c.forEach((x,i)=>box(120+i*430,250,390,480,`<div style="font:900 80px 'Inter Display';color:#E8A33D;line-height:1">${x[0]}</div><div style="font:800 40px/1.1 'Inter Display';margin:22px 0 18px">${x[1]}</div><div style="font:400 26px/1.45 Inter;color:#D9D5CE">${x[2]}</div>`,x[3],{css:'padding:38px;background:#1A1A1E;border:2px solid #45423C;border-radius:24px'}));
+ box(120,770,1680,190,`<div class="k" style="font-size:22px">Exemple · ADR-0008 · REST synchrone</div><div style="font:500 34px/1.4 Inter;margin-top:14px;color:#F4F1EA">Alternative écartée : un broker de messages (RabbitMQ, Kafka). Plus découplé, mais trop d’infrastructure pour un MVP de deux semaines.</div>`,14,{css:'padding:34px 44px;background:#18140F;border:2px solid #E8A33D;border-radius:24px'});
+}};
+/* ---------- STACK (40s) ---------- */
+S.stack={dur:40,build(){
+ header('Stack technique','Des choix, pas une liste');
+ const rows=[['Interface','React · Vite · TypeScript','Le plus grand écosystème, idéal pour une équipe qui apprend vite. Vite : build et serveur de dev rapides.',2.0],
+  ['Services','Java 21 · Spring Boot · Maven','Imposé par le sujet. Un seul langage et un seul outil de build pour les 3 services. Maven est le plus documenté.',11.0],
+  ['Données','PostgreSQL · Flyway','Standard avec Spring Boot. Flyway versionne le schéma : la base se recrée à l’identique.',23.0],
+  ['Déploiement','Docker Compose · Nginx','Un fichier démarre toute la plateforme, même sur un NAS. Nginx : point d’entrée unique.',30.0]];
+ rows.forEach((r,i)=>box(120,250+i*185,1680,160,`<div class="k" style="position:absolute;left:44px;top:56px;width:250px;font-size:24px">${r[0]}</div><div style="position:absolute;left:310px;top:44px;width:760px;font:800 42px/1.15 'Inter Display'">${r[1]}</div><div style="position:absolute;left:1090px;top:30px;width:560px;font:400 26px/1.4 Inter;color:#D9D5CE">${r[2]}</div>`,r[3],{css:'background:#1A1A1E;border:2px solid #45423C;border-radius:24px'}));
+}};
+/* ---------- ARCHITECTURE (45s) ---------- */
+S.arch={dur:45,build(){
+ SV=svgLayer();
+ const k=txt('Architecture',120,40,'',0,.01);k.className='abs k';
+ const lg=el(logo(54)+`<span style="margin-left:12px;vertical-align:14px">${wordmark(34)}</span>`,'right:110px;top:36px;display:flex;align-items:center');lg.style.left='auto';reg(lg,.4,.6,{dy:0});
+ const B=(x,y,w,h,t,sub,s,o)=>box(x,y,w,h,`<div style="font:800 30px 'Inter Display';line-height:1.1">${t}</div><div style="font:400 24px/1.35 Inter;color:#A6A3A0;margin-top:8px">${sub}</div>`,s,{css:`padding:22px 26px;background:#1A1A1E;border:2px solid ${o&&o.hl?'#E8A33D':'#45423C'};border-radius:20px`});
+ B(100,430,240,150,'Navigateur','interface React',2);
+ B(430,380,250,250,'Passerelle Nginx','seul port exposé<br>sert l’interface<br>route /api/*',4,{hl:1});
+ B(820,150,320,160,'identity-service','comptes · profils · rôles',7);
+ B(820,370,320,160,'library-service','catalogue · lecture',8);
+ B(820,590,320,160,'acquisition-service','téléchargements P2P',9);
+ // postgres frame
+ box(1240,95,400,700,`<div class="k" style="font-size:22px;position:absolute;left:30px;top:20px">PostgreSQL</div>`,12,{css:'border:2px dashed #45423C;border-radius:26px'});
+ const D=(y,t,s)=>box(1280,y,320,130,`<div style="font:700 32px 'DejaVu Sans Mono';color:#E8A33D">${t}</div>`,s,{css:'padding:46px 30px;background:#18140F;border:2px solid #45423C;border-radius:50px/26px'});
+ D(165,'identity_db',13);D(385,'library_db',13.6);D(605,'acquisition_db',14.2);
+ txt('une base et un utilisateur par service',1250,808,'font:500 22px Inter;color:#A6A3A0;width:380px',14.6,.6);
+ // p2p net
+ box(790,800,380,190,`<div class="k" style="font-size:20px;position:absolute;left:24px;bottom:12px;letter-spacing:.1em">réseau privé « p2p »</div>`,19,{css:'border:2px dashed #45423C;border-radius:26px'});
+ B(820,815,320,115,'qBittorrent','client BitTorrent',19.5);
+ // paths
+ const pb=path('M340,505 H430',4.2,.6);
+ const pi=path('M680,470 C750,470 760,230 820,230',7.4,.7);
+ const pl=path('M680,500 C750,500 760,450 820,450',8.4,.7);
+ const pa=path('M680,530 C750,530 760,670 820,670',9.4,.7);
+ path('M1140,230 H1280',13,.5,{color:'#A6A3A0'});path('M1140,450 H1280',13.6,.5,{color:'#A6A3A0'});path('M1140,670 H1280',14.2,.5,{color:'#A6A3A0'});
+ path('M980,750 V815',19.6,.5);
+ txt('Web API',995,764,'font:500 20px Inter;color:#A6A3A0',20,.5);
+ const l1=path('M1100,310 V370',23,.5);const l2=path('M1100,590 V530',24,.5);
+ txt('suppression d’un profil',830,326,'font:500 20px Inter;color:#A6A3A0;width:260px;text-align:right',23.4,.5);
+ txt('remise du fichier',830,552,'font:500 20px Inter;color:#A6A3A0;width:260px;text-align:right',24.4,.5);
+ // packets
+ packet(pb,16,.7);packet(pl,16.6,.9);packet(pl,17.6,.9,'#E8A33D');packet(pa,18.2,.9);
+ // JWT card
+ box(100,660,640,270,`<div class="k" style="font-size:22px">Sécurité</div><div style="font:500 24px/1.42 Inter;margin-top:12px;color:#F4F1EA">identity signe un jeton <b class="acc">JWT RS256</b> (cookie HttpOnly).<br>Les autres services n’ont que la <b class="acc">clé publique</b> : ils vérifient seuls, sans rappeler identity.</div>`,31,{css:'padding:26px 32px;background:#18140F;border:2px solid #E8A33D;border-radius:22px'});
+ txt('Entre services : REST synchrone, un <b class="acc">X-Service-Token</b> par appelant',100,950,'font:500 22px Inter;color:#D9D5CE;width:640px',37,.7);
+}};
+/* ---------- BDD (25s) ---------- */
+S.db={dur:25,build(){
+ SV=svgLayer();
+ header('Base de données','Une base par service');
+ const T=(t,rows)=>`<div style="font:700 25px 'DejaVu Sans Mono';color:#E8A33D;margin-top:14px">${t}</div><div style="font:400 21px/1.35 'DejaVu Sans Mono';color:#D9D5CE">${rows}</div>`;
+ const card=(x,name,body,s)=>box(x,320,540,540,`<div style="font:800 38px 'Inter Display';padding-bottom:10px;border-bottom:2px solid #45423C">${name}</div>${body}`,s,{css:'padding:26px 30px;background:#1A1A1E;border:2px solid #45423C;border-radius:24px;overflow:hidden'});
+ card(100,'identity_db',T('account','id · email · password_hash<br>is_admin · disabled')+T('profile','id · account_id · name'),2);
+ card(690,'library_db',T('media_root · media_file','chemins du dossier vidéo')+T('media_item','title · availability · …')+T('genre · media_item_genre','')+T('favourite','profile_id · media_item_id')+T('progress','profile_id · media_item_id<br>position_seconds'),6);
+ card(1280,'acquisition_db',T('acquisition_entry','title · licence · source_url<br>download_source (jamais exposé)')+T('download_job','entry_id · state<br>progress_percent · started_by'),10);
+ path('M900,320 C900,230 600,230 400,320',14,.9,{color:'#E8A33D',dash:'14 10',arrow:true});
+ path('M1500,320 C1500,230 1200,230 1000,320',17,.9,{color:'#E8A33D',dash:'14 10',arrow:true});
+ txt('profile_id : un simple UUID, pas de clé étrangère',420,192,'font:600 25px Inter;color:#E8A33D',14.8,.6);
+ txt('acquisition_entry_id',1180,192,'font:600 25px Inter;color:#E8A33D',17.8,.6);
+ txt('Un service ne peut pas lire les tables d’un autre : bases et utilisateurs séparés.',120,925,'font:600 32px Inter;color:#F4F1EA',21,.7);
+}};
+/* ---------- STREAMING + P2P (35s) ---------- */
+S.stream={dur:35,build(){
+ SV=svgLayer();
+ header('Streaming et pair-à-pair','Lire, et télécharger');
+ const X=(x,y,w,h,t,sub,s,hl)=>box(x,y,w,h,`<div style="font:800 32px/1.1 'Inter Display'">${t}</div><div style="font:400 23px/1.35 Inter;color:#A6A3A0;margin-top:8px">${sub}</div>`,s,{css:`padding:20px 24px;background:#1A1A1E;border:2px solid ${hl?'#E8A33D':'#45423C'};border-radius:20px`});
+ txt('Lecture',100,225,'font:700 24px Inter;letter-spacing:.18em;text-transform:uppercase;color:#E8A33D',1.2,.5);
+ X(100,280,220,140,'Navigateur','balise &lt;video&gt;',1.6);X(560,280,220,140,'Nginx','sans cache',2.2);X(1020,280,240,140,'library','lit et renvoie',2.8);X(1440,280,380,140,'Fichier MP4','H.264 + AAC · lecture seule',3.4,1);
+ const a=path('M320,350 H560',4.2,.5),b=path('M780,350 H1020',4.5,.5),c=path('M1260,350 H1440',4.8,.5);
+ txt('Range: bytes=…',350,305,'font:500 19px "DejaVu Sans Mono";color:#A6A3A0',5,.5);
+ txt('206 Partial Content',340,375,'font:500 18px "DejaVu Sans Mono";color:#E8A33D',6.2,.5);
+ packet(a,7,.8);packet(b,7.7,.8);packet(c,8.4,.8);
+ txt('On saute dans le film sans tout télécharger · la progression est sauvée toutes les quelques secondes',100,455,'font:500 28px Inter;color:#D9D5CE',9.5,.7);
+ txt('Téléchargement P2P',100,545,'font:700 24px Inter;letter-spacing:.18em;text-transform:uppercase;color:#E8A33D',14,.5);
+ const steps=[['Catalogue vérifié','films libres de droits, avec rappel'],['acquisition-service','crée la tâche, pilote qBittorrent'],['qBittorrent','échange avec les pairs, réseau privé'],['Dossier downloads','le fichier est écrit sur disque'],['Vérification','checksum du fichier reçu'],['library-service','notifié en REST, indexe : AVAILABLE']];
+ steps.forEach((s,i)=>{const x=100+i*288;box(x,600,250,250,`<div style="font:900 40px 'Inter Display';color:#E8A33D;line-height:1">${i+1}</div><div style="font:800 25px/1.15 'Inter Display';margin:12px 0 8px">${s[0]}</div><div style="font:400 21px/1.35 Inter;color:#A6A3A0">${s[1]}</div>`,15+i*2.6,{css:`padding:22px 22px;background:#1A1A1E;border:2px solid ${i==5?'#E8A33D':'#45423C'};border-radius:20px`});
+  if(i<5)path(`M${x+250},715 H${x+288}`,15.8+i*2.6,.4,{w:3})});
+ txt('Essai réel : <b class="acc">Sintel</b> · 123 Mo · 3 min 42 s · lisible ensuite avec seek',100,900,'font:600 32px Inter;color:#F4F1EA',30,.7);
+}};
+/* ---------- AGENT IA (20s) ---------- */
+S.agent={dur:20,build(){
+ header('Conception assistée','Le rôle de l’agent IA');
+ box(100,250,780,580,`<div style="font:800 40px/1.1 'Inter Display'">Relecteur de cohérence</div><div style="font:400 29px/1.45 Inter;color:#D9D5CE;margin-top:18px">Il compare ce que le projet <b>dit</b> (README, contrats OpenAPI, critères d’acceptation) à ce que le code <b>fait</b>.</div><div style="font:600 28px Inter;color:#F4F1EA;margin-top:34px;line-height:2.1"><span class="acc">✓</span> lecture seule<br><span class="acc">✓</span> aucune exécution, aucun réseau<br><span class="acc">✓</span> aucun accès aux secrets<br><span class="acc">✓</span> il ne code pas</div>`,1.5,{css:'padding:40px 44px;background:#1A1A1E;border:2px solid #45423C;border-radius:24px'});
+ box(940,250,880,330,`<div class="k" style="font-size:22px">Rapport 001 · 10 constats</div><div style="font:500 28px/1.4 Inter;margin-top:10px;color:#D9D5CE">1 haute · 6 moyennes · 3 faibles</div><div style="margin-top:22px;padding:20px 24px;background:#18140F;border-radius:16px;font:400 24px/1.45 Inter;color:#D9D5CE"><b class="acc">Doc :</b> « seule la passerelle publie un port »<br><b class="acc">Code :</b> compose.yaml publie aussi le port pair de qBittorrent<br><b class="acc">→</b> corriger la doc</div>`,6,{css:'padding:34px 40px;background:#1A1A1E;border:2px solid #E8A33D;border-radius:24px'});
+ const fl=[['Rapport','fichier · ligne · gravité'],['Humain','accepté · rejeté · reporté'],['Pull request','relue comme le reste']];
+ fl.forEach((f,i)=>{box(940+i*302,630,276,200,`<div style="font:800 32px 'Inter Display'">${f[0]}</div><div style="font:400 24px/1.4 Inter;color:#A6A3A0;margin-top:10px">${f[1]}</div>`,11+i*2,{css:'padding:28px 26px;background:#1A1A1E;border:2px solid #45423C;border-radius:22px'})});
+ txt('Rien n’est modifié sur la seule parole de l’agent.',940,865,'font:600 28px Inter;color:#F4F1EA',17,.7);
+}};
+/* ---------- OUTRO (15s) ---------- */
+S.outro={dur:15,build(){
+ txt('Où en est HomeFlix',120,64,'',0,.01).className='abs k';
+ const h=el('Ce qui marche, et la suite','left:120px;top:100px');h.className='abs h1';reg(h,.2,.7);
+ box(120,270,820,480,`<div style="font:800 40px 'Inter Display';color:#E8A33D">Fonctionne déjà</div><div style="font:500 31px/1.75 Inter;margin-top:14px">✓ Comptes et profils<br>✓ Indexation sans doublon<br>✓ Catalogue, recherche, Ma liste<br>✓ Lecture avec reprise<br>✓ Téléchargement P2P vérifié</div>`,1.5,{css:'padding:40px 46px;background:#1A1A1E;border:2px solid #E8A33D;border-radius:24px'});
+ box(980,270,820,480,`<div style="font:800 40px 'Inter Display';color:#A6A3A0">Pas encore</div><div style="font:500 31px/1.75 Inter;margin-top:14px;color:#A6A3A0">Transcodage · séries<br>Recommandations<br>Contrôle parental<br>Applications mobile et TV<br>Accès depuis Internet</div>`,4,{css:'padding:40px 46px;background:#1A1A1E;border:2px solid #45423C;border-radius:24px'});
+ const lg=el(logo(90)+`<span style="margin-left:22px">${wordmark(100)}</span>`,'left:0;top:800px;width:1920px;display:flex;justify-content:center;align-items:center');reg(lg,7.5,.9,{dy:0,sc:.85});
+ txt('Merci !',0,940,'width:1920px;text-align:center;font:600 40px Inter;color:#D9D5CE',9,.7);
+}};
+
+window.load=function(name){items=[];draws=[];packets=[];hooks=[];SV=null;st.innerHTML='';S[name].build();return S[name].dur};
+window.renderAt=renderAt;
+</script></body></html>
